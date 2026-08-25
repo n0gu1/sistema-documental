@@ -47,5 +47,5 @@ urlpatterns = [
 ]
 
 urlpatterns += [
-    re_path(r'^(?!api/).*$', serve_react, name='react'),
+    re_path(r'^(?!api/|static/).*$', serve_react, name='react'),
 ]
