@@ -1,19 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include, re_path
-from django.conf import settings
-from django.http import HttpResponse
-import os
-
-
-def serve_react(request, path=''):
-    """Sirve archivos estáticos de React y el SPA."""
-    index_path = os.path.join(settings.BASE_DIR, 'frontend', 'dist', 'index.html')
-    try:
-        with open(index_path, 'r') as f:
-            content = f.read()
-        return HttpResponse(content, content_type='text/html')
-    except FileNotFoundError:
-        return HttpResponse('<h1>Frontend not built</h1>', status=500)
+from django.views.generic import TemplateView
 
 
 urlpatterns = [
@@ -21,7 +8,7 @@ urlpatterns = [
     path('api/', include('documentos.urls')),
 ]
 
-# React SPA catch-all
+# React SPA: WhiteNoise sirve /static/ automaticamente antes de llegar aqui
 urlpatterns += [
-    re_path(r'^(?!api/).*$', serve_react, name='react'),
+    re_path(r'^(?!api/|static/).*$', TemplateView.as_view(template_name='index.html'), name='react'),
 ]
