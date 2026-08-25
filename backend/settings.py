@@ -52,7 +52,7 @@ ROOT_URLCONF = 'backend.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'frontend' / 'dist'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -66,7 +66,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-# Database - PostgreSQL en produccion
+# Database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -88,17 +88,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Static files
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'frontend' / 'dist'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
-
-# React build
-REACT_APP_DIR = BASE_DIR / 'frontend' / 'dist'
-TEMPLATES[0]['DIRS'] = [REACT_APP_DIR]
-
-# Additional locations the staticfiles app will traverse
-STATICFILES_DIRS = [
-]
+WHITENOISE_INDEX_FILE = True
 
 # Default primary key
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
