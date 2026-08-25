@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: sistema-documental
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: sistema-documental.onrender.com
+      - key: DB_NAME
+        fromDatabase:
+          name: sistema-documental-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: sistema-documental-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: sistema-documental-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: sistema-documental-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: sistema-documental-db
+          property: port
+    plan: free
+    region: oregon
+
+databases:
+  - name: sistema-documental-db
+    plan: free
+    databaseName: sistema_documental
