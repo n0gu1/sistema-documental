@@ -87,13 +87,18 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Static files
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # React build
 REACT_APP_DIR = BASE_DIR / 'frontend' / 'dist'
 TEMPLATES[0]['DIRS'] = [REACT_APP_DIR]
+
+# Additional locations the staticfiles app will traverse
+STATICFILES_DIRS = [
+    REACT_APP_DIR,
+]
 
 # Default primary key
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
