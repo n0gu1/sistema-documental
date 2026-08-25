@@ -9,8 +9,7 @@
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.dashboard-shell button,
-.dashboard-shell input {
+:where(.dashboard-shell button, .dashboard-shell input) {
   font: inherit;
 }
 
