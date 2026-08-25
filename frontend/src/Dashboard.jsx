@@ -1,6 +1,7 @@
 import { useDeferredValue, useState } from 'react'
 import AuditView from './AuditView'
 import DocumentsView from './DocumentsView'
+import ReportsView from './ReportsView'
 import RolesView from './RolesView'
 import UsersView from './UsersView'
 import VersionsView from './VersionsView'
@@ -109,7 +110,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
         <nav className="dashboard-nav" aria-label="Navegación principal">
           <p>Administración</p>
           {navigation.map(([icon, label], index) => (
-            <button className={activeView === icon ? 'dashboard-nav__item dashboard-nav__item--active' : 'dashboard-nav__item'} type="button" key={label} title={index < 6 ? label : `${label}: disponible próximamente`} onClick={() => { if (index < 6) setActiveView(icon); setSidebarOpen(false) }}>
+            <button className={activeView === icon ? 'dashboard-nav__item dashboard-nav__item--active' : 'dashboard-nav__item'} type="button" key={label} title={index < 7 ? label : `${label}: disponible próximamente`} onClick={() => { if (index < 7) setActiveView(icon); setSidebarOpen(false) }}>
               <Icon name={icon} size={21} />
               <span>{label}</span>
               {label === 'Bitácora' && activeView !== 'clipboard' && <small>8</small>}
@@ -154,7 +155,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
 
         <div className="dashboard-content">
           {error && <p className="dashboard-error" role="alert">{error}</p>}
-          {activeView === 'document' ? <DocumentsView globalQuery={query} today={today} onOpenVersions={() => setActiveView('layers')} /> : activeView === 'layers' ? <VersionsView onBack={() => setActiveView('document')} /> : activeView === 'users' ? <UsersView globalQuery={query} /> : activeView === 'shield' ? <RolesView globalQuery={query} /> : activeView === 'clipboard' ? <AuditView globalQuery={query} /> : <>
+          {activeView === 'document' ? <DocumentsView globalQuery={query} today={today} onOpenVersions={() => setActiveView('layers')} /> : activeView === 'layers' ? <VersionsView onBack={() => setActiveView('document')} /> : activeView === 'users' ? <UsersView globalQuery={query} /> : activeView === 'shield' ? <RolesView globalQuery={query} /> : activeView === 'clipboard' ? <AuditView globalQuery={query} /> : activeView === 'chart' ? <ReportsView globalQuery={query} /> : <>
           <div className="dashboard-heading">
             <div>
               <p>Vista general</p>
