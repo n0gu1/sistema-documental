@@ -88,8 +88,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Static files
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'frontend' / 'dist'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
 
 # React build
 REACT_APP_DIR = BASE_DIR / 'frontend' / 'dist'
@@ -97,7 +98,6 @@ TEMPLATES[0]['DIRS'] = [REACT_APP_DIR]
 
 # Additional locations the staticfiles app will traverse
 STATICFILES_DIRS = [
-    REACT_APP_DIR,
 ]
 
 # Default primary key
