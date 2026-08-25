@@ -89,8 +89,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-WHITENOISE_ROOT = BASE_DIR / 'frontend' / 'dist'
-WHITENOISE_INDEX_FILE = True
+STATICFILES_DIRS = [
+    BASE_DIR / 'frontend' / 'dist',
+]
 
 # Default primary key
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
