@@ -58,7 +58,7 @@ function SelectFilter({ label, value, onChange, options }) {
   )
 }
 
-function DocumentsView({ globalQuery, today }) {
+function DocumentsView({ globalQuery, today, onOpenVersions }) {
   const [search, setSearch] = useState('')
   const [type, setType] = useState('Todas')
   const [area, setArea] = useState('Todas')
@@ -147,7 +147,7 @@ function DocumentsView({ globalQuery, today }) {
                   <td><span className={`documents-state documents-state--${document.status.toLowerCase().replace(' ', '-').replace('ó', 'o')}`}>{document.status}</span></td>
                   <td>{document.version}</td>
                   <td><span className="documents-updated"><strong>{document.date} {document.time}</strong><small>por {document.owner}</small></span></td>
-                  <td><div className="documents-row-actions"><button type="button" aria-label={`Ver ${document.title}`}><DocumentViewIcon name="eye" size={16} /></button><button type="button" aria-label={`Editar ${document.title}`}><DocumentViewIcon name="edit" size={16} /></button><button type="button" aria-label={`Duplicar ${document.title}`}><DocumentViewIcon name="copy" size={16} /></button><button type="button" aria-label={`Compartir ${document.title}`}><DocumentViewIcon name="share" size={16} /></button><button type="button" aria-label={`Más acciones para ${document.title}`}><DocumentViewIcon name="more" size={16} /></button></div></td>
+                  <td><div className="documents-row-actions"><button type="button" aria-label={`Ver ${document.title}`}><DocumentViewIcon name="eye" size={16} /></button><button type="button" aria-label={`Editar ${document.title}`}><DocumentViewIcon name="edit" size={16} /></button><button type="button" title="Ver historial de versiones" aria-label={`Ver versiones de ${document.title}`} onClick={onOpenVersions}><DocumentViewIcon name="copy" size={16} /></button><button type="button" aria-label={`Compartir ${document.title}`}><DocumentViewIcon name="share" size={16} /></button><button type="button" aria-label={`Más acciones para ${document.title}`}><DocumentViewIcon name="more" size={16} /></button></div></td>
                 </tr>
               ))}
             </tbody>
