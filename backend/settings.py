@@ -39,6 +39,11 @@ MIDDLEWARE = [
 
 # CORS
 CORS_ALLOWED_ORIGINS = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173').split(',')
+CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = os.environ.get(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost:5173',
+).split(',')
 
 # i18n
 LANGUAGE_CODE = 'es-es'
@@ -77,6 +82,38 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
+
+# Document management authentication
+AUTH_COOKIE_NAME = 'sd_session'
+AUTH_COOKIE_SECURE = os.environ.get('AUTH_COOKIE_SECURE', str(not DEBUG)).lower() == 'true'
+AUTH_SESSION_HOURS = int(os.environ.get('AUTH_SESSION_HOURS', '12'))
+AUTH_REMEMBER_DAYS = int(os.environ.get('AUTH_REMEMBER_DAYS', '30'))
+AUTH_MAX_FAILED_ATTEMPTS = int(os.environ.get('AUTH_MAX_FAILED_ATTEMPTS', '5'))
+AUTH_LOCK_MINUTES = int(os.environ.get('AUTH_LOCK_MINUTES', '15'))
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'documentos.authentication.CookieTokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'documentos.permissions.IsAuthenticatedAndPasswordCurrent',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'login': '10/min',
+        'change_password': '5/hour',
+    },
+}
+
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

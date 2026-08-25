@@ -12,25 +12,15 @@ services:
       - key: ALLOWED_HOSTS
         value: sistema-documental.onrender.com
       - key: DB_NAME
-        fromDatabase:
-          name: sistema-documental-db
-          property: database
+        sync: false
       - key: DB_USER
-        fromDatabase:
-          name: sistema-documental-db
-          property: user
+        sync: false
       - key: DB_PASSWORD
-        fromDatabase:
-          name: sistema-documental-db
-          property: password
+        sync: false
       - key: DB_HOST
-        fromDatabase:
-          name: sistema-documental-db
-          property: host
+        sync: false
       - key: DB_PORT
-        fromDatabase:
-          name: sistema-documental-db
-          property: port
+        sync: false
     plan: free
     region: oregon
 

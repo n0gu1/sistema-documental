@@ -354,6 +354,76 @@ button {
   outline-offset: 3px;
 }
 
+.submit-button:disabled {
+  cursor: wait;
+  filter: grayscale(.18);
+  opacity: .7;
+  transform: none;
+}
+
+.submit-button--secondary {
+  margin-top: 24px;
+  color: #0b61c4;
+  background: #eef5fd;
+  border: 1px solid #c7ddf6;
+  box-shadow: none;
+}
+
+.form-message {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  border-radius: 7px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.form-message--error {
+  color: #9b1c1c;
+  background: #fff1f1;
+  border: 1px solid #f2caca;
+}
+
+.session-summary {
+  margin-top: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #62728b;
+}
+
+.session-summary strong {
+  margin-top: 17px;
+  color: #071a37;
+  font-size: 20px;
+}
+
+.session-summary > span {
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.session-avatar {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(145deg, #0b61c4, #4b96e9);
+  border: 5px solid #edf5ff;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: 750;
+  letter-spacing: .04em;
+}
+
+.session-role {
+  padding: 5px 11px;
+  color: #0b61c4;
+  background: #edf5ff;
+  border-radius: 999px;
+  font-weight: 650;
+}
+
 .card-trust {
   margin-top: 27px;
   color: #6d7e96;

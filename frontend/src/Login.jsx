@@ -1,5 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './Login.css'
+
+function errorMessage(data) {
+  if (typeof data?.detail === 'string') return data.detail
+  for (const value of Object.values(data || {})) {
+    if (Array.isArray(value) && value.length) return String(value[0])
+  }
+  return 'No fue posible completar la solicitud.'
+}
+
+async function apiRequest(path, { method = 'GET', body } = {}) {
+  const headers = {}
+  if (body) headers['Content-Type'] = 'application/json'
+
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const csrfResponse = await fetch('/api/auth/csrf/', { credentials: 'include' })
+    if (!csrfResponse.ok) throw new Error('No fue posible iniciar la conexión segura.')
+    const csrfData = await csrfResponse.json()
+    headers['X-CSRFToken'] = csrfData.csrf_token
+  }
+
+  const response = await fetch(path, {
+    method,
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const data = response.status === 204 ? null : await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(errorMessage(data))
+  return data
+}
 
 function Brand({ compact = false }) {
   return (
@@ -137,6 +167,86 @@ function DocumentIllustration() {
 
 function Login() {
   const [showPassword, setShowPassword] = useState(false)
+  const [identity, setIdentity] = useState('')
+  const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
+  const [user, setUser] = useState(null)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    fetch('/api/auth/me/', { credentials: 'include' })
+      .then(async (response) => {
+        if (!response.ok) return null
+        return response.json()
+      })
+      .then((data) => {
+        if (active && data?.user) setUser(data.user)
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [])
+
+  async function handleLogin(event) {
+    event.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      const data = await apiRequest('/api/auth/login/', {
+        method: 'POST',
+        body: { identity, password, remember },
+      })
+      setUser(data.user)
+      setCurrentPassword(password)
+      setPassword('')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handlePasswordChange(event) {
+    event.preventDefault()
+    setError('')
+    setSubmitting(true)
+    try {
+      const data = await apiRequest('/api/auth/change-password/', {
+        method: 'POST',
+        body: {
+          current_password: currentPassword,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        },
+      })
+      setUser(data.user)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleLogout() {
+    setError('')
+    setSubmitting(true)
+    try {
+      await apiRequest('/api/auth/logout/', { method: 'POST' })
+      setUser(null)
+      setIdentity('')
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <main className="login-page">
@@ -169,11 +279,11 @@ function Login() {
           <section className="login-card" aria-labelledby="login-title">
             <Brand compact />
             <div className="login-heading">
-              <h1 id="login-title">Inicio de Sesión</h1>
-              <p>Acceda de forma segura a la plataforma<br />de gestión documental.</p>
+              <h1 id="login-title">{user ? (user.must_change_password ? 'Cambie su contraseña' : 'Sesión iniciada') : 'Inicio de Sesión'}</h1>
+              <p>{user ? (user.must_change_password ? 'Defina una contraseña personal para continuar.' : `Bienvenido, ${user.full_name}.`) : <>Acceda de forma segura a la plataforma<br />de gestión documental.</>}</p>
             </div>
 
-            <form onSubmit={(event) => event.preventDefault()}>
+            {!user && <form onSubmit={handleLogin}>
               <div className="form-field">
                 <label htmlFor="identity">Correo o usuario</label>
                 <div className="input-shell">
@@ -181,7 +291,7 @@ function Login() {
                     <circle cx="12" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.7" />
                     <path d="M5 21v-2.2a5.3 5.3 0 0 1 5.3-5.3h3.4a5.3 5.3 0 0 1 5.3 5.3V21H5Z" stroke="currentColor" strokeWidth="1.7" />
                   </svg>
-                  <input id="identity" name="identity" type="text" autoComplete="username" placeholder="Ingrese su correo o usuario" />
+                  <input id="identity" name="identity" type="text" autoComplete="username" placeholder="Ingrese su correo o usuario" value={identity} onChange={(event) => setIdentity(event.target.value)} required />
                 </div>
               </div>
 
@@ -189,7 +299,7 @@ function Login() {
                 <label htmlFor="password">Contraseña</label>
                 <div className="input-shell">
                   <LockIcon />
-                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Ingrese su contraseña" />
+                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Ingrese su contraseña" value={password} onChange={(event) => setPassword(event.target.value)} required />
                   <button className="password-toggle" type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword}>
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M3 3 21 21M10.6 10.7a2 2 0 0 0 2.7 2.7M9.3 5.4A10 10 0 0 1 12 5c5.7 0 9 7 9 7a15.8 15.8 0 0 1-2.1 3.2M6.2 6.3C4.1 8 3 12 3 12s3.3 7 9 7a9.3 9.3 0 0 0 3.2-.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -199,12 +309,40 @@ function Login() {
               </div>
 
               <div className="form-options">
-                <label className="remember-option"><input type="checkbox" name="remember" /><span>Recordarme</span></label>
-                <button type="button" className="forgot-link">¿Olvidó su contraseña?</button>
+                <label className="remember-option"><input type="checkbox" name="remember" checked={remember} onChange={(event) => setRemember(event.target.checked)} /><span>Recordarme</span></label>
+                <button type="button" className="forgot-link" onClick={() => setError('Solicite al administrador el restablecimiento de su contraseña.')}>¿Olvidó su contraseña?</button>
               </div>
 
-              <button type="submit" className="submit-button"><LockIcon size={18} /><span>Iniciar sesión</span></button>
-            </form>
+              {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+              <button type="submit" className="submit-button" disabled={submitting}><LockIcon size={18} /><span>{submitting ? 'Verificando...' : 'Iniciar sesión'}</span></button>
+            </form>}
+
+            {user?.must_change_password && <form onSubmit={handlePasswordChange}>
+              <div className="form-field">
+                <label htmlFor="current-password">Contraseña temporal</label>
+                <div className="input-shell"><LockIcon /><input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} required /></div>
+              </div>
+              <div className="form-field">
+                <label htmlFor="new-password">Nueva contraseña</label>
+                <div className="input-shell"><LockIcon /><input id="new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required /></div>
+              </div>
+              <div className="form-field">
+                <label htmlFor="confirm-password">Confirme la nueva contraseña</label>
+                <div className="input-shell"><LockIcon /><input id="confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required /></div>
+              </div>
+              {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+              <button type="submit" className="submit-button" disabled={submitting}><LockIcon size={18} /><span>{submitting ? 'Guardando...' : 'Guardar contraseña'}</span></button>
+              <button type="button" className="submit-button submit-button--secondary" onClick={handleLogout} disabled={submitting}>Cerrar sesión</button>
+            </form>}
+
+            {user && !user.must_change_password && <div className="session-summary">
+              <div className="session-avatar" aria-hidden="true">{user.first_name?.[0]}{user.last_name?.[0]}</div>
+              <strong>{user.full_name}</strong>
+              <span>{user.email}</span>
+              <span className="session-role">{user.roles?.map((role) => role.name).join(', ') || 'Usuario'}</span>
+              {error && <p className="form-message form-message--error" role="alert">{error}</p>}
+              <button type="button" className="submit-button submit-button--secondary" onClick={handleLogout} disabled={submitting}>{submitting ? 'Cerrando...' : 'Cerrar sesión'}</button>
+            </div>}
 
             <div className="card-trust">
               <div><span /><ShieldIcon size={19} /><span /></div>

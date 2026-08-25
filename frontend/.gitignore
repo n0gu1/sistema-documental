@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-dist
+# Render serves the committed production bundle.
 dist-ssr
 *.local
 
