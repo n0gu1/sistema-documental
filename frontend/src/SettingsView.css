@@ -1,0 +1,119 @@
+.settings-view { min-width: 0; color: #19304f; }
+.settings-heading h1 { margin: 0; color: #0c2143; font-size: clamp(25px, 2.1vw, 31px); line-height: 1.2; letter-spacing: -.035em; }
+.settings-heading p { margin: 5px 0 0; color: #65758b; font-size: 11px; }
+.settings-layout { margin-top: 16px; display: grid; grid-template-columns: minmax(0, 1fr) 254px; align-items: start; gap: 14px; }
+.settings-main { min-width: 0; }
+.settings-card { min-width: 0; overflow: hidden; background: #fff; border: 1px solid #dfe6ef; border-radius: 9px; box-shadow: 0 3px 12px rgba(25, 52, 83, .04); }
+.settings-card h2 { margin: 0; color: #132843; font-size: 10px; }
+.settings-live-notice { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.settings-tabs { height: 39px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid #dce4ed; }
+.settings-tabs button { position: relative; color: #40536d; background: transparent; border: 0; font-size: 8px; cursor: pointer; }
+.settings-tabs button.is-active { color: #0868e7; font-weight: 650; }
+.settings-tabs button.is-active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #0868e7; content: ''; }
+.settings-columns { padding: 18px 17px 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.settings-columns > section { min-width: 0; padding: 0 17px; border-right: 1px solid #e4e9ef; }
+.settings-columns > section:first-child { padding-left: 0; }
+.settings-columns > section:last-child { padding-right: 0; border-right: 0; }
+.settings-field { margin-bottom: 10px; display: block; color: #233954; font-size: 8px; font-weight: 600; }
+.settings-field > span,
+.settings-field-label { margin-bottom: 6px; display: block; color: #233954; font-size: 8px; font-weight: 600; }
+.settings-field input,
+.settings-field select { width: 100%; height: 27px; padding: 0 9px; color: #3f5570; background: #fff; border: 1px solid #cfd9e5; border-radius: 4px; outline: none; font: inherit; font-weight: 400; }
+.settings-field input:focus,
+.settings-field select:focus { border-color: #3183ef; box-shadow: 0 0 0 2px rgba(49, 131, 239, .1); }
+.settings-group { min-width: 0; margin: 0 0 12px; padding: 0; border: 0; }
+.settings-group legend { width: 100%; margin-bottom: 9px; color: #132843; font-size: 9px; font-weight: 700; }
+.settings-group--top { margin-top: 0; }
+.settings-switch-row,
+.settings-value-row { min-height: 25px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #65758b; font-size: 8px; }
+.settings-value-row { min-height: 23px; padding: 0 7px; border: 1px solid #d5dee8; border-radius: 4px; }
+.settings-value-row strong { color: #4b5f78; font-size: 8px; font-weight: 500; }
+.settings-toggle { width: 28px; height: 16px; flex: 0 0 28px; padding: 2px; background: #aebbc9; border: 0; border-radius: 20px; cursor: pointer; transition: background .18s ease; }
+.settings-toggle span { width: 12px; height: 12px; display: block; background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0, 0, 0, .2); transition: transform .18s ease; }
+.settings-toggle.is-on { background: #24a85b; }
+.settings-toggle.is-on span { transform: translateX(12px); }
+.settings-inline-fields { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
+.settings-outline-button { min-height: 27px; padding: 0 16px; color: #0768e8; background: #fff; border: 1px solid #478ff0; border-radius: 4px; font-size: 7px; cursor: pointer; }
+.settings-test-smtp { margin-top: -2px; }
+.settings-brand-row { margin-bottom: 15px; display: grid; grid-template-columns: 1.08fr .92fr; gap: 12px; }
+.settings-brand-preview { min-height: 68px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 9px; border: 1px solid #d2dbe5; border-radius: 4px; color: #0b2858; }
+.settings-brand-preview div { display: flex; flex-direction: column; font-family: Georgia, serif; line-height: .95; }
+.settings-brand-preview span { font-size: 12px; }
+.settings-brand-preview strong { font-size: 15px; }
+.settings-brand-row > div:last-child { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 7px; }
+.settings-brand-row small,
+.settings-favicon small { color: #748398; font-size: 6px; line-height: 1.4; }
+.settings-color-row { min-height: 31px; display: grid; grid-template-columns: 1fr 25px 88px; align-items: center; gap: 5px; color: #334a65; font-size: 8px; }
+.settings-color-row input[type='color'] { width: 22px; height: 22px; padding: 2px; border: 1px solid #d1dae5; border-radius: 4px; }
+.settings-color-row input:last-child { width: 88px; height: 24px; padding: 0 8px; color: #435972; border: 1px solid #d1dae5; border-radius: 4px; font-size: 7px; }
+.settings-favicon { margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.settings-favicon > span { width: 27px; height: 27px; display: grid; place-items: center; color: #0e408a; border: 1px solid #d4dde7; border-radius: 4px; }
+.settings-upload { padding-top: 12px; border-top: 1px solid #e1e7ee; }
+.settings-upload .settings-field { margin-bottom: 8px; display: grid; grid-template-columns: 1fr 125px; align-items: center; gap: 8px; }
+.settings-upload .settings-field > span { margin: 0; }
+.settings-upload .settings-field small { grid-column: 1 / -1; margin-top: -3px; color: #7a899c; font-size: 6px; font-weight: 400; }
+.settings-form-actions { min-height: 54px; padding: 8px 17px; display: flex; align-items: center; gap: 16px; border-top: 1px solid #e3e8ee; }
+.settings-form-actions button { min-width: 105px; min-height: 29px; padding: 0 16px; color: #203752; background: #fff; border: 1px solid #aebdce; border-radius: 4px; font-size: 8px; cursor: pointer; }
+.settings-form-actions button.is-primary { color: #fff; background: #0869e8; border-color: #0869e8; }
+.settings-tab-placeholder { min-height: 420px; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.settings-tab-placeholder > span { width: 54px; height: 54px; display: grid; place-items: center; color: #fff; background: #0869e8; border-radius: 16px; font-size: 22px; font-weight: 700; }
+.settings-tab-placeholder h2 { margin-top: 17px; font-size: 17px; }
+.settings-tab-placeholder p { color: #6b7c91; font-size: 10px; }
+.settings-tab-placeholder button { margin-top: 10px; padding: 8px 18px; color: #0869e8; background: #fff; border: 1px solid #0869e8; border-radius: 5px; cursor: pointer; }
+
+.settings-bottom-grid { margin-top: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.settings-table-card { padding-top: 14px; }
+.settings-table-card > h2 { padding: 0 14px 10px; }
+.settings-table-wrap { overflow-x: auto; }
+.settings-table-card table { width: 100%; min-width: 430px; border-collapse: collapse; color: #3e536d; font-size: 6px; }
+.settings-table-card th { height: 24px; padding: 0 7px; color: #233954; background: #fbfcfd; border-bottom: 1px solid #dfe6ed; text-align: left; white-space: nowrap; }
+.settings-table-card td { height: 31px; padding: 3px 7px; border-bottom: 1px solid #e5eaf0; white-space: nowrap; }
+.settings-table-card td:first-child { display: flex; align-items: center; gap: 6px; }
+.settings-integration-icon { width: 15px; height: 15px; display: grid; place-items: center; color: #fff; background: #1664d8; border-radius: 4px; font-size: 6px; font-weight: 700; }
+.settings-integration-icon.is-google { color: #db4437; background: #fff; border: 1px solid #e2e7ed; }
+.settings-integration-icon.is-storage { background: #233f77; border-radius: 50%; font-size: 5px; }
+.settings-connected { padding: 3px 6px; color: #168348; background: #dff3e5; border-radius: 14px; }
+.settings-table-card td button { padding: 2px; color: #274f7c; background: transparent; border: 0; cursor: pointer; }
+.settings-card-link { min-height: 31px; padding: 0 14px; color: #0868e7; background: transparent; border: 0; font-size: 7px; cursor: pointer; }
+.settings-empty { min-height: 75px; margin: 0; display: grid; place-items: center; color: #7c899a; font-size: 8px; }
+
+.settings-aside { display: flex; flex-direction: column; gap: 10px; }
+.settings-info-card { padding: 14px 13px 11px; }
+.settings-info-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.settings-info-card header > span { padding: 4px 8px; color: #148149; background: #dff4e6; border-radius: 14px; font-size: 7px; }
+.settings-info-card > p { margin: 14px 0 4px; color: #334a64; font-size: 7px; }
+.settings-info-card > small { color: #6e7f93; font-size: 6px; }
+.settings-info-card dl { margin: 8px 0 4px; }
+.settings-info-card dl div { min-height: 25px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #415670; font-size: 7px; }
+.settings-info-card dt { display: flex; align-items: center; gap: 8px; }
+.settings-info-card dd { margin: 0; text-align: right; }
+.settings-info-card dd i { width: 7px; height: 7px; margin-left: 6px; display: inline-block; background: #20a45c; border-radius: 50%; }
+.settings-info-card > button { width: 100%; min-height: 28px; margin-top: 8px; color: #0768e8; background: #fff; border: 1px solid #478ff0; border-radius: 4px; font-size: 7px; cursor: pointer; }
+.settings-support dl div { justify-content: flex-start; }
+.settings-support dt { flex: 0 0 64px; }
+.settings-support dd { min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; }
+
+@media (max-width: 1280px) {
+  .settings-layout { grid-template-columns: 1fr; }
+  .settings-aside { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; }
+}
+
+@media (max-width: 900px) {
+  .settings-tabs { overflow-x: auto; display: flex; }
+  .settings-tabs button { min-width: 115px; }
+  .settings-columns { grid-template-columns: 1fr; gap: 18px; }
+  .settings-columns > section { padding: 0; border: 0; }
+  .settings-bottom-grid { grid-template-columns: 1fr; }
+  .settings-aside { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .settings-heading p { line-height: 1.45; }
+  .settings-columns { padding: 16px 14px; }
+  .settings-brand-row { grid-template-columns: 1fr; }
+  .settings-form-actions { align-items: stretch; flex-direction: column; gap: 8px; }
+  .settings-form-actions button { width: 100%; }
+  .settings-aside { grid-template-columns: 1fr; }
+  .settings-upload .settings-field { grid-template-columns: 1fr; }
+}
