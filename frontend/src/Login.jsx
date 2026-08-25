@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Dashboard from './Dashboard'
 import './Login.css'
 
 function errorMessage(data) {
@@ -246,6 +247,12 @@ function Login() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const isAdministrator = user?.roles?.some((role) => role.code === 'ADMINISTRADOR')
+
+  if (user && !user.must_change_password && isAdministrator) {
+    return <Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
   }
 
   return (
