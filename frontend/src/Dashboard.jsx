@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from 'react'
+import DocumentsView from './DocumentsView'
 import './Dashboard.css'
 
 const navigation = [
@@ -86,6 +87,7 @@ function DashboardBrand() {
 function Dashboard({ user, onLogout, logoutPending, error }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [activeView, setActiveView] = useState('dashboard')
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const role = user.roles?.find((item) => item.code === 'ADMINISTRADOR')?.name || 'Administrador'
@@ -103,7 +105,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
         <nav className="dashboard-nav" aria-label="Navegación principal">
           <p>Administración</p>
           {navigation.map(([icon, label], index) => (
-            <button className={index === 0 ? 'dashboard-nav__item dashboard-nav__item--active' : 'dashboard-nav__item'} type="button" key={label} title={index === 0 ? label : `${label}: disponible próximamente`} onClick={() => setSidebarOpen(false)}>
+            <button className={activeView === icon ? 'dashboard-nav__item dashboard-nav__item--active' : 'dashboard-nav__item'} type="button" key={label} title={index < 2 ? label : `${label}: disponible próximamente`} onClick={() => { if (index < 2) setActiveView(icon); setSidebarOpen(false) }}>
               <Icon name={icon} size={21} />
               <span>{label}</span>
               {label === 'Bitácora' && <small>8</small>}
@@ -148,6 +150,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
 
         <div className="dashboard-content">
           {error && <p className="dashboard-error" role="alert">{error}</p>}
+          {activeView === 'document' ? <DocumentsView globalQuery={query} today={today} /> : <>
           <div className="dashboard-heading">
             <div>
               <p>Vista general</p>
@@ -163,7 +166,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
               <h2>Bienvenido, {user.first_name}</h2>
               <p>Hay <strong>12 documentos</strong> que requieren atención y <strong>5 solicitudes</strong> pendientes de aprobación.</p>
             </div>
-            <button type="button"><Icon name="plus" size={19} /> Nuevo documento</button>
+            <button type="button" onClick={() => setActiveView('document')}><Icon name="plus" size={19} /> Nuevo documento</button>
             <span className="dashboard-welcome__orb dashboard-welcome__orb--one" />
             <span className="dashboard-welcome__orb dashboard-welcome__orb--two" />
           </section>
@@ -181,7 +184,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
             <section className="dashboard-panel dashboard-documents">
               <div className="dashboard-panel__heading">
                 <div><h2>Documentos recientes</h2><p>Últimos documentos modificados en la organización</p></div>
-                <button type="button">Ver todos <Icon name="arrow" size={16} /></button>
+                <button type="button" onClick={() => setActiveView('document')}>Ver todos <Icon name="arrow" size={16} /></button>
               </div>
               <div className="dashboard-table-wrap">
                 <table>
@@ -246,6 +249,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
               </div>
             </section>
           </div>
+          </>}
 
           <footer className="dashboard-footer"><span>© 2026 Consultoría Alexandria. Todos los derechos reservados.</span><span>Plataforma segura y confiable</span></footer>
         </div>
