@@ -1,216 +1,221 @@
 import { useState } from 'react'
 import './Login.css'
 
-function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
+function Brand({ compact = false }) {
+  return (
+    <div className={`brand${compact ? ' brand--compact' : ''}`} aria-label="Consultoría Alexandria">
+      <span>Consultoría</span>
+      <strong>Alexandria</strong>
+    </div>
+  )
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    console.log('Login:', { email, password, rememberMe })
-  }
+function LockIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M8.5 10V7.2a3.5 3.5 0 0 1 7 0V10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="15.5" r="1.15" fill="currentColor" />
+    </svg>
+  )
+}
+
+function ShieldIcon({ size = 23 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 2.5 20 5.7v5.6c0 5-3.4 8.2-8 10.2-4.6-2-8-5.2-8-10.2V5.7L12 2.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="m8.7 12.1 2.1 2.1 4.7-4.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function DocumentIcon() {
+  return (
+    <svg width="30" height="34" viewBox="0 0 30 34" fill="none" aria-hidden="true">
+      <path d="M5 1.5h12.8L25 8.8v23.7H5V1.5Z" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M17.5 1.8v7.4h7.2M9 15h12M9 20h12M9 25h9" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  )
+}
+
+function DocumentIllustration() {
+  return (
+    <svg className="document-illustration" viewBox="0 0 560 650" fill="none" role="img" aria-label="Ilustración de gestión documental segura">
+      <defs>
+        <linearGradient id="binderFace" x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#F7FAFF" />
+          <stop offset="1" stopColor="#D8E7FA" />
+        </linearGradient>
+        <linearGradient id="binderSide" x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#E9F2FD" />
+          <stop offset="1" stopColor="#C5DAF3" />
+        </linearGradient>
+        <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#FFFFFF" />
+          <stop offset="1" stopColor="#EAF2FC" />
+        </linearGradient>
+        <linearGradient id="blueShield" x1="0" y1="0" x2="1" y2="1">
+          <stop stopColor="#EEF6FF" />
+          <stop offset="1" stopColor="#90BDF6" />
+        </linearGradient>
+        <filter id="softShadow" x="-30%" y="-30%" width="160%" height="180%">
+          <feDropShadow dx="0" dy="14" stdDeviation="13" floodColor="#87A6CB" floodOpacity=".14" />
+        </filter>
+      </defs>
+
+      <g opacity=".72" stroke="#BFD4ED" strokeWidth="1.5" strokeDasharray="7 7">
+        <path d="M67 296 336 139l172 101v234L243 627 67 523V296Z" />
+        <path d="m67 296 176 102 265-158M243 398v229" />
+      </g>
+      <ellipse cx="306" cy="578" rx="215" ry="44" fill="#D8E7F7" opacity=".34" />
+
+      <g filter="url(#softShadow)">
+        <g transform="translate(50 151)">
+          <path d="m0 54 100-57 48 28-100 58L0 54Z" fill="#F8FBFF" stroke="#AFC9E8" strokeWidth="1.5" />
+          <path d="m0 54 48 29v229L0 282V54Z" fill="url(#binderSide)" stroke="#94B8E2" strokeWidth="1.5" />
+          <path d="m48 83 100-58v229L48 312V83Z" fill="url(#binderFace)" stroke="#AAC5E5" strokeWidth="1.5" />
+          <path d="M8 88 38 105v112L8 200V88Z" fill="#EAF3FE" stroke="#ACC8E8" />
+          <ellipse cx="25" cy="252" rx="11" ry="14" fill="#F6FAFF" stroke="#A8C5E7" />
+        </g>
+        <g transform="translate(104 128)">
+          <path d="m0 54 100-57 48 28-100 58L0 54Z" fill="#FBFDFF" stroke="#B8CFEA" strokeWidth="1.5" />
+          <path d="m0 54 48 29v229L0 282V54Z" fill="url(#binderSide)" stroke="#9BBADE" strokeWidth="1.5" />
+          <path d="m48 83 100-58v229L48 312V83Z" fill="url(#binderFace)" stroke="#AAC5E5" strokeWidth="1.5" />
+          <path d="M8 88 38 105v112L8 200V88Z" fill="#EAF3FE" stroke="#ACC8E8" />
+          <ellipse cx="25" cy="252" rx="11" ry="14" fill="#F6FAFF" stroke="#A8C5E7" />
+        </g>
+        <g transform="translate(161 166)">
+          <path d="m0 54 100-57 48 28-100 58L0 54Z" fill="#FBFDFF" stroke="#B8CFEA" strokeWidth="1.5" />
+          <path d="m0 54 48 29v229L0 282V54Z" fill="url(#binderSide)" stroke="#9BBADE" strokeWidth="1.5" />
+          <path d="m48 83 100-58v229L48 312V83Z" fill="url(#binderFace)" stroke="#AAC5E5" strokeWidth="1.5" />
+          <path d="M8 88 38 105v112L8 200V88Z" fill="#EAF3FE" stroke="#ACC8E8" />
+          <ellipse cx="25" cy="252" rx="11" ry="14" fill="#F6FAFF" stroke="#A8C5E7" />
+        </g>
+      </g>
+
+      <g filter="url(#softShadow)" transform="translate(276 56)">
+        <path d="M0 15A15 15 0 0 1 15 0h109l58 65v179a15 15 0 0 1-15 15H15a15 15 0 0 1-15-15V15Z" fill="url(#paper)" stroke="#4F88D4" strokeWidth="1.7" />
+        <path d="M124 0v49a16 16 0 0 0 16 16h42" fill="#BBD8FB" />
+        <path d="m124 0 58 65h-42a16 16 0 0 1-16-16V0Z" stroke="#4F88D4" strokeWidth="1.5" strokeLinejoin="round" />
+        <path d="M28 72h48M28 103h112M28 132h112M28 161h112M28 190h92" stroke="#DFEAF7" strokeWidth="9" />
+      </g>
+
+      <g filter="url(#softShadow)" transform="translate(362 249)">
+        <path d="M33 53c8-29 33-48 62-48 36 0 65 29 65 65v3c28 4 50 29 50 59 0 33-26 59-58 59H44c-35 0-64-29-64-65 0-34 23-62 53-73Z" fill="url(#paper)" stroke="#A9C2DF" strokeWidth="1.5" />
+        <g transform="translate(72 69)" stroke="#749DD0" strokeWidth="2">
+          <rect x="0" y="28" width="46" height="47" rx="6" />
+          <path d="M9 28V17a14 14 0 0 1 28 0v11" />
+          <path d="M23 47v12" strokeLinecap="round" />
+          <circle cx="23" cy="45" r="4" fill="#BFD5EF" />
+        </g>
+      </g>
+
+      <g filter="url(#softShadow)" transform="translate(247 355) rotate(8 104 141)">
+        <rect x="0" y="0" width="208" height="282" rx="13" fill="url(#paper)" stroke="#8EAFD5" strokeWidth="1.4" />
+        <text x="21" y="42" fill="#52729A" fontSize="14" fontFamily="Arial, sans-serif">Control de versiones</text>
+        <g fontFamily="Arial, sans-serif" fontSize="10">
+          <rect x="16" y="58" width="176" height="57" rx="8" fill="#F5F9FE" stroke="#DCE8F5" />
+          <circle cx="27" cy="77" r="4" fill="#6EA6ED" /><text x="39" y="81" fill="#547295">Versión 2.1</text>
+          <rect x="139" y="68" width="40" height="20" rx="9" fill="#DDF4E8" /><text x="148" y="82" fill="#46926B">Actual</text>
+          <rect x="16" y="124" width="176" height="57" rx="8" fill="#F8FBFF" stroke="#DCE8F5" />
+          <circle cx="27" cy="143" r="4" fill="#82AFE6" /><text x="39" y="147" fill="#627D9D">Versión 2.0</text>
+          <text x="39" y="164" fill="#9BB0C8">15/05/2024 10:30</text>
+          <rect x="16" y="190" width="176" height="57" rx="8" fill="#F8FBFF" stroke="#DCE8F5" />
+          <circle cx="27" cy="209" r="4" fill="#82AFE6" /><text x="39" y="213" fill="#627D9D">Versión 1.0</text>
+          <text x="39" y="230" fill="#9BB0C8">02/05/2024 09:15</text>
+        </g>
+      </g>
+
+      <g filter="url(#softShadow)" transform="translate(96 462)">
+        <path d="M54 0c18 13 37 15 54 12v58c0 41-23 67-54 81C23 137 0 111 0 70V12C18 15 36 13 54 0Z" fill="url(#blueShield)" stroke="#397DD5" strokeWidth="2" />
+        <path d="M54 15c13 9 26 11 39 9v43c0 31-16 51-39 63-23-12-39-32-39-63V24c13 2 26 0 39-9Z" fill="#F5FAFF" stroke="#9BC1EF" />
+        <path d="m34 70 15 16 28-31" stroke="#4C91E7" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
+  )
+}
+
+function Login() {
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <div className="login-container">
-      {/* Panel izquierdo */}
-      <div className="login-left">
-        <div className="login-left-content">
-          <div className="login-logo-left">
-            <span className="logo-consultoria">Consultoría</span>
-            <span className="logo-alexandria">Alexandria</span>
-          </div>
-          
-          <div className="login-feature">
-            <div className="feature-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </div>
-            <div className="feature-text">
-              <h3>Gestión Documental</h3>
-              <p>Control, trazabilidad y seguridad para la gestión de documentos institucionales.</p>
+    <main className="login-page">
+      <aside className="login-aside">
+        <div>
+          <Brand />
+          <div className="aside-rule" />
+          <div className="aside-feature">
+            <div className="aside-feature__icon"><DocumentIcon /></div>
+            <div>
+              <h2>Gestión Documental</h2>
+              <p>Control, trazabilidad y seguridad<br />para la gestión de documentos<br />institucionales.</p>
             </div>
           </div>
         </div>
-        
-        <div className="login-left-footer">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span>Plataforma segura y confiable</span>
-        </div>
-        
-        {/* Decoración de ondas */}
-        <svg className="wave-decoration" viewBox="0 0 400 200" preserveAspectRatio="none">
-          <path d="M0,100 Q100,150 200,100 T400,100" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2"/>
-          <path d="M0,120 Q100,170 200,120 T400,120" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2"/>
-          <path d="M0,140 Q100,190 200,140 T400,140" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="2"/>
+
+        <div className="aside-trust"><ShieldIcon /><span>Plataforma segura y confiable</span></div>
+        <svg className="aside-waves" viewBox="0 0 400 520" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M-45 418C104 397 235 166 401 221" />
+          <path d="M-25 476C143 438 224 223 424 275" />
+          <path d="M-62 548C112 470 242 291 428 337" />
         </svg>
-      </div>
+      </aside>
 
-      {/* Formulario central */}
-      <div className="login-center">
-        <div className="login-card">
-          <div className="login-logo-center">
-            <span className="logo-consultoria">Consultoría</span>
-            <span className="logo-alexandria">Alexandria</span>
-          </div>
-          
-          <h1 className="login-title">Inicio de Sesión</h1>
-          <p className="login-subtitle">Acceda de forma segura a la plataforma de gestión documental.</p>
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="email">Correo o usuario</label>
-              <div className="input-wrapper">
-                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-                <input
-                  type="text"
-                  id="email"
-                  placeholder="Ingrese su correo o usuario"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="password">Contraseña</label>
-              <div className="input-wrapper">
-                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="password"
-                  placeholder="Ingrese su contraseña"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button 
-                  type="button" 
-                  className="toggle-password"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                      <line x1="1" y1="1" x2="23" y2="23"/>
-                    </svg>
-                  ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-            
-            <div className="form-options">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                <span className="checkmark"></span>
-                Recordarme
-              </label>
-              <a href="#" className="forgot-password">¿Olvidó su contraseña?</a>
-            </div>
-            
-            <button type="submit" className="login-button">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              Iniciar sesión
-            </button>
-          </form>
-          
-          <div className="login-footer">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            <p>Acceso seguro a la plataforma de gestión documental con control de versiones y trazabilidad.</p>
-          </div>
-        </div>
-      </div>
+      <section className="login-main">
+        <div className="dot-grid dot-grid--top" aria-hidden="true" />
+        <div className="dot-grid dot-grid--bottom" aria-hidden="true" />
 
-      {/* Panel derecho - ilustración */}
-      <div className="login-right">
-        <div className="illustration">
-          {/* Carpeta principal */}
-          <div className="folder-main">
-            <div className="folder-tab"></div>
-            <div className="folder-body">
-              <div className="folder-line"></div>
-              <div className="folder-line short"></div>
+        <div className="login-stage">
+          <section className="login-card" aria-labelledby="login-title">
+            <Brand compact />
+            <div className="login-heading">
+              <h1 id="login-title">Inicio de Sesión</h1>
+              <p>Acceda de forma segura a la plataforma<br />de gestión documental.</p>
             </div>
-          </div>
-          
-          {/* Documentos */}
-          <div className="documents">
-            <div className="doc doc-1">
-              <div className="doc-line"></div>
-              <div className="doc-line short"></div>
+
+            <form onSubmit={(event) => event.preventDefault()}>
+              <div className="form-field">
+                <label htmlFor="identity">Correo o usuario</label>
+                <div className="input-shell">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="12" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.7" />
+                    <path d="M5 21v-2.2a5.3 5.3 0 0 1 5.3-5.3h3.4a5.3 5.3 0 0 1 5.3 5.3V21H5Z" stroke="currentColor" strokeWidth="1.7" />
+                  </svg>
+                  <input id="identity" name="identity" type="text" autoComplete="username" placeholder="Ingrese su correo o usuario" />
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="password">Contraseña</label>
+                <div className="input-shell">
+                  <LockIcon />
+                  <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Ingrese su contraseña" />
+                  <button className="password-toggle" type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} aria-pressed={showPassword}>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M3 3 21 21M10.6 10.7a2 2 0 0 0 2.7 2.7M9.3 5.4A10 10 0 0 1 12 5c5.7 0 9 7 9 7a15.8 15.8 0 0 1-2.1 3.2M6.2 6.3C4.1 8 3 12 3 12s3.3 7 9 7a9.3 9.3 0 0 0 3.2-.6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-options">
+                <label className="remember-option"><input type="checkbox" name="remember" /><span>Recordarme</span></label>
+                <button type="button" className="forgot-link">¿Olvidó su contraseña?</button>
+              </div>
+
+              <button type="submit" className="submit-button"><LockIcon size={18} /><span>Iniciar sesión</span></button>
+            </form>
+
+            <div className="card-trust">
+              <div><span /><ShieldIcon size={19} /><span /></div>
+              <p>Acceso seguro a la plataforma de gestión documental<br />con control de versiones y trazabilidad.</p>
             </div>
-            <div className="doc doc-2">
-              <div className="doc-line"></div>
-              <div className="doc-line short"></div>
-            </div>
-          </div>
-          
-          {/* Control de versiones */}
-          <div className="version-card">
-            <h4>Control de versiones</h4>
-            <div className="version-item">
-              <span className="version-badge">Versión 2.1</span>
-              <span className="version-status actual">Actual</span>
-            </div>
-            <div className="version-item">
-              <span className="version-badge">Versión 2.0</span>
-              <span className="version-date">15/06/2024 10:30</span>
-            </div>
-            <div className="version-item">
-              <span className="version-badge">Versión 1.0</span>
-              <span className="version-date">02/05/2024 09:15</span>
-            </div>
-          </div>
-          
-          {/* Iconos decorativos */}
-          <div className="cloud-icon">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
-              <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>
-            </svg>
-          </div>
-          
-          <div className="shield-icon">
-            <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <path d="M9 12l2 2 4-4" stroke="#10b981" strokeWidth="2"/>
-            </svg>
-          </div>
-          
-          <div className="dots-decoration">
-            {[...Array(9)].map((_, i) => (
-              <div key={i} className="dot"></div>
-            ))}
-          </div>
+          </section>
+
+          <div className="illustration-wrap"><DocumentIllustration /></div>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   )
 }
 
