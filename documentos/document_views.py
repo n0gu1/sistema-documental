@@ -1,6 +1,9 @@
 import csv
 from datetime import datetime, time
+from pathlib import Path
+from uuid import uuid4
 
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
@@ -16,13 +19,12 @@ from .file_validation import validate_uploaded_file
 from .management_views import require_permission
 from .models import (
     ArchivoDocumento,
-    Area,
-    ClasificacionDocumento,
+    AreaCatalogo,
     Documento,
-    EstadoDocumento,
+    EstadoVersionCatalogo,
     MetadatoDocumento,
-    TipoDocumento,
-    UsuarioDocumental,
+    ProveedorAlmacenamiento,
+    TipoDocumentoCatalogo,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
 
@@ -33,9 +35,10 @@ PREVIEWABLE_MIMES = {'application/pdf', 'image/jpeg', 'image/png'}
 
 
 def document_queryset(organization_id):
-    return Documento.objects.filter(organizacion_id=organization_id).select_related(
-        'area', 'tipo', 'clasificacion', 'estado', 'responsable', 'creado_por',
-    )
+    return Documento.objects.filter(
+        organizacion_id=organization_id,
+        eliminado_en__isnull=True,
+    ).select_related('area', 'tipo_documento', 'creado_por')
 
 
 def parse_filter_date(value, field_name, end=False):
@@ -56,41 +59,39 @@ def apply_document_filters(queryset, params):
         queryset = queryset.filter(
             codigo__icontains=search,
         ) | queryset.filter(
-            titulo__icontains=search,
+            nombre__icontains=search,
         ) | queryset.filter(
             descripcion__icontains=search,
-        ) | queryset.filter(
-            palabras_clave__icontains=search,
         )
-    filters = {
-        'tipo_id': params.get('type_id'),
-        'area_id': params.get('area_id'),
-        'estado_id': params.get('status_id'),
-        'clasificacion_id': params.get('classification_id'),
-        'responsable_id': params.get('responsible_id'),
-    }
-    for field, value in filters.items():
-        if value:
-            queryset = queryset.filter(**{field: value})
+    if params.get('type_id'):
+        queryset = queryset.filter(tipo_documento_id=params['type_id'])
+    if params.get('area_id'):
+        queryset = queryset.filter(area_id=params['area_id'])
+    if params.get('responsible_id'):
+        queryset = queryset.filter(creado_por_id=params['responsible_id'])
+    if params.get('date_from'):
+        queryset = queryset.filter(fecha_documento__gte=params['date_from'])
+    if params.get('date_to'):
+        queryset = queryset.filter(fecha_documento__lte=params['date_to'])
     if params.get('status_code'):
-        queryset = queryset.filter(estado__codigo=params['status_code'])
-    date_from = parse_filter_date(params.get('date_from'), 'date_from')
-    date_to = parse_filter_date(params.get('date_to'), 'date_to', end=True)
+        queryset = queryset.filter(archivos__estado_version__codigo=params['status_code'])
+    date_from = parse_filter_date(params.get('updated_from'), 'updated_from')
+    date_to = parse_filter_date(params.get('updated_to'), 'updated_to', end=True)
     if date_from:
         queryset = queryset.filter(actualizado_en__gte=date_from)
     if date_to:
         queryset = queryset.filter(actualizado_en__lte=date_to)
-    ordering = params.get('ordering', '-updated_at')
     ordering_fields = {
         'code': 'codigo',
-        'title': 'titulo',
+        'title': 'nombre',
         'created_at': 'creado_en',
         'updated_at': 'actualizado_en',
+        'document_date': 'fecha_documento',
     }
-    descending = ordering.startswith('-')
+    ordering = params.get('ordering', '-updated_at')
     field = ordering_fields.get(ordering.lstrip('-'), 'actualizado_en')
-    queryset = queryset.order_by(f'-{field}' if descending else field, 'codigo')
-    return queryset
+    queryset = queryset.order_by(f'-{field}' if ordering.startswith('-') else field, 'codigo')
+    return queryset.distinct()
 
 
 def page_queryset(queryset, params):
@@ -105,62 +106,64 @@ def page_queryset(queryset, params):
     return total, offset, limit, queryset[offset:offset + limit]
 
 
+def current_version(document):
+    return document.archivos.select_related('estado_version').filter(es_vigente=True).first() or document.archivos.select_related('estado_version').first()
+
+
 def serialize_file(document_file, request):
     return {
         'id': str(document_file.id),
-        'name': document_file.nombre_original,
-        'mime_type': document_file.mime_type,
-        'size': document_file.tamano,
+        'name': document_file.nombre_archivo_original,
+        'mime_type': document_file.tipo_mime,
+        'size': document_file.tamano_bytes,
         'sha256': document_file.sha256,
-        'created_at': document_file.creado_en,
+        'version': f'{document_file.numero_mayor}.{document_file.numero_menor}',
+        'created_at': document_file.creada_en,
         'download_url': request.build_absolute_uri(
             reverse('document-file-download', args=[document_file.documento_id, document_file.id]),
         ),
         'preview_url': request.build_absolute_uri(
             reverse('document-file-preview', args=[document_file.documento_id, document_file.id]),
-        ) if document_file.mime_type in PREVIEWABLE_MIMES else None,
+        ) if document_file.tipo_mime in PREVIEWABLE_MIMES else None,
     }
 
 
 def serialize_document(document, request, include_details=False):
+    version = current_version(document)
     result = {
         'id': str(document.id),
         'code': document.codigo,
-        'title': document.titulo,
-        'description': document.descripcion,
-        'content': document.contenido,
-        'keywords': document.palabras_clave,
-        'scope': document.alcance,
-        'area': {'id': str(document.area_id), 'name': document.area.nombre} if document.area_id else None,
-        'type': {'id': str(document.tipo_id), 'code': document.tipo.codigo, 'name': document.tipo.nombre},
-        'classification': (
-            {'id': str(document.clasificacion_id), 'code': document.clasificacion.codigo, 'name': document.clasificacion.nombre}
-            if document.clasificacion_id else None
+        'title': document.nombre,
+        'description': document.descripcion or '',
+        'date': document.fecha_documento,
+        'area': {'id': str(document.area_id), 'name': document.area.nombre},
+        'type': {'id': document.tipo_documento_id, 'code': document.tipo_documento.codigo, 'name': document.tipo_documento.nombre},
+        'status': (
+            {'id': version.estado_version_id, 'code': version.estado_version.codigo, 'name': version.estado_version.nombre}
+            if version else None
         ),
-        'status': {'id': str(document.estado_id), 'code': document.estado.codigo, 'name': document.estado.nombre},
         'responsible': {
-            'id': str(document.responsable_id),
-            'username': document.responsable.nombre_usuario,
-            'name': f'{document.responsable.nombres} {document.responsable.apellidos}'.strip(),
+            'id': str(document.creado_por_id),
+            'username': document.creado_por.nombre_usuario,
+            'name': f'{document.creado_por.nombres} {document.creado_por.apellidos}'.strip(),
         },
-        'created_by': str(document.creado_por_id),
         'created_at': document.creado_en,
         'updated_at': document.actualizado_en,
-        'archived_at': document.archivado_en,
+        'archived_at': document.eliminado_en,
     }
     if include_details:
         result['metadata'] = {
             item.clave: item.valor for item in MetadatoDocumento.objects.filter(documento_id=document.id)
         }
-        result['files'] = [
-            serialize_file(item, request)
-            for item in ArchivoDocumento.objects.filter(documento_id=document.id)
-        ]
+        result['files'] = [serialize_file(item, request) for item in document.archivos.all()]
     return result
 
 
-def get_document_or_404(request, document_id):
-    document = document_queryset(request.user.organizacion_id).filter(pk=document_id).first()
+def get_document_or_404(request, document_id, include_archived=False):
+    queryset = Documento.objects.filter(organizacion_id=request.user.organizacion_id)
+    if not include_archived:
+        queryset = queryset.filter(eliminado_en__isnull=True)
+    document = queryset.select_related('area', 'tipo_documento', 'creado_por').filter(pk=document_id).first()
     if not document:
         raise Http404
     return document
@@ -168,18 +171,12 @@ def get_document_or_404(request, document_id):
 
 def get_reference_or_error(model, object_id, organization_id, field_name):
     filters = {'pk': object_id}
-    if model is not EstadoDocumento:
+    if model is not TipoDocumentoCatalogo:
         filters['organizacion_id'] = organization_id
     reference = model.objects.filter(**filters).first()
     if not reference:
         raise ValidationError({field_name: 'La referencia no existe o no pertenece a la organizacion.'})
     return reference
-
-
-def get_status(data):
-    if data.get('status_id'):
-        return EstadoDocumento.objects.filter(pk=data['status_id'], activo=True).first()
-    return EstadoDocumento.objects.filter(codigo=data.get('status_code', 'BORRADOR'), activo=True).first()
 
 
 def validate_metadata(metadata):
@@ -207,14 +204,36 @@ def save_metadata(document, metadata):
 
 def save_document_file(document, uploaded_file, user):
     file_data = validate_uploaded_file(uploaded_file)
+    provider = ProveedorAlmacenamiento.objects.filter(
+        organizacion_id=document.organizacion_id,
+    ).order_by('-activo', 'codigo').first()
+    if not provider:
+        raise ValidationError({'file': 'No hay proveedor de almacenamiento configurado.'})
+    state = EstadoVersionCatalogo.objects.filter(codigo='BORRADOR').first()
+    if not state:
+        raise ValidationError({'file': 'No hay estado BORRADOR configurado para la version.'})
+    latest = document.archivos.order_by('-orden_version').first()
+    major = latest.numero_mayor + 1 if latest else 1
+    order = latest.orden_version + 1 if latest else 1
+    extension = Path(file_data['name']).suffix.lower()
+    storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{extension}'
+    storage_key = default_storage.save(storage_name, uploaded_file)
     return ArchivoDocumento.objects.create(
+        id=uuid4(),
         documento=document,
-        archivo=uploaded_file,
-        nombre_original=file_data['name'],
-        mime_type=file_data['mime_type'],
-        tamano=file_data['size'],
+        estado_version=state,
+        proveedor_almacenamiento=provider,
+        numero_mayor=major,
+        numero_menor=0,
+        orden_version=order,
+        es_vigente=True,
+        nombre_archivo_original=file_data['name'],
+        clave_almacenamiento=storage_key,
+        tipo_mime=file_data['mime_type'],
+        tamano_bytes=file_data['size'],
         sha256=file_data['sha256'],
-        subido_por=user,
+        comentario_cambio='Carga inicial de archivo',
+        creada_por=user,
     )
 
 
@@ -252,42 +271,26 @@ class DocumentListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         organization_id = request.user.organizacion_id
-        area = get_reference_or_error(Area, data.get('area_id'), organization_id, 'area_id') if data.get('area_id') else None
-        document_type = get_reference_or_error(TipoDocumento, data['type_id'], organization_id, 'type_id')
-        classification = (
-            get_reference_or_error(ClasificacionDocumento, data['classification_id'], organization_id, 'classification_id')
-            if data.get('classification_id') else None
-        )
-        state = get_status(data)
-        if not state:
-            raise ValidationError({'status_code': 'El estado solicitado no existe.'})
-        responsible = request.user
-        if data.get('responsible_id'):
-            responsible = UsuarioDocumental.objects.filter(
-                pk=data['responsible_id'], organizacion_id=organization_id, activo=True,
-            ).first()
-            if not responsible:
-                raise ValidationError({'responsible_id': 'El responsable no existe o no esta activo.'})
-        if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code']).exists():
+        area = get_reference_or_error(AreaCatalogo, data['area_id'], organization_id, 'area_id')
+        document_type = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], organization_id, 'type_id')
+        if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code'], eliminado_en__isnull=True).exists():
             return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
             validate_uploaded_file(uploaded_file)
         with transaction.atomic():
             document = Documento.objects.create(
+                id=uuid4(),
                 organizacion_id=organization_id,
-                codigo=data['code'],
-                titulo=data['title'],
-                descripcion=data.get('description', ''),
-                contenido=data.get('content', ''),
-                palabras_clave=data.get('keywords', ''),
-                alcance=data.get('scope', ''),
                 area=area,
-                tipo=document_type,
-                clasificacion=classification,
-                estado=state,
-                responsable=responsible,
+                tipo_documento=document_type,
+                codigo=data['code'],
+                nombre=data['title'],
+                descripcion=data.get('description') or None,
+                fecha_documento=data.get('date'),
                 creado_por=request.user,
+                creado_en=timezone.now(),
+                actualizado_en=timezone.now(),
             )
             save_metadata(document, data.get('metadata'))
             if uploaded_file:
@@ -315,41 +318,24 @@ class DocumentDetailView(APIView):
         if uploaded_file:
             validate_uploaded_file(uploaded_file)
         updates = {}
-        field_mapping = {
-            'code': 'codigo', 'title': 'titulo', 'description': 'descripcion', 'content': 'contenido',
-            'keywords': 'palabras_clave', 'scope': 'alcance',
-        }
-        for key, field in field_mapping.items():
-            if key in data:
-                updates[field] = data[key]
-        if 'code' in data and Documento.objects.filter(
-            organizacion_id=document.organizacion_id, codigo=data['code'],
-        ).exclude(pk=document.pk).exists():
-            return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
+        if 'code' in data:
+            if Documento.objects.filter(organizacion_id=document.organizacion_id, codigo=data['code'], eliminado_en__isnull=True).exclude(pk=document.pk).exists():
+                return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
+            updates['codigo'] = data['code']
+        if 'title' in data:
+            updates['nombre'] = data['title']
+        if 'description' in data:
+            updates['descripcion'] = data['description'] or None
+        if 'date' in data:
+            updates['fecha_documento'] = data['date']
         if 'area_id' in data:
-            updates['area'] = get_reference_or_error(Area, data['area_id'], document.organizacion_id, 'area_id') if data['area_id'] else None
+            updates['area'] = get_reference_or_error(AreaCatalogo, data['area_id'], document.organizacion_id, 'area_id')
         if 'type_id' in data:
-            updates['tipo'] = get_reference_or_error(TipoDocumento, data['type_id'], document.organizacion_id, 'type_id')
-        if 'classification_id' in data:
-            updates['clasificacion'] = (
-                get_reference_or_error(ClasificacionDocumento, data['classification_id'], document.organizacion_id, 'classification_id')
-                if data['classification_id'] else None
-            )
-        if 'status_id' in data or 'status_code' in data:
-            state = get_status(data)
-            if not state:
-                raise ValidationError({'status_code': 'El estado solicitado no existe.'})
-            updates['estado'] = state
-        if 'responsible_id' in data:
-            responsible = UsuarioDocumental.objects.filter(
-                pk=data['responsible_id'], organizacion_id=document.organizacion_id, activo=True,
-            ).first()
-            if not responsible:
-                raise ValidationError({'responsible_id': 'El responsable no existe o no esta activo.'})
-            updates['responsable'] = responsible
+            updates['tipo_documento'] = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], document.organizacion_id, 'type_id')
         for field, value in updates.items():
             setattr(document, field, value)
         if updates:
+            document.actualizado_en = timezone.now()
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
         if uploaded_file:
@@ -360,21 +346,13 @@ class DocumentDetailView(APIView):
     def delete(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
-        files = list(document.archivos.all())
         record_document_event(request, document, 'DOCUMENTO_ELIMINADO')
+        files = list(document.archivos.all())
         with transaction.atomic():
             for document_file in files:
-                document_file.archivo.delete(save=False)
+                default_storage.delete(document_file.clave_almacenamiento)
             document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-def archive_document(document):
-    state = EstadoDocumento.objects.filter(codigo='ARCHIVADO', activo=True).first()
-    document.archivado_en = timezone.now()
-    if state:
-        document.estado = state
-    document.save(update_fields=['archivado_en', 'estado', 'actualizado_en'])
 
 
 class DocumentArchiveView(APIView):
@@ -383,7 +361,11 @@ class DocumentArchiveView(APIView):
     def post(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
-        archive_document(document)
+        document.eliminado_en = timezone.now()
+        document.eliminado_por_id = request.user.id
+        document.motivo_eliminacion = request.data.get('reason') or 'Archivado por el usuario'
+        document.actualizado_en = timezone.now()
+        document.save(update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'])
         record_document_event(request, document, 'DOCUMENTO_ARCHIVADO')
         return Response({'document': serialize_document(document, request)})
 
@@ -415,17 +397,21 @@ def get_document_file_or_404(request, document_id, file_id):
     return document, document_file
 
 
+def open_stored_file(document_file):
+    try:
+        return default_storage.open(document_file.clave_almacenamiento, 'rb')
+    except (FileNotFoundError, OSError) as error:
+        raise Http404 from error
+
+
 class DocumentFileDownloadView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
         document, document_file = get_document_file_or_404(request, document_id, file_id)
-        try:
-            response = FileResponse(document_file.archivo.open('rb'), content_type=document_file.mime_type)
-        except (FileNotFoundError, OSError) as error:
-            raise Http404 from error
-        filename = document_file.nombre_original.replace('"', '')
+        response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
+        filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         record_document_event(request, document, 'ARCHIVO_DESCARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
         return response
@@ -437,13 +423,10 @@ class DocumentFilePreviewView(APIView):
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
         document, document_file = get_document_file_or_404(request, document_id, file_id)
-        if document_file.mime_type not in PREVIEWABLE_MIMES:
+        if document_file.tipo_mime not in PREVIEWABLE_MIMES:
             return Response({'code': 'PREVIEW_NOT_AVAILABLE', 'detail': 'Este tipo de archivo no tiene vista previa.'}, status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-        try:
-            response = FileResponse(document_file.archivo.open('rb'), content_type=document_file.mime_type)
-        except (FileNotFoundError, OSError) as error:
-            raise Http404 from error
-        filename = document_file.nombre_original.replace('"', '')
+        response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
+        filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'inline; filename="{filename}"'
         record_document_event(request, document, 'ARCHIVO_PREVISUALIZADO', resource_code='ARCHIVO', resource_id=document_file.id)
         return response
@@ -460,13 +443,14 @@ class DocumentExportView(APIView):
         writer = csv.writer(response)
         writer.writerow(['Codigo', 'Titulo', 'Tipo', 'Area', 'Estado', 'Responsable', 'Actualizado'])
         for document in queryset:
+            version = current_version(document)
             writer.writerow([
                 document.codigo,
-                document.titulo,
-                document.tipo.nombre,
-                document.area.nombre if document.area_id else '',
-                document.estado.nombre,
-                f'{document.responsable.nombres} {document.responsable.apellidos}'.strip(),
+                document.nombre,
+                document.tipo_documento.nombre,
+                document.area.nombre,
+                version.estado_version.nombre if version else '',
+                f'{document.creado_por.nombres} {document.creado_por.apellidos}'.strip(),
                 document.actualizado_en.isoformat(),
             ])
         return response

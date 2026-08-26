@@ -48,21 +48,21 @@ ORDEN RECOMENDADO
 [~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; falta restringir por area y por reglas especificas del documento.
 
 4. DOCUMENTOS Y ARCHIVOS
-[x] Crear modelo de documentos.
-[x] Crear modelo de metadatos documentales.
-[x] Crear modelo de archivos asociados.
-[x] Implementar crear documentos.
-[x] Implementar editar documentos.
-[x] Implementar eliminar y archivar documentos.
-[x] Implementar carga de archivos.
+[~] Crear modelo de documentos. Adaptado al esquema existente de produccion; pendiente validar deploy.
+[~] Crear modelo de metadatos documentales. La tabla se crea mediante la migracion 0005.
+[~] Crear modelo de archivos asociados. Adaptado a `versiones_documento`; pendiente validar deploy.
+[~] Implementar crear documentos. El endpoint existe; pendiente validar flujo autenticado en Render.
+[~] Implementar editar documentos. El endpoint existe; pendiente validar flujo autenticado en Render.
+[~] Implementar eliminar y archivar documentos. El endpoint existe; pendiente validar flujo autenticado en Render.
+[~] Implementar carga de archivos. Falta probar una carga real en B2.
 [x] Validar extension, MIME, tamano y contenido de archivos.
-[x] Implementar almacenamiento privado de archivos.
-[x] Implementar descarga autorizada.
-[x] Implementar vista previa autorizada.
-[x] Implementar busqueda documental.
-[x] Implementar filtros avanzados.
-[x] Implementar ordenamiento y paginacion.
-[x] Implementar exportacion del listado documental.
+[~] Implementar almacenamiento privado de archivos. Configurado; falta prueba de extremo a extremo.
+[~] Implementar descarga autorizada. Falta validar con un archivo persistido en B2.
+[~] Implementar vista previa autorizada. Falta validar con un archivo persistido en B2.
+[~] Implementar busqueda documental. Adaptada a las columnas reales; pendiente validar deploy.
+[~] Implementar filtros avanzados. Adaptados a las columnas reales; pendiente validar deploy.
+[~] Implementar ordenamiento y paginacion. Adaptados a las columnas reales; pendiente validar deploy.
+[~] Implementar exportacion del listado documental. Adaptada a las columnas reales; pendiente validar deploy.
 
 5. VERSIONAMIENTO
 [ ] Crear versiones inmutables de documentos.

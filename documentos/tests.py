@@ -91,24 +91,24 @@ class SerializerTests(SimpleTestCase):
         serializer = DocumentCreateSerializer(data={
             'code': 'POL-001',
             'title': 'Politica de calidad',
-            'type_id': str(uuid4()),
+            'area_id': str(uuid4()),
+            'type_id': 1,
             'metadata': {'owner': 'Calidad', 'year': 2026},
         })
 
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['metadata']['year'], 2026)
 
-    def test_document_serializer_rejects_two_status_selectors(self):
+    def test_document_serializer_rejects_non_numeric_type_id(self):
         serializer = DocumentCreateSerializer(data={
             'code': 'POL-002',
             'title': 'Politica de seguridad',
-            'type_id': str(uuid4()),
-            'status_id': str(uuid4()),
-            'status_code': 'BORRADOR',
+            'area_id': str(uuid4()),
+            'type_id': 'tipo-invalido',
         })
 
         self.assertFalse(serializer.is_valid())
-        self.assertIn('non_field_errors', serializer.errors)
+        self.assertIn('type_id', serializer.errors)
 
 
 @override_settings(ALLOWED_UPLOAD_EXTENSIONS=['.pdf', '.png'], MAX_UPLOAD_SIZE_MB=1)

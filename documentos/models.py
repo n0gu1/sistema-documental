@@ -366,85 +366,108 @@ class RolPermisoDocumental(models.Model):
         db_table = '"gestion_documental"."roles_permisos"'
 
 
+class TipoDocumentoCatalogo(models.Model):
+    id = models.SmallIntegerField(primary_key=True)
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."tipos_documento"'
+
+
+class AreaCatalogo(models.Model):
+    id = models.UUIDField(primary_key=True)
+    organizacion_id = models.UUIDField()
+    area_padre_id = models.UUIDField(null=True, blank=True)
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(null=True, blank=True)
+    activa = models.BooleanField(default=True)
+    creada_en = models.DateTimeField()
+    actualizada_en = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."areas"'
+
+
+class EstadoVersionCatalogo(models.Model):
+    id = models.SmallIntegerField(primary_key=True)
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=100)
+    es_final = models.BooleanField(default=False)
+    permite_edicion = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."estados_version"'
+
+
+class ProveedorAlmacenamiento(models.Model):
+    id = models.UUIDField(primary_key=True)
+    organizacion_id = models.UUIDField()
+    codigo = models.CharField(max_length=50)
+    nombre = models.CharField(max_length=120)
+    tipo = models.CharField(max_length=30)
+    contenedor = models.CharField(max_length=255)
+    region = models.CharField(max_length=100, null=True, blank=True)
+    url_base = models.TextField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."proveedores_almacenamiento"'
+
+
 class Documento(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    organizacion = models.ForeignKey(
-        Organizacion,
-        db_column='organizacion_id',
+    id = models.UUIDField(primary_key=True)
+    organizacion_id = models.UUIDField()
+    area = models.ForeignKey(
+        AreaCatalogo,
+        db_column='area_id',
         on_delete=models.PROTECT,
-        related_name='documentos',
+        related_name='documentos_documentales',
+    )
+    tipo_documento = models.ForeignKey(
+        TipoDocumentoCatalogo,
+        db_column='tipo_documento_id',
+        on_delete=models.PROTECT,
+        related_name='documentos_documentales',
     )
     codigo = models.CharField(max_length=64)
-    titulo = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True)
-    contenido = models.TextField(blank=True)
-    palabras_clave = models.TextField(blank=True)
-    alcance = models.TextField(blank=True)
-    area = models.ForeignKey(
-        Area,
-        db_column='area_id',
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name='documentos',
-    )
-    tipo = models.ForeignKey(
-        TipoDocumento,
-        db_column='tipo_id',
-        on_delete=models.PROTECT,
-        related_name='documentos',
-    )
-    clasificacion = models.ForeignKey(
-        ClasificacionDocumento,
-        db_column='clasificacion_id',
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name='documentos',
-    )
-    estado = models.ForeignKey(
-        EstadoDocumento,
-        db_column='estado_id',
-        on_delete=models.PROTECT,
-        related_name='documentos',
-    )
-    responsable = models.ForeignKey(
-        UsuarioDocumental,
-        db_column='responsable_id',
-        on_delete=models.PROTECT,
-        related_name='documentos_responsable',
-    )
+    nombre = models.CharField(max_length=200)
+    descripcion = models.TextField(null=True, blank=True)
+    fecha_documento = models.DateField(null=True, blank=True)
     creado_por = models.ForeignKey(
         UsuarioDocumental,
         db_column='creado_por_id',
         on_delete=models.PROTECT,
         related_name='documentos_creados',
     )
-    creado_en = models.DateTimeField(auto_now_add=True)
-    actualizado_en = models.DateTimeField(auto_now=True)
-    archivado_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField()
+    actualizado_en = models.DateTimeField()
+    eliminado_en = models.DateTimeField(null=True, blank=True)
+    eliminado_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='eliminado_por_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='documentos_eliminados',
+    )
+    motivo_eliminacion = models.TextField(null=True, blank=True)
 
     class Meta:
+        managed = False
         db_table = '"gestion_documental"."documentos"'
         ordering = ['-actualizado_en', 'codigo']
-        constraints = [
-            models.UniqueConstraint(
-                fields=['organizacion', 'codigo'],
-                name='uq_documentos_organizacion_codigo',
-            ),
-            models.CheckConstraint(
-                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
-                name='ck_documentos_codigo_formato',
-            ),
-        ]
-        indexes = [
-            models.Index(fields=['organizacion', 'estado'], name='ix_docs_org_estado'),
-            models.Index(fields=['organizacion', 'actualizado_en'], name='ix_docs_org_actualizado'),
-            models.Index(fields=['organizacion', 'area'], name='ix_docs_org_area'),
-        ]
 
     def __str__(self):
-        return f'{self.codigo} - {self.titulo}'
+        return f'{self.codigo} - {self.nombre}'
 
 
 class MetadatoDocumento(models.Model):
@@ -472,30 +495,44 @@ class MetadatoDocumento(models.Model):
 
 
 class ArchivoDocumento(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(primary_key=True)
     documento = models.ForeignKey(
         Documento,
         db_column='documento_id',
         on_delete=models.CASCADE,
         related_name='archivos',
     )
-    archivo = models.FileField(upload_to=document_file_upload_to)
-    nombre_original = models.CharField(max_length=255)
-    mime_type = models.CharField(max_length=150)
-    tamano = models.BigIntegerField()
-    sha256 = models.CharField(max_length=64)
-    subido_por = models.ForeignKey(
-        UsuarioDocumental,
-        db_column='subido_por_id',
+    estado_version = models.ForeignKey(
+        EstadoVersionCatalogo,
+        db_column='estado_version_id',
         on_delete=models.PROTECT,
-        related_name='archivos_subidos',
+        related_name='versiones_documentales',
     )
-    creado_en = models.DateTimeField(auto_now_add=True)
+    proveedor_almacenamiento = models.ForeignKey(
+        ProveedorAlmacenamiento,
+        db_column='proveedor_almacenamiento_id',
+        on_delete=models.PROTECT,
+        related_name='versiones_documentales',
+    )
+    numero_mayor = models.IntegerField()
+    numero_menor = models.IntegerField(default=0)
+    orden_version = models.IntegerField()
+    es_vigente = models.BooleanField(default=False)
+    nombre_archivo_original = models.CharField(max_length=255)
+    clave_almacenamiento = models.TextField()
+    tipo_mime = models.CharField(max_length=150)
+    tamano_bytes = models.BigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    comentario_cambio = models.TextField()
+    creada_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='creada_por_id',
+        on_delete=models.PROTECT,
+        related_name='versiones_creadas',
+    )
+    creada_en = models.DateTimeField()
 
     class Meta:
-        db_table = '"gestion_documental"."archivos_documentos"'
-        ordering = ['-creado_en']
-        indexes = [
-            models.Index(fields=['documento', 'creado_en'], name='ix_archivos_doc_fecha'),
-            models.Index(fields=['sha256'], name='ix_archivos_sha256'),
-        ]
+        managed = False
+        db_table = '"gestion_documental"."versiones_documento"'
+        ordering = ['-orden_version']
