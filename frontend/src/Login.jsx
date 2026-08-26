@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
+import ReaderDashboard from './ReaderDashboard'
 import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
@@ -254,6 +255,7 @@ function Login() {
   const isAdministrator = user?.roles?.some((role) => role.code === 'ADMINISTRADOR')
   const isEditor = user?.roles?.some((role) => role.code === 'EDITOR')
   const isReviewer = user?.roles?.some((role) => ['REVISOR', 'REVIEWER'].includes(role.code))
+  const isReader = user?.roles?.some((role) => role.code === 'LECTOR')
 
   if (user && !user.must_change_password && isAdministrator) {
     return <Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
@@ -265,6 +267,10 @@ function Login() {
 
   if (user && !user.must_change_password && isReviewer) {
     return <ReviewerDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+  }
+
+  if (user && !user.must_change_password && isReader) {
+    return <ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
   }
 
   return (
