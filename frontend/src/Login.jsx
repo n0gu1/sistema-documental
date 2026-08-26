@@ -4,6 +4,7 @@ import EditorDashboard from './EditorDashboard'
 import ReaderDashboard from './ReaderDashboard'
 import ReaderLibraryShell from './ReaderLibraryShell'
 import ReaderDocumentShell from './ReaderDocumentShell'
+import ReaderVersionHistoryShell from './ReaderVersionHistoryShell'
 import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
@@ -179,6 +180,7 @@ function Login() {
   const [user, setUser] = useState(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [documentOpen, setDocumentOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -186,9 +188,11 @@ function Login() {
   useEffect(() => {
     const openLibrary = () => setLibraryOpen(true)
     const openDocument = () => setDocumentOpen(true)
+    const openHistory = () => setHistoryOpen(true)
     window.addEventListener('reader-library-open', openLibrary)
     window.addEventListener('reader-document-open', openDocument)
-    return () => { window.removeEventListener('reader-library-open', openLibrary); window.removeEventListener('reader-document-open', openDocument) }
+    window.addEventListener('reader-history-open', openHistory)
+    return () => { window.removeEventListener('reader-library-open', openLibrary); window.removeEventListener('reader-document-open', openDocument); window.removeEventListener('reader-history-open', openHistory) }
   }, [])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -258,6 +262,7 @@ function Login() {
       setUser(null)
       setLibraryOpen(false)
       setDocumentOpen(false)
+      setHistoryOpen(false)
       setIdentity('')
     } catch (requestError) {
       setError(requestError.message)
@@ -284,7 +289,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} onClose={() => setDocumentOpen(false)} /></div>}</>
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} onClose={() => setDocumentOpen(false)} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} onClose={() => setHistoryOpen(false)} /></div>}</>
   }
 
   return (
