@@ -13,7 +13,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.CreateModel(
             name='Documento',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
@@ -84,7 +87,7 @@ class Migration(migrations.Migration):
             model_name='documento',
             index=models.Index(fields=['organizacion', 'area'], name='ix_docs_org_area'),
         ),
-        migrations.AddConstraint(
+                migrations.AddConstraint(
             model_name='documento',
             constraint=models.UniqueConstraint(fields=('organizacion', 'codigo'), name='uq_documentos_organizacion_codigo'),
         ),
@@ -103,5 +106,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='metadatodocumento',
             constraint=models.UniqueConstraint(fields=('documento', 'clave'), name='uq_documentos_metadatos_documento_clave'),
+                ),
+            ],
         ),
     ]
