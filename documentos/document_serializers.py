@@ -9,6 +9,7 @@ class DocumentCreateSerializer(serializers.Serializer):
     area_id = serializers.UUIDField()
     type_id = serializers.IntegerField(min_value=1)
     metadata = serializers.JSONField(required=False)
+    file_comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
     def validate(self, attrs):
         if attrs.get('metadata') is not None and not isinstance(attrs['metadata'], dict):
@@ -25,3 +26,4 @@ class DocumentUpdateSerializer(DocumentCreateSerializer):
 
 class DocumentFileSerializer(serializers.Serializer):
     file = serializers.FileField()
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)

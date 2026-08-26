@@ -12,7 +12,8 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .auth_utils import user_has_permission
-from .document_serializers import DocumentCreateSerializer
+from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
+from .document_views import compare_versions
 from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
@@ -109,6 +110,61 @@ class SerializerTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('type_id', serializer.errors)
+
+    def test_document_file_serializer_requires_file_but_accepts_comment(self):
+        serializer = DocumentFileSerializer(data={
+            'comment': 'Correccion de procedimiento',
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('file', serializer.errors)
+
+
+class VersioningTests(SimpleTestCase):
+    def test_compare_versions_reports_content_and_metadata_changes(self):
+        state = SimpleNamespace(id=1, codigo='BORRADOR', nombre='Borrador')
+        author = SimpleNamespace(
+            nombre_usuario='juan.perez',
+            nombres='Juan',
+            apellidos='Perez',
+        )
+        first = SimpleNamespace(
+            id=uuid4(),
+            documento_id=uuid4(),
+            nombre_archivo_original='politica.pdf',
+            tipo_mime='application/pdf',
+            tamano_bytes=10,
+            sha256='a' * 64,
+            comentario_cambio='Carga inicial',
+            estado_version_id=1,
+            estado_version=state,
+            creada_por_id=uuid4(),
+            creada_por=author,
+            creada_en=timezone.now(),
+            numero_mayor=1,
+            numero_menor=0,
+            es_vigente=False,
+        )
+        second = SimpleNamespace(
+            **{
+                **first.__dict__,
+                'id': uuid4(),
+                'tamano_bytes': 20,
+                'sha256': 'b' * 64,
+                'comentario_cambio': 'Correccion de procedimiento',
+                'numero_mayor': 2,
+                'es_vigente': True,
+            },
+        )
+        request = APIRequestFactory().get('/api/documents/')
+
+        result = compare_versions(first, second, request)
+
+        self.assertFalse(result['same_content'])
+        self.assertEqual(
+            {item['field'] for item in result['changed_fields']},
+            {'size', 'sha256', 'comment'},
+        )
 
 
 @override_settings(ALLOWED_UPLOAD_EXTENSIONS=['.pdf', '.png'], MAX_UPLOAD_SIZE_MB=1)

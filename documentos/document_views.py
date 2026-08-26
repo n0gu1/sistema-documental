@@ -2,7 +2,7 @@ import csv
 import logging
 from datetime import datetime, time
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -112,7 +112,7 @@ def current_version(document):
     return document.archivos.select_related('estado_version').filter(es_vigente=True).first() or document.archivos.select_related('estado_version').first()
 
 
-def serialize_file(document_file, request):
+def serialize_version(document_file, request):
     return {
         'id': str(document_file.id),
         'name': document_file.nombre_archivo_original,
@@ -120,6 +120,18 @@ def serialize_file(document_file, request):
         'size': document_file.tamano_bytes,
         'sha256': document_file.sha256,
         'version': f'{document_file.numero_mayor}.{document_file.numero_menor}',
+        'is_current': document_file.es_vigente,
+        'comment': document_file.comentario_cambio,
+        'status': {
+            'id': document_file.estado_version_id,
+            'code': document_file.estado_version.codigo,
+            'name': document_file.estado_version.nombre,
+        },
+        'author': {
+            'id': str(document_file.creada_por_id),
+            'username': document_file.creada_por.nombre_usuario,
+            'name': f'{document_file.creada_por.nombres} {document_file.creada_por.apellidos}'.strip(),
+        },
         'created_at': document_file.creada_en,
         'download_url': request.build_absolute_uri(
             reverse('document-file-download', args=[document_file.documento_id, document_file.id]),
@@ -127,6 +139,45 @@ def serialize_file(document_file, request):
         'preview_url': request.build_absolute_uri(
             reverse('document-file-preview', args=[document_file.documento_id, document_file.id]),
         ) if document_file.tipo_mime in PREVIEWABLE_MIMES else None,
+    }
+
+
+def serialize_file(document_file, request):
+    return serialize_version(document_file, request)
+
+
+def parse_version_id(value, field_name):
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError) as error:
+        raise ValidationError({field_name: 'El identificador de version no es valido.'}) from error
+
+
+def version_queryset(document):
+    return document.archivos.select_related(
+        'estado_version', 'proveedor_almacenamiento', 'creada_por',
+    ).order_by('-orden_version')
+
+
+def compare_versions(first, second, request):
+    fields = {
+        'name': (first.nombre_archivo_original, second.nombre_archivo_original),
+        'mime_type': (first.tipo_mime, second.tipo_mime),
+        'size': (first.tamano_bytes, second.tamano_bytes),
+        'sha256': (first.sha256, second.sha256),
+        'comment': (first.comentario_cambio, second.comentario_cambio),
+        'status': (first.estado_version.codigo, second.estado_version.codigo),
+    }
+    changed_fields = [
+        {'field': field, 'from': values[0], 'to': values[1]}
+        for field, values in fields.items()
+        if values[0] != values[1]
+    ]
+    return {
+        'from': serialize_version(first, request),
+        'to': serialize_version(second, request),
+        'same_content': first.sha256 == second.sha256,
+        'changed_fields': changed_fields,
     }
 
 
@@ -204,7 +255,7 @@ def save_metadata(document, metadata):
         )
 
 
-def save_document_file(document, uploaded_file, user):
+def save_document_file(document, uploaded_file, user, comment=''):
     file_data = validate_uploaded_file(uploaded_file)
     provider = ProveedorAlmacenamiento.objects.filter(
         organizacion_id=document.organizacion_id,
@@ -214,32 +265,34 @@ def save_document_file(document, uploaded_file, user):
     state = EstadoVersionCatalogo.objects.filter(codigo='BORRADOR').first()
     if not state:
         raise ValidationError({'file': 'No hay estado BORRADOR configurado para la version.'})
-    latest = document.archivos.order_by('-orden_version').first()
-    major = latest.numero_mayor + 1 if latest else 1
-    order = latest.orden_version + 1 if latest else 1
     extension = Path(file_data['name']).suffix.lower()
     storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{extension}'
     storage_key = None
     try:
-        storage_key = default_storage.save(storage_name, uploaded_file)
-        return ArchivoDocumento.objects.create(
-            id=uuid4(),
-            documento=document,
-            estado_version=state,
-            proveedor_almacenamiento=provider,
-            numero_mayor=major,
-            numero_menor=0,
-            orden_version=order,
-            es_vigente=True,
-            nombre_archivo_original=file_data['name'],
-            clave_almacenamiento=storage_key,
-            tipo_mime=file_data['mime_type'],
-            tamano_bytes=file_data['size'],
-            sha256=file_data['sha256'],
-            comentario_cambio='Carga inicial de archivo',
-            creada_por=user,
-            creada_en=timezone.now(),
-        )
+        with transaction.atomic():
+            latest = document.archivos.select_for_update().order_by('-orden_version').first()
+            major = latest.numero_mayor + 1 if latest else 1
+            order = latest.orden_version + 1 if latest else 1
+            document.archivos.filter(es_vigente=True).update(es_vigente=False)
+            storage_key = default_storage.save(storage_name, uploaded_file)
+            return ArchivoDocumento.objects.create(
+                id=uuid4(),
+                documento=document,
+                estado_version=state,
+                proveedor_almacenamiento=provider,
+                numero_mayor=major,
+                numero_menor=0,
+                orden_version=order,
+                es_vigente=True,
+                nombre_archivo_original=file_data['name'],
+                clave_almacenamiento=storage_key,
+                tipo_mime=file_data['mime_type'],
+                tamano_bytes=file_data['size'],
+                sha256=file_data['sha256'],
+                comentario_cambio=comment or 'Carga de archivo',
+                creada_por=user,
+                creada_en=timezone.now(),
+            )
     except Exception as error:
         if storage_key:
             default_storage.delete(storage_key)
@@ -304,7 +357,7 @@ class DocumentListCreateView(APIView):
             )
             save_metadata(document, data.get('metadata'))
             if uploaded_file:
-                save_document_file(document, uploaded_file, request.user)
+                save_document_file(document, uploaded_file, request.user, data.get('file_comment', ''))
         record_document_event(request, document, 'DOCUMENTO_CREADO')
         return Response({'document': serialize_document(document, request, include_details=True)}, status=status.HTTP_201_CREATED)
 
@@ -349,7 +402,7 @@ class DocumentDetailView(APIView):
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
         if uploaded_file:
-            save_document_file(document, uploaded_file, request.user)
+            save_document_file(document, uploaded_file, request.user, data.get('file_comment', ''))
         record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
         return Response({'document': serialize_document(document, request, include_details=True)})
 
@@ -394,9 +447,95 @@ class DocumentFileListCreateView(APIView):
         document = get_document_or_404(request, document_id)
         serializer = DocumentFileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        document_file = save_document_file(document, serializer.validated_data['file'], request.user)
+        document_file = save_document_file(
+            document,
+            serializer.validated_data['file'],
+            request.user,
+            serializer.validated_data.get('comment', ''),
+        )
         record_document_event(request, document, 'ARCHIVO_CARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
         return Response({'file': serialize_file(document_file, request)}, status=status.HTTP_201_CREATED)
+
+
+class DocumentVersionListView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def get(self, request, document_id):
+        require_permission(request, READ_PERMISSION)
+        document = get_document_or_404(request, document_id)
+        versions = version_queryset(document)
+        return Response({
+            'current_version_id': str(next((item.id for item in versions if item.es_vigente), '')) or None,
+            'versions': [serialize_version(item, request) for item in versions],
+        })
+
+    def post(self, request, document_id):
+        require_permission(request, WRITE_PERMISSION)
+        document = get_document_or_404(request, document_id)
+        serializer = DocumentFileSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        document_file = save_document_file(
+            document,
+            serializer.validated_data['file'],
+            request.user,
+            serializer.validated_data.get('comment', ''),
+        )
+        record_document_event(request, document, 'ARCHIVO_CARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
+        return Response({'version': serialize_version(document_file, request)}, status=status.HTTP_201_CREATED)
+
+
+def get_document_version_or_404(request, document_id, version_id):
+    document = get_document_or_404(request, document_id)
+    version = version_queryset(document).filter(pk=version_id).first()
+    if not version:
+        raise Http404
+    return document, version
+
+
+class DocumentVersionCompareView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request, document_id):
+        require_permission(request, READ_PERMISSION)
+        document = get_document_or_404(request, document_id)
+        first_id = parse_version_id(request.query_params.get('from_version'), 'from_version')
+        second_id = parse_version_id(request.query_params.get('to_version'), 'to_version')
+        versions = version_queryset(document).filter(pk__in=[first_id, second_id])
+        by_id = {version.id: version for version in versions}
+        if first_id not in by_id or second_id not in by_id:
+            raise Http404
+        return Response(compare_versions(by_id[first_id], by_id[second_id], request))
+
+
+class DocumentVersionTimelineView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request, document_id):
+        require_permission(request, READ_PERMISSION)
+        document = get_document_or_404(request, document_id)
+        events = []
+        for version in version_queryset(document):
+            events.append({
+                'id': str(version.id),
+                'type': 'version_created',
+                'version_id': str(version.id),
+                'version': f'{version.numero_mayor}.{version.numero_menor}',
+                'at': version.creada_en,
+                'author': {
+                    'id': str(version.creada_por_id),
+                    'username': version.creada_por.nombre_usuario,
+                    'name': f'{version.creada_por.nombres} {version.creada_por.apellidos}'.strip(),
+                },
+                'comment': version.comentario_cambio,
+                'status': {
+                    'id': version.estado_version_id,
+                    'code': version.estado_version.codigo,
+                    'name': version.estado_version.nombre,
+                },
+                'is_current': version.es_vigente,
+            })
+        return Response({'events': events})
 
 
 def get_document_file_or_404(request, document_id, file_id):
@@ -420,6 +559,17 @@ class DocumentFileDownloadView(APIView):
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
         document, document_file = get_document_file_or_404(request, document_id, file_id)
+        response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
+        filename = document_file.nombre_archivo_original.replace('"', '')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        record_document_event(request, document, 'ARCHIVO_DESCARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
+        return response
+
+
+class DocumentVersionDownloadView(DocumentFileDownloadView):
+    def get(self, request, document_id, version_id):
+        require_permission(request, READ_PERMISSION)
+        document, document_file = get_document_version_or_404(request, document_id, version_id)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'

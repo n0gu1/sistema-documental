@@ -27,10 +27,18 @@ urlpatterns = [
     path('documents/<uuid:document_id>/', document_views.DocumentDetailView.as_view(), name='document-detail'),
     path('documents/<uuid:document_id>/archive/', document_views.DocumentArchiveView.as_view(), name='document-archive'),
     path('documents/<uuid:document_id>/files/', document_views.DocumentFileListCreateView.as_view(), name='document-files'),
+    path('documents/<uuid:document_id>/versions/', document_views.DocumentVersionListView.as_view(), name='document-versions'),
+    path('documents/<uuid:document_id>/versions/compare/', document_views.DocumentVersionCompareView.as_view(), name='document-version-compare'),
+    path('documents/<uuid:document_id>/timeline/', document_views.DocumentVersionTimelineView.as_view(), name='document-version-timeline'),
     path(
         'documents/<uuid:document_id>/files/<uuid:file_id>/download/',
         document_views.DocumentFileDownloadView.as_view(),
         name='document-file-download',
+    ),
+    path(
+        'documents/<uuid:document_id>/versions/<uuid:version_id>/download/',
+        document_views.DocumentVersionDownloadView.as_view(),
+        name='document-version-download',
     ),
     path(
         'documents/<uuid:document_id>/files/<uuid:file_id>/preview/',
