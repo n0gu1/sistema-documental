@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
 import ReaderDashboard from './ReaderDashboard'
-import ReaderLibraryView from './ReaderLibraryView'
+import ReaderLibraryShell from './ReaderLibraryShell'
 import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
@@ -279,7 +279,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><button className="reader-library-back" type="button" onClick={() => setLibraryOpen(false)}>← Volver al dashboard</button><ReaderLibraryView onAction={() => {}} /></div>}</>
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}</>
   }
 
   return (
