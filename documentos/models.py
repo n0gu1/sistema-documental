@@ -64,3 +64,199 @@ class SesionDocumental(models.Model):
 
     def __str__(self):
         return str(self.id)
+
+
+class Organizacion(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=150)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."organizaciones"'
+        ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['codigo'], name='uq_organizaciones_codigo'),
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_organizaciones_codigo_formato',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Area(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion = models.ForeignKey(
+        Organizacion,
+        db_column='organizacion_id',
+        on_delete=models.CASCADE,
+        related_name='areas',
+    )
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."areas"'
+        ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organizacion', 'codigo'],
+                name='uq_areas_organizacion_codigo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_areas_codigo_formato',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['organizacion', 'activo'], name='ix_areas_org_activo'),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion = models.ForeignKey(
+        Organizacion,
+        db_column='organizacion_id',
+        on_delete=models.CASCADE,
+        related_name='tipos_documento',
+    )
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."tipos_documento"'
+        ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organizacion', 'codigo'],
+                name='uq_tipos_doc_organizacion_codigo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_tipos_doc_codigo_formato',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['organizacion', 'activo'], name='ix_tipos_doc_org_activo'),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class ClasificacionDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion = models.ForeignKey(
+        Organizacion,
+        db_column='organizacion_id',
+        on_delete=models.CASCADE,
+        related_name='clasificaciones_documento',
+    )
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    nivel = models.PositiveSmallIntegerField(default=1)
+    requiere_autorizacion = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."clasificaciones_documento"'
+        ordering = ['nivel', 'nombre']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organizacion', 'codigo'],
+                name='uq_clasif_doc_organizacion_codigo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_clasif_doc_codigo_formato',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(nivel__gte=1),
+                name='ck_clasif_doc_nivel_positivo',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['organizacion', 'activo'], name='ix_clasif_doc_org_activo'),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class EstadoDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    codigo = models.CharField(max_length=32, unique=True)
+    nombre = models.CharField(max_length=100)
+    descripcion = models.TextField(blank=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    es_final = models.BooleanField(default=False)
+    permite_edicion = models.BooleanField(default=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."estados_documento"'
+        ordering = ['orden', 'nombre']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_estados_doc_codigo_formato',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(orden__gte=0),
+                name='ck_estados_doc_orden_no_negativo',
+            ),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+
+class AccionAuditoria(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    codigo = models.CharField(max_length=50, unique=True)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."acciones_auditoria"'
+        ordering = ['codigo']
+
+    def __str__(self):
+        return self.nombre
+
+
+class TipoRecursoAuditoria(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    codigo = models.CharField(max_length=50, unique=True)
+    nombre = models.CharField(max_length=120)
+    descripcion = models.TextField(blank=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."tipos_recurso_auditoria"'
+        ordering = ['codigo']
+
+    def __str__(self):
+        return self.nombre

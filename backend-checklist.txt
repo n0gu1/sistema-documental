@@ -1,0 +1,163 @@
+CHECKLIST DE IMPLEMENTACION DEL BACKEND
+Sistema Documental
+
+Leyenda:
+[ ] Pendiente
+[x] Completo
+[~] Parcial
+
+ORDEN RECOMENDADO
+
+1. INFRAESTRUCTURA Y PRODUCCION
+[x] Configurar variables de entorno para produccion.
+[x] Configurar base de datos de produccion.
+[x] Configurar hosts permitidos, CORS y CSRF.
+[~] Configurar almacenamiento seguro de archivos. Falta registrar las credenciales del bucket S3.
+[x] Eliminar valores inseguros por defecto, incluyendo DEBUG y SECRET_KEY.
+
+2. MODELO DE DATOS
+[~] Crear modelos y migraciones administradas por Django. El modelo de autenticacion existente aun usa tablas externas no administradas.
+[x] Crear organizaciones y areas.
+[x] Crear tipos y clasificaciones documentales.
+[x] Crear catalogos de estados documentales.
+[x] Crear catalogos de acciones y recursos de auditoria.
+
+3. USUARIOS, ROLES Y PERMISOS
+[~] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
+[~] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos.
+[ ] Completar CRUD de usuarios.
+[ ] Activar, suspender y bloquear usuarios.
+[ ] Implementar restablecimiento de contrasenas.
+[ ] Implementar autenticacion multifactor (MFA).
+[ ] Implementar gestion de sesiones y dispositivos.
+[ ] Crear roles administrables.
+[ ] Crear permisos administrables.
+[ ] Asignar multiples roles a usuarios.
+[ ] Aplicar permisos por rol, area y documento.
+
+4. DOCUMENTOS Y ARCHIVOS
+[ ] Crear modelo de documentos.
+[ ] Crear modelo de metadatos documentales.
+[ ] Crear modelo de archivos asociados.
+[ ] Implementar crear documentos.
+[ ] Implementar editar documentos.
+[ ] Implementar eliminar y archivar documentos.
+[ ] Implementar carga de archivos.
+[ ] Validar extension, MIME, tamano y contenido de archivos.
+[ ] Implementar almacenamiento privado de archivos.
+[ ] Implementar descarga autorizada.
+[ ] Implementar vista previa autorizada.
+[ ] Implementar busqueda documental.
+[ ] Implementar filtros avanzados.
+[ ] Implementar ordenamiento y paginacion.
+[ ] Implementar exportacion del listado documental.
+
+5. VERSIONAMIENTO
+[ ] Crear versiones inmutables de documentos.
+[ ] Registrar autor, fecha, tamano y comentario de cada version.
+[ ] Mantener historial completo de versiones.
+[ ] Implementar comparacion entre versiones.
+[ ] Implementar descarga de versiones.
+[ ] Implementar linea de tiempo documental.
+
+6. FLUJO DOCUMENTAL
+[ ] Definir transiciones validas de estado.
+[ ] Implementar envio a revision.
+[ ] Implementar asignacion de revisores.
+[ ] Implementar fechas limite y prioridades.
+[ ] Implementar bandeja de revision.
+[ ] Implementar checklist de revision.
+[ ] Implementar comentarios y observaciones.
+[ ] Implementar respuestas a comentarios.
+[ ] Implementar resolucion de observaciones.
+[ ] Implementar aprobacion.
+[ ] Implementar devolucion con observaciones.
+[ ] Implementar rechazo.
+[ ] Implementar publicacion de versiones.
+
+7. FUNCIONES DEL LECTOR
+[ ] Mostrar solamente documentos publicados y autorizados.
+[ ] Implementar detalle y lectura documental.
+[ ] Registrar historial de lectura.
+[ ] Implementar favoritos.
+[ ] Registrar consultas y descargas.
+
+8. NOTIFICACIONES
+[ ] Crear notificaciones internas.
+[ ] Notificar asignaciones de revision.
+[ ] Notificar comentarios y observaciones.
+[ ] Notificar aprobaciones, devoluciones y rechazos.
+[ ] Configurar envio de notificaciones por correo.
+
+9. AUDITORIA Y TRAZABILIDAD
+[~] Registrar eventos de autenticacion.
+[ ] Registrar todas las operaciones documentales.
+[ ] Registrar cambios de usuarios, roles y permisos.
+[ ] Registrar descargas, publicaciones y exportaciones.
+[ ] Consultar bitacora con filtros y paginacion.
+[ ] Exportar bitacora.
+[ ] Implementar alertas de seguridad.
+[ ] Evitar perdida silenciosa de eventos de auditoria.
+
+10. ADMINISTRACION Y DASHBOARD
+[ ] Crear indicadores reales del dashboard.
+[ ] Crear resumen de documentos recientes.
+[ ] Crear cola real de revisiones pendientes.
+[ ] Implementar administracion de usuarios desde el panel.
+[ ] Implementar administracion de roles y permisos desde el panel.
+[ ] Implementar consulta de actividad por usuario.
+
+11. REPORTES
+[ ] Crear consultas para reportes ejecutivos.
+[ ] Crear reportes para editores.
+[ ] Crear reportes para revisores.
+[ ] Filtrar reportes por fecha, area, tipo, estado y responsable.
+[ ] Generar reportes en PDF.
+[ ] Generar reportes en Excel/XLSX.
+[ ] Guardar historial de reportes generados.
+[ ] Descargar reportes generados.
+[ ] Programar reportes automaticos.
+
+12. RESPALDOS Y RECUPERACION
+[ ] Configurar respaldos automaticos.
+[ ] Permitir respaldos manuales.
+[ ] Respaldar base de datos y archivos documentales.
+[ ] Configurar destinos de respaldo.
+[ ] Configurar retencion de respaldos.
+[ ] Cifrar respaldos.
+[ ] Crear puntos de restauracion.
+[ ] Implementar restauracion.
+[ ] Probar el plan de recuperacion.
+[ ] Configurar alertas de respaldos fallidos.
+
+13. CONFIGURACION E INTEGRACIONES
+[ ] Guardar configuracion de la organizacion.
+[ ] Guardar politicas de contrasena.
+[ ] Guardar politicas de sesion.
+[ ] Guardar configuracion SMTP.
+[ ] Guardar limites y tipos de archivo permitidos.
+[ ] Guardar branding, logo y favicon.
+[ ] Implementar configuracion de notificaciones.
+[ ] Implementar integraciones externas.
+
+14. CALIDAD Y SEGURIDAD
+[ ] Crear pruebas de modelos.
+[ ] Crear pruebas de endpoints.
+[ ] Crear pruebas de permisos por rol.
+[ ] Crear pruebas del flujo documental.
+[ ] Crear pruebas de carga y descarga de archivos.
+[ ] Crear pruebas de auditoria.
+[ ] Agregar validacion y sanitizacion de entradas.
+[ ] Agregar proteccion contra archivos maliciosos.
+[ ] Agregar monitoreo y registro de errores.
+[ ] Configurar alertas operativas.
+
+15. INTEGRACION FINAL
+[ ] Crear cliente API compartido en el frontend.
+[ ] Conectar el panel del administrador.
+[ ] Conectar el panel del editor.
+[ ] Conectar el panel del revisor.
+[ ] Conectar el panel del lector.
+[ ] Reemplazar todos los datos mock por datos reales.
+[ ] Validar permisos y flujos en Render.
+[ ] Ejecutar pruebas completas de aceptacion.

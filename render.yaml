@@ -4,23 +4,36 @@ services:
     runtime: python
     buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
     startCommand: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/health/
     envVars:
       - key: SECRET_KEY
         generateValue: true
+      - key: ENVIRONMENT
+        value: production
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
         value: sistema-documental.onrender.com
-      - key: DB_NAME
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sistema-documental-db
+          property: connectionString
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://sistema-documental.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://sistema-documental.onrender.com
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: AWS_STORAGE_BUCKET_NAME
         sync: false
-      - key: DB_USER
+      - key: AWS_ACCESS_KEY_ID
         sync: false
-      - key: DB_PASSWORD
+      - key: AWS_SECRET_ACCESS_KEY
         sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: us-east-1
+      - key: AWS_LOCATION
+        value: documentos
     plan: free
     region: oregon
 
