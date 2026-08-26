@@ -14,21 +14,26 @@ class Migration(migrations.Migration):
                 ('id', models.UUIDField(editable=False, primary_key=True, serialize=False)),
                 ('codigo', models.CharField(max_length=80)),
                 ('nombre', models.CharField(max_length=120)),
-                ('modulo', models.CharField(max_length=60)),
-                ('accion', models.CharField(max_length=40)),
+                ('modulo', models.CharField(max_length=50)),
                 ('descripcion', models.TextField(blank=True)),
                 ('activo', models.BooleanField(default=True)),
             ],
             options={
                 'db_table': '"gestion_documental"."permisos"',
                 'managed': False,
-                'ordering': ['modulo', 'accion', 'codigo'],
+                'ordering': ['modulo', 'codigo'],
             },
         ),
         migrations.CreateModel(
             name='RolDocumental',
             fields=[
                 ('id', models.UUIDField(editable=False, primary_key=True, serialize=False)),
+                ('organizacion', models.ForeignKey(
+                    db_column='organizacion_id',
+                    on_delete=models.RESTRICT,
+                    related_name='roles_documentales',
+                    to='documentos.organizacion',
+                )),
                 ('codigo', models.CharField(max_length=50)),
                 ('nombre', models.CharField(max_length=120)),
                 ('descripcion', models.TextField(blank=True)),
@@ -45,8 +50,8 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name='RolPermisoDocumental',
             fields=[
-                ('id', models.UUIDField(editable=False, primary_key=True, serialize=False)),
-                ('concedido', models.BooleanField(default=True)),
+                ('pk', models.CompositePrimaryKey('rol_id', 'permiso_id')),
+                ('asignado_en', models.DateTimeField()),
                 ('permiso', models.ForeignKey(
                     db_column='permiso_id',
                     on_delete=django.db.models.deletion.CASCADE,
@@ -59,23 +64,25 @@ class Migration(migrations.Migration):
                     related_name='permisos_documentales',
                     to='documentos.roldocumental',
                 )),
+                ('asignado_por', models.ForeignKey(
+                    blank=True,
+                    db_column='asignado_por_id',
+                    null=True,
+                    on_delete=models.SET_NULL,
+                    related_name='permisos_asignados',
+                    to='documentos.usuariodocumental',
+                )),
             ],
             options={
                 'db_table': '"gestion_documental"."roles_permisos"',
                 'managed': False,
-                'constraints': [
-                    models.UniqueConstraint(
-                        fields=('rol', 'permiso'),
-                        name='uq_roles_permisos_rol_permiso',
-                    ),
-                ],
             },
         ),
         migrations.CreateModel(
             name='UsuarioRolDocumental',
             fields=[
-                ('id', models.UUIDField(editable=False, primary_key=True, serialize=False)),
-                ('vigente_desde', models.DateTimeField()),
+                ('pk', models.CompositePrimaryKey('usuario_id', 'rol_id')),
+                ('asignado_en', models.DateTimeField()),
                 ('vigente_hasta', models.DateTimeField(blank=True, null=True)),
                 ('rol', models.ForeignKey(
                     db_column='rol_id',
@@ -89,16 +96,18 @@ class Migration(migrations.Migration):
                     related_name='roles_documentales',
                     to='documentos.usuariodocumental',
                 )),
+                ('asignado_por', models.ForeignKey(
+                    blank=True,
+                    db_column='asignado_por_id',
+                    null=True,
+                    on_delete=models.SET_NULL,
+                    related_name='roles_asignados',
+                    to='documentos.usuariodocumental',
+                )),
             ],
             options={
                 'db_table': '"gestion_documental"."usuarios_roles"',
                 'managed': False,
-                'constraints': [
-                    models.UniqueConstraint(
-                        fields=('usuario', 'rol'),
-                        name='uq_usuarios_roles_usuario_rol',
-                    ),
-                ],
             },
         ),
     ]

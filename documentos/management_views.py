@@ -77,7 +77,7 @@ class UserListCreateView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request):
-        require_permission(request, 'USUARIOS_VER')
+        require_permission(request, 'usuarios.consultar')
         queryset = UsuarioDocumental.objects.filter(organizacion_id=request.user.organizacion_id)
         search = request.query_params.get('search', '').strip()
         if search:
@@ -106,7 +106,7 @@ class UserListCreateView(APIView):
         )
 
     def post(self, request):
-        require_permission(request, 'USUARIOS_CREAR')
+        require_permission(request, 'usuarios.gestionar')
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -138,7 +138,7 @@ class UserListCreateView(APIView):
                 activo=True,
                 debe_cambiar_contrasena=True,
             )
-            assign_roles(user, data.get('role_ids', []))
+            assign_roles(user, data.get('role_ids', []), request.user.id)
 
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario creado')
         return Response({'user': serialize_management_user(user)}, status=status.HTTP_201_CREATED)
@@ -148,14 +148,14 @@ class UserDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, user_id):
-        require_permission(request, 'USUARIOS_VER')
+        require_permission(request, 'usuarios.consultar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'user': serialize_management_user(user)})
 
     def patch(self, request, user_id):
-        require_permission(request, 'USUARIOS_EDITAR')
+        require_permission(request, 'usuarios.gestionar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -199,7 +199,7 @@ class UserStatusView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, user_id):
-        require_permission(request, 'USUARIOS_EDITAR')
+        require_permission(request, 'usuarios.gestionar')
         serializer = UserStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = get_user_for_organization(user_id, request.user.organizacion_id)
@@ -227,7 +227,7 @@ class UserLockView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, user_id):
-        require_permission(request, 'USUARIOS_EDITAR')
+        require_permission(request, 'usuarios.gestionar')
         serializer = UserLockSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = get_user_for_organization(user_id, request.user.organizacion_id)
@@ -256,7 +256,7 @@ class UserResetPasswordView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, user_id):
-        require_permission(request, 'USUARIOS_EDITAR')
+        require_permission(request, 'usuarios.gestionar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -287,7 +287,7 @@ class UserRolesView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, user_id):
-        require_permission(request, 'USUARIOS_VER')
+        require_permission(request, 'usuarios.consultar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -295,13 +295,17 @@ class UserRolesView(APIView):
             usuario_id=user.pk,
             vigente_hasta__isnull=True,
         ).values_list('rol_id', flat=True))
-        roles = RolDocumental.objects.filter(id__in=role_ids, activo=True).values(
+        roles = RolDocumental.objects.filter(
+            id__in=role_ids,
+            organizacion_id=request.user.organizacion_id,
+            activo=True,
+        ).values(
             'id', 'codigo', 'nombre', 'descripcion', 'activo',
         )
         return Response({'roles': list(roles)})
 
     def put(self, request, user_id):
-        require_permission(request, 'USUARIOS_ADMINISTRAR')
+        require_permission(request, 'usuarios.gestionar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -310,6 +314,7 @@ class UserRolesView(APIView):
         role_ids = serializer.validated_data['role_ids']
         available_role_ids = set(RolDocumental.objects.filter(
             id__in=role_ids,
+            organizacion_id=request.user.organizacion_id,
             activo=True,
         ).values_list('id', flat=True))
         if len(available_role_ids) != len(set(role_ids)):
@@ -317,16 +322,19 @@ class UserRolesView(APIView):
                 {'code': 'INVALID_ROLE', 'detail': 'Uno o mas roles no son validos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        assign_roles(user, role_ids)
+        assign_roles(user, role_ids, request.user.id)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Roles de usuario actualizados')
-        return Response({'roles': list(RolDocumental.objects.filter(id__in=role_ids).values('id', 'codigo', 'nombre'))})
+        return Response({'roles': list(RolDocumental.objects.filter(
+            id__in=role_ids,
+            organizacion_id=request.user.organizacion_id,
+        ).values('id', 'codigo', 'nombre'))})
 
 
 class UserSessionsView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, user_id):
-        require_permission(request, 'USUARIOS_VER')
+        require_permission(request, 'usuarios.consultar')
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
@@ -345,7 +353,7 @@ class SessionRevokeView(APIView):
         if not session or session.usuario.organizacion_id != request.user.organizacion_id:
             return Response({'detail': 'Sesion no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         if session.usuario_id != request.user.id:
-            require_permission(request, 'USUARIOS_ADMINISTRAR')
+            require_permission(request, 'usuarios.gestionar')
         now = timezone.now()
         SesionDocumental.objects.filter(pk=session.pk, revocada_en__isnull=True).update(
             revocada_en=now,
@@ -358,26 +366,31 @@ class RoleListCreateView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request):
-        require_permission(request, 'ROLES_VER')
+        require_permission(request, 'roles.gestionar')
         roles = []
-        for role in RolDocumental.objects.filter(activo=True).values('id', 'codigo', 'nombre', 'descripcion', 'activo'):
+        for role in RolDocumental.objects.filter(
+            organizacion_id=request.user.organizacion_id,
+            activo=True,
+        ).values('id', 'codigo', 'nombre', 'descripcion', 'activo'):
             role['users_count'] = UsuarioRolDocumental.objects.filter(
                 rol_id=role['id'],
                 vigente_hasta__isnull=True,
             ).count()
             role['permissions_count'] = RolPermisoDocumental.objects.filter(
                 rol_id=role['id'],
-                concedido=True,
             ).count()
             roles.append(role)
         return Response({'roles': roles})
 
     def post(self, request):
-        require_permission(request, 'ROLES_ADMINISTRAR')
+        require_permission(request, 'roles.gestionar')
         serializer = RoleCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        if RolDocumental.objects.filter(codigo=data['code']).exists():
+        if RolDocumental.objects.filter(
+            organizacion_id=request.user.organizacion_id,
+            codigo=data['code'],
+        ).exists():
             return Response(
                 {'code': 'ROLE_ALREADY_EXISTS', 'detail': 'El codigo del rol ya existe.'},
                 status=status.HTTP_409_CONFLICT,
@@ -385,6 +398,7 @@ class RoleListCreateView(APIView):
         now = timezone.now()
         role = RolDocumental.objects.create(
             id=uuid.uuid4(),
+            organizacion_id=request.user.organizacion_id,
             codigo=data['code'],
             nombre=data['name'],
             descripcion=data.get('description', ''),
@@ -410,8 +424,11 @@ class RoleDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def patch(self, request, role_id):
-        require_permission(request, 'ROLES_ADMINISTRAR')
-        role = RolDocumental.objects.filter(pk=role_id).first()
+        require_permission(request, 'roles.gestionar')
+        role = RolDocumental.objects.filter(
+            pk=role_id,
+            organizacion_id=request.user.organizacion_id,
+        ).first()
         if not role:
             return Response({'detail': 'Rol no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = RoleUpdateSerializer(data=request.data, partial=True)
@@ -434,43 +451,50 @@ class PermissionListView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request):
-        require_permission(request, 'PERMISOS_VER')
+        require_permission(request, 'roles.gestionar')
         permissions = PermisoDocumental.objects.filter(activo=True).values(
-            'id', 'codigo', 'nombre', 'modulo', 'accion', 'descripcion', 'activo',
+            'id', 'codigo', 'nombre', 'modulo', 'descripcion', 'activo',
         )
-        return Response({'permissions': list(permissions)})
+        return Response({'permissions': [permission_to_dict(permission) for permission in permissions]})
 
 
 class RolePermissionsView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, role_id):
-        require_permission(request, 'ROLES_VER')
-        role = RolDocumental.objects.filter(pk=role_id, activo=True).values(
+        require_permission(request, 'roles.gestionar')
+        role = RolDocumental.objects.filter(
+            pk=role_id,
+            organizacion_id=request.user.organizacion_id,
+            activo=True,
+        ).values(
             'id', 'codigo', 'nombre', 'descripcion', 'activo',
         ).first()
         if not role:
             return Response({'detail': 'Rol no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         permission_ids = RolPermisoDocumental.objects.filter(
             rol_id=role_id,
-            concedido=True,
         ).values_list('permiso_id', flat=True)
         permissions = PermisoDocumental.objects.filter(activo=True).values(
-            'id', 'codigo', 'nombre', 'modulo', 'accion', 'descripcion', 'activo',
+            'id', 'codigo', 'nombre', 'modulo', 'descripcion', 'activo',
         )
         return Response(
             {
                 'role': role,
                 'permissions': [
-                    {**permission, 'granted': permission['id'] in permission_ids}
+                    {**permission_to_dict(permission), 'granted': permission['id'] in permission_ids}
                     for permission in permissions
                 ],
             },
         )
 
     def put(self, request, role_id):
-        require_permission(request, 'ROLES_ADMINISTRAR')
-        role = RolDocumental.objects.filter(pk=role_id, activo=True).first()
+        require_permission(request, 'roles.gestionar')
+        role = RolDocumental.objects.filter(
+            pk=role_id,
+            organizacion_id=request.user.organizacion_id,
+            activo=True,
+        ).first()
         if not role:
             return Response({'detail': 'Rol no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = PermissionAssignmentSerializer(data=request.data)
@@ -489,15 +513,15 @@ class RolePermissionsView(APIView):
             RolPermisoDocumental.objects.filter(rol_id=role.pk).delete()
             for permission_id in valid_permission_ids:
                 RolPermisoDocumental.objects.create(
-                    id=uuid.uuid4(),
                     rol_id=role.pk,
                     permiso_id=permission_id,
-                    concedido=True,
+                    asignado_por_id=request.user.id,
+                    asignado_en=timezone.now(),
                 )
         return Response({'role_id': str(role.pk), 'permission_ids': [str(item) for item in valid_permission_ids]})
 
 
-def assign_roles(user, role_ids):
+def assign_roles(user, role_ids, assigned_by_id):
     now = timezone.now()
     with transaction.atomic():
         selected_ids = set(role_ids)
@@ -505,15 +529,16 @@ def assign_roles(user, role_ids):
         current.exclude(rol_id__in=selected_ids).update(vigente_hasta=now)
         for role_id in selected_ids:
             updated = current.filter(rol_id=role_id).update(
-                vigente_desde=now,
+                asignado_por_id=assigned_by_id,
+                asignado_en=now,
                 vigente_hasta=None,
             )
             if not updated:
                 UsuarioRolDocumental.objects.create(
-                    id=uuid.uuid4(),
                     usuario_id=user.pk,
                     rol_id=role_id,
-                    vigente_desde=now,
+                    asignado_por_id=assigned_by_id,
+                    asignado_en=now,
                     vigente_hasta=None,
                 )
 
@@ -540,4 +565,12 @@ def role_to_dict(role):
         'name': role.nombre,
         'description': role.descripcion,
         'active': role.activo,
+    }
+
+
+def permission_to_dict(permission):
+    return {
+        **permission,
+        'id': str(permission['id']),
+        'action': permission['codigo'].rsplit('.', 1)[-1],
     }

@@ -45,7 +45,6 @@ def get_user_permission_codes(user_id):
             WHERE ur.usuario_id = %s
               AND r.activo
               AND p.activo
-              AND rp.concedido
               AND (ur.vigente_hasta IS NULL OR ur.vigente_hasta > CURRENT_TIMESTAMP)
             ORDER BY p.codigo
             ''',

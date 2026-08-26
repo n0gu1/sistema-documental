@@ -264,6 +264,12 @@ class TipoRecursoAuditoria(models.Model):
 
 class RolDocumental(models.Model):
     id = models.UUIDField(primary_key=True, editable=False)
+    organizacion = models.ForeignKey(
+        Organizacion,
+        db_column='organizacion_id',
+        on_delete=models.RESTRICT,
+        related_name='roles_documentales',
+    )
     codigo = models.CharField(max_length=50)
     nombre = models.CharField(max_length=120)
     descripcion = models.TextField(blank=True)
@@ -284,22 +290,21 @@ class PermisoDocumental(models.Model):
     id = models.UUIDField(primary_key=True, editable=False)
     codigo = models.CharField(max_length=80)
     nombre = models.CharField(max_length=120)
-    modulo = models.CharField(max_length=60)
-    accion = models.CharField(max_length=40)
+    modulo = models.CharField(max_length=50)
     descripcion = models.TextField(blank=True)
     activo = models.BooleanField(default=True)
 
     class Meta:
         managed = False
         db_table = '"gestion_documental"."permisos"'
-        ordering = ['modulo', 'accion', 'codigo']
+        ordering = ['modulo', 'codigo']
 
     def __str__(self):
         return self.nombre
 
 
 class UsuarioRolDocumental(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False)
+    pk = models.CompositePrimaryKey('usuario_id', 'rol_id')
     usuario = models.ForeignKey(
         UsuarioDocumental,
         db_column='usuario_id',
@@ -312,22 +317,22 @@ class UsuarioRolDocumental(models.Model):
         on_delete=models.CASCADE,
         related_name='usuarios_documentales',
     )
-    vigente_desde = models.DateTimeField()
+    asignado_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='asignado_por_id',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='roles_asignados',
+    )
+    asignado_en = models.DateTimeField()
     vigente_hasta = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         managed = False
         db_table = '"gestion_documental"."usuarios_roles"'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['usuario', 'rol'],
-                name='uq_usuarios_roles_usuario_rol',
-            ),
-        ]
-
-
 class RolPermisoDocumental(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False)
+    pk = models.CompositePrimaryKey('rol_id', 'permiso_id')
     rol = models.ForeignKey(
         RolDocumental,
         db_column='rol_id',
@@ -340,14 +345,16 @@ class RolPermisoDocumental(models.Model):
         on_delete=models.CASCADE,
         related_name='roles_documentales',
     )
-    concedido = models.BooleanField(default=True)
+    asignado_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='asignado_por_id',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='permisos_asignados',
+    )
+    asignado_en = models.DateTimeField()
 
     class Meta:
         managed = False
         db_table = '"gestion_documental"."roles_permisos"'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['rol', 'permiso'],
-                name='uq_roles_permisos_rol_permiso',
-            ),
-        ]
