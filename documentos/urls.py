@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import management_views
 from . import document_views
+from . import workflow_views
 
 urlpatterns = [
     path('auth/csrf/', views.CsrfTokenView.as_view(), name='auth-csrf'),
@@ -30,6 +31,26 @@ urlpatterns = [
     path('documents/<uuid:document_id>/versions/', document_views.DocumentVersionListView.as_view(), name='document-versions'),
     path('documents/<uuid:document_id>/versions/compare/', document_views.DocumentVersionCompareView.as_view(), name='document-version-compare'),
     path('documents/<uuid:document_id>/timeline/', document_views.DocumentVersionTimelineView.as_view(), name='document-version-timeline'),
+    path(
+        'documents/<uuid:document_id>/versions/<uuid:version_id>/submit-review/',
+        workflow_views.ReviewSubmitView.as_view(),
+        name='review-submit',
+    ),
+    path('reviews/inbox/', workflow_views.ReviewInboxView.as_view(), name='review-inbox'),
+    path('reviews/<uuid:review_id>/', workflow_views.ReviewDetailView.as_view(), name='review-detail'),
+    path('reviews/<uuid:review_id>/assign/', workflow_views.ReviewAssignmentView.as_view(), name='review-assign'),
+    path('reviews/<uuid:review_id>/approve/', workflow_views.ReviewApproveView.as_view(), name='review-approve'),
+    path('reviews/<uuid:review_id>/return/', workflow_views.ReviewReturnView.as_view(), name='review-return'),
+    path('reviews/<uuid:review_id>/reject/', workflow_views.ReviewRejectView.as_view(), name='review-reject'),
+    path('reviews/<uuid:review_id>/comments/', workflow_views.ReviewCommentListCreateView.as_view(), name='review-comments'),
+    path('reviews/<uuid:review_id>/checklist/', workflow_views.ReviewChecklistCreateView.as_view(), name='review-checklist'),
+    path('reviews/checklist/<uuid:item_id>/', workflow_views.ReviewChecklistUpdateView.as_view(), name='review-checklist-item'),
+    path('reviews/comments/<uuid:comment_id>/resolve/', workflow_views.ReviewCommentResolveView.as_view(), name='review-comment-resolve'),
+    path(
+        'documents/<uuid:document_id>/versions/<uuid:version_id>/publish/',
+        workflow_views.VersionPublishView.as_view(),
+        name='version-publish',
+    ),
     path(
         'documents/<uuid:document_id>/files/<uuid:file_id>/download/',
         document_views.DocumentFileDownloadView.as_view(),

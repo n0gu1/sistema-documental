@@ -17,6 +17,7 @@ from .document_views import compare_versions
 from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
+from .workflow_views import SubmitReviewSerializer, VERSION_TRANSITIONS, transition_version
 
 
 class SerializerTests(SimpleTestCase):
@@ -165,6 +166,42 @@ class VersioningTests(SimpleTestCase):
             {item['field'] for item in result['changed_fields']},
             {'size', 'sha256', 'comment'},
         )
+
+
+class WorkflowTests(SimpleTestCase):
+    def test_version_transitions_allow_review_and_publication_only_in_order(self):
+        self.assertEqual(VERSION_TRANSITIONS['BORRADOR'], {'EN_REVISION'})
+        self.assertEqual(VERSION_TRANSITIONS['EN_REVISION'], {'APROBADO', 'BORRADOR', 'RECHAZADO'})
+        self.assertEqual(VERSION_TRANSITIONS['APROBADO'], {'PUBLICADO'})
+        self.assertEqual(VERSION_TRANSITIONS['PUBLICADO'], set())
+
+    def test_submit_review_serializer_rejects_duplicate_reviewers(self):
+        reviewer_id = uuid4()
+        serializer = SubmitReviewSerializer(data={
+            'reviewer_ids': [str(reviewer_id), str(reviewer_id)],
+            'checklist': ['Verificar vigencia'],
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('reviewer_ids', serializer.errors)
+
+    @patch('documentos.workflow_views.HistorialEstadoVersion.objects.create')
+    @patch('documentos.workflow_views.get_catalog_state')
+    def test_transition_records_history_before_updating_version(self, get_catalog_state, create_history):
+        current_state = SimpleNamespace(codigo='BORRADOR', id=1)
+        target_state = SimpleNamespace(codigo='EN_REVISION', id=2)
+        version = SimpleNamespace(
+            estado_version=current_state,
+            save=MagicMock(),
+        )
+        get_catalog_state.return_value = target_state
+        user = SimpleNamespace(id=uuid4())
+
+        transition_version(version, 'EN_REVISION', user, 'Enviar a revision')
+
+        create_history.assert_called_once()
+        self.assertIs(version.estado_version, target_state)
+        version.save.assert_called_once_with(update_fields=['estado_version'])
 
 
 @override_settings(ALLOWED_UPLOAD_EXTENSIONS=['.pdf', '.png'], MAX_UPLOAD_SIZE_MB=1)

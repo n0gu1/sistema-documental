@@ -23,6 +23,7 @@ from .models import (
     AreaCatalogo,
     Documento,
     EstadoVersionCatalogo,
+    HistorialEstadoVersion,
     MetadatoDocumento,
     ProveedorAlmacenamiento,
     TipoDocumentoCatalogo,
@@ -275,7 +276,7 @@ def save_document_file(document, uploaded_file, user, comment=''):
             order = latest.orden_version + 1 if latest else 1
             document.archivos.filter(es_vigente=True).update(es_vigente=False)
             storage_key = default_storage.save(storage_name, uploaded_file)
-            return ArchivoDocumento.objects.create(
+            document_file = ArchivoDocumento.objects.create(
                 id=uuid4(),
                 documento=document,
                 estado_version=state,
@@ -293,6 +294,14 @@ def save_document_file(document, uploaded_file, user, comment=''):
                 creada_por=user,
                 creada_en=timezone.now(),
             )
+            HistorialEstadoVersion.objects.create(
+                version_documento=document_file,
+                estado_nuevo=state,
+                cambiado_por=user,
+                comentario='Version creada en estado BORRADOR',
+                cambiado_en=timezone.now(),
+            )
+            return document_file
     except Exception as error:
         if storage_key:
             default_storage.delete(storage_key)

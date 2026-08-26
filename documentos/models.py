@@ -536,3 +536,188 @@ class ArchivoDocumento(models.Model):
         managed = False
         db_table = '"gestion_documental"."versiones_documento"'
         ordering = ['-orden_version']
+
+
+class EstadoRevisionCatalogo(models.Model):
+    id = models.SmallIntegerField(primary_key=True)
+    codigo = models.CharField(max_length=32)
+    nombre = models.CharField(max_length=100)
+    es_final = models.BooleanField(default=False)
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."estados_revision"'
+
+
+class SolicitudRevision(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    version_documento = models.ForeignKey(
+        ArchivoDocumento,
+        db_column='version_documento_id',
+        on_delete=models.CASCADE,
+        related_name='solicitudes_revision',
+    )
+    revisor = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='revisor_id',
+        on_delete=models.PROTECT,
+        related_name='solicitudes_asignadas',
+    )
+    solicitada_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='solicitada_por_id',
+        on_delete=models.PROTECT,
+        related_name='solicitudes_enviadas',
+    )
+    estado_revision = models.ForeignKey(
+        EstadoRevisionCatalogo,
+        db_column='estado_revision_id',
+        on_delete=models.PROTECT,
+        related_name='solicitudes_documentales',
+    )
+    comentario_solicitud = models.TextField(null=True, blank=True)
+    comentario_resolucion = models.TextField(null=True, blank=True)
+    solicitada_en = models.DateTimeField()
+    resuelta_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."solicitudes_revision"'
+        ordering = ['-solicitada_en']
+
+
+class HistorialEstadoVersion(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    version_documento = models.ForeignKey(
+        ArchivoDocumento,
+        db_column='version_documento_id',
+        on_delete=models.CASCADE,
+        related_name='historial_estados',
+    )
+    estado_anterior = models.ForeignKey(
+        EstadoVersionCatalogo,
+        db_column='estado_anterior_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='historial_desde',
+    )
+    estado_nuevo = models.ForeignKey(
+        EstadoVersionCatalogo,
+        db_column='estado_nuevo_id',
+        on_delete=models.PROTECT,
+        related_name='historial_hasta',
+    )
+    cambiado_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='cambiado_por_id',
+        on_delete=models.PROTECT,
+        related_name='cambios_estado_version',
+    )
+    comentario = models.TextField(null=True, blank=True)
+    cambiado_en = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."historial_estados_version"'
+        ordering = ['-cambiado_en']
+
+
+class DetalleSolicitudRevision(models.Model):
+    PRIORIDADES = (
+        ('BAJA', 'Baja'),
+        ('MEDIA', 'Media'),
+        ('ALTA', 'Alta'),
+        ('URGENTE', 'Urgente'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    solicitud = models.OneToOneField(
+        SolicitudRevision,
+        db_column='solicitud_revision_id',
+        on_delete=models.CASCADE,
+        related_name='detalle',
+    )
+    fecha_limite = models.DateTimeField(null=True, blank=True)
+    prioridad = models.CharField(max_length=20, choices=PRIORIDADES, default='MEDIA')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."solicitudes_revision_detalle"'
+
+
+class ElementoChecklistRevision(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    solicitud = models.ForeignKey(
+        SolicitudRevision,
+        db_column='solicitud_revision_id',
+        on_delete=models.CASCADE,
+        related_name='checklist',
+    )
+    orden = models.PositiveIntegerField(default=0)
+    titulo = models.CharField(max_length=255)
+    completada = models.BooleanField(default=False)
+    completada_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='completada_por_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='checklist_completada',
+    )
+    completada_en = models.DateTimeField(null=True, blank=True)
+    creada_en = models.DateTimeField(auto_now_add=True)
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."revisiones_checklist"'
+        ordering = ['orden', 'creada_en']
+
+
+class ComentarioRevision(models.Model):
+    TIPOS = (
+        ('OBSERVACION', 'Observacion'),
+        ('RESPUESTA', 'Respuesta'),
+        ('RESOLUCION', 'Resolucion'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    solicitud = models.ForeignKey(
+        SolicitudRevision,
+        db_column='solicitud_revision_id',
+        on_delete=models.CASCADE,
+        related_name='comentarios',
+    )
+    autor = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='autor_id',
+        on_delete=models.PROTECT,
+        related_name='comentarios_revision',
+    )
+    comentario_padre = models.ForeignKey(
+        'self',
+        db_column='comentario_padre_id',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='respuestas',
+    )
+    tipo = models.CharField(max_length=20, choices=TIPOS, default='OBSERVACION')
+    contenido = models.TextField()
+    resuelto = models.BooleanField(default=False)
+    resuelto_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='resuelto_por_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='comentarios_resueltos',
+    )
+    resuelto_en = models.DateTimeField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."revision_comentarios"'
+        ordering = ['creado_en']
