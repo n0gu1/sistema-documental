@@ -31,7 +31,9 @@ services:
       - key: AWS_SECRET_ACCESS_KEY
         sync: false
       - key: AWS_S3_REGION_NAME
-        value: us-east-1
+        value: us-east-005
+      - key: AWS_S3_ENDPOINT_URL
+        value: https://s3.us-east-005.backblazeb2.com
       - key: AWS_LOCATION
         value: documentos
     plan: free

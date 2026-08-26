@@ -16,7 +16,10 @@ class Migration(migrations.Migration):
             sql='CREATE SCHEMA IF NOT EXISTS "gestion_documental"',
             reverse_sql=migrations.RunSQL.noop,
         ),
-        migrations.CreateModel(
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.CreateModel(
             name='AccionAuditoria',
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
@@ -137,5 +140,7 @@ class Migration(migrations.Migration):
                 'indexes': [models.Index(fields=['organizacion', 'activo'], name='ix_tipos_doc_org_activo')],
                 'constraints': [models.UniqueConstraint(fields=('organizacion', 'codigo'), name='uq_tipos_doc_organizacion_codigo'), models.CheckConstraint(condition=models.Q(('codigo__regex', '^[A-Z0-9_-]+$')), name='ck_tipos_doc_codigo_formato')],
             },
+                ),
+            ],
         ),
     ]
