@@ -83,6 +83,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error }) {
     if (label === 'Los documentos disponibles') window.dispatchEvent(new Event('reader-document-open'))
     if (label === 'El historial de versiones') window.dispatchEvent(new Event('reader-history-open'))
     if (label === 'El historial de lectura') window.dispatchEvent(new Event('reader-reading-open'))
+    if (label === 'Tus favoritos') window.dispatchEvent(new Event('reader-favorites-open'))
     setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista frontend.`)
     setSidebarOpen(false)
   }
