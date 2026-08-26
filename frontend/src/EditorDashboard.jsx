@@ -3,6 +3,7 @@ import EditorActivityLogView from './EditorActivityLogView'
 import EditorBasicReportsView from './EditorBasicReportsView'
 import EditorDocumentEditView from './EditorDocumentEditView'
 import EditorDocumentsView from './EditorDocumentsView'
+import EditorVersionsView from './EditorVersionsView'
 import './EditorDashboard.css'
 
 const editorDocuments = [
@@ -97,7 +98,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
       <nav className="editor-nav" aria-label="Navegación del editor">
         <button className={activeView === 'dashboard' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('dashboard'); setSidebarOpen(false) }}><EditorIcon name="dashboard" size={22} /> Dashboard</button>
         <button className={activeView === 'documents' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('documents'); setSidebarOpen(false) }}><EditorIcon name="document" size={22} /> Documentos</button>
-        <button type="button" onClick={() => action('Versiones')}><EditorIcon name="layers" size={22} /> Versiones</button>
+        <button className={activeView === 'versions' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('versions'); setSidebarOpen(false) }}><EditorIcon name="layers" size={22} /> Versiones</button>
         <button className={activeView === 'audit' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('audit'); setSidebarOpen(false) }}><EditorIcon name="history" size={22} /> Bitácora personal</button>
         <button className={activeView === 'reports' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('reports'); setSidebarOpen(false) }}><EditorIcon name="chart" size={22} /> Reportes básicos</button>
       </nav>
@@ -108,7 +109,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
       <header className="editor-topbar"><button className="editor-menu" type="button" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><EditorIcon name="menu" size={25} /></button><label className="editor-search"><EditorIcon name="search" size={20} /><input type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="editor-topbar__actions"><button className="editor-notification" type="button" aria-label="Notificaciones" onClick={() => setNotice('Tienes 3 notificaciones nuevas.')}><EditorIcon name="bell" size={24} /><span>3</span></button><div className="editor-profile"><button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}><span className="editor-avatar">{initials}</span><span><strong>{user.full_name || 'Carlos Méndez'}</strong><small>{role}</small></span><EditorIcon name="chevron" size={17} /></button>{profileOpen && <div className="editor-profile__menu"><span>{user.email}</span><button type="button" onClick={onLogout} disabled={logoutPending}><EditorIcon name="logout" size={17} /> {logoutPending ? 'Cerrando...' : 'Cerrar sesión'}</button></div>}</div></div></header>
       <div className="editor-content">
         {error && <p className="editor-error" role="alert">{error}</p>}
-        {activeView === 'documents' ? <EditorDocumentsView globalQuery={query} onAction={action} onEditDocument={(document) => { setSelectedDocument(document); setActiveView('edit') }} /> : activeView === 'edit' ? <EditorDocumentEditView document={selectedDocument || editorDocuments[0]} onBack={() => setActiveView('documents')} onAction={action} /> : activeView === 'audit' ? <EditorActivityLogView globalQuery={query} onAction={action} /> : activeView === 'reports' ? <EditorBasicReportsView globalQuery={query} /> : <>
+        {activeView === 'documents' ? <EditorDocumentsView globalQuery={query} onAction={action} onEditDocument={(document) => { setSelectedDocument(document); setActiveView('edit') }} /> : activeView === 'edit' ? <EditorDocumentEditView document={selectedDocument || editorDocuments[0]} onBack={() => setActiveView('documents')} onAction={action} /> : activeView === 'versions' ? <EditorVersionsView /> : activeView === 'audit' ? <EditorActivityLogView globalQuery={query} onAction={action} /> : activeView === 'reports' ? <EditorBasicReportsView globalQuery={query} /> : <>
         <header className="editor-heading"><div><h1>Dashboard del Editor</h1><p>Gestiona tus documentos, versiones y actividades personales.</p></div><time><EditorIcon name="calendar" size={18} /> 23 de mayo de 2024</time></header>
         <section className="editor-metrics" aria-label="Resumen del editor"><Metric tone="blue" icon="document" label="Mis documentos" value="24" detail="12%" /><Metric tone="orange" icon="history" label="Pendientes de revisión" value="7" detail="17%" direction="down" /><Metric tone="violet" icon="comment" label="Comentarios recibidos" value="16" detail="11%" direction="down" /><Metric tone="teal" icon="layers" label="Versiones activas" value="31" detail="8%" /></section>
         <div className="editor-upper-grid">
