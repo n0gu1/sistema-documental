@@ -6,13 +6,24 @@ Leyenda:
 [x] Completo
 [~] Parcial
 
+VERIFICACION REALIZADA EL 2026-08-26
+- `python manage.py check`: correcto.
+- `python manage.py check --deploy` con configuracion de produccion: correcto.
+- `python manage.py test`: 15 pruebas exitosas.
+- Render: deploy `dc6939b` en estado `live`.
+- Render `/api/health/`: HTTP 200.
+- Render `/api/auth/csrf/`: HTTP 200.
+- Render `/api/admin/users/` sin autenticacion: HTTP 401.
+- Las migraciones se ejecutaron correctamente durante el deploy de Render.
+- No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
+
 ORDEN RECOMENDADO
 
 1. INFRAESTRUCTURA Y PRODUCCION
 [x] Configurar variables de entorno para produccion.
 [x] Configurar base de datos de produccion.
 [x] Configurar hosts permitidos, CORS y CSRF.
-[~] Configurar almacenamiento seguro de archivos. Falta registrar las credenciales del bucket S3.
+[~] Configurar almacenamiento seguro de archivos. S3/B2 y sus credenciales ya estan configurados en Render; falta probar una carga real y completar los modulos de archivos.
 [x] Eliminar valores inseguros por defecto, incluyendo DEBUG y SECRET_KEY.
 
 2. MODELO DE DATOS
@@ -23,8 +34,8 @@ ORDEN RECOMENDADO
 [x] Crear catalogos de acciones y recursos de auditoria.
 
 3. USUARIOS, ROLES Y PERMISOS
-[~] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
-[~] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos.
+[x] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
+[x] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos.
 [x] Completar CRUD de usuarios.
 [x] Activar, suspender y bloquear usuarios.
 [x] Implementar restablecimiento de contrasenas.
