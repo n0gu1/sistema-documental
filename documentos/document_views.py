@@ -1,4 +1,5 @@
 import csv
+import logging
 from datetime import datetime, time
 from pathlib import Path
 from uuid import uuid4
@@ -32,6 +33,7 @@ from .permissions import IsAuthenticatedAndPasswordCurrent
 READ_PERMISSION = 'documentos.consultar'
 WRITE_PERMISSION = 'documentos.gestionar'
 PREVIEWABLE_MIMES = {'application/pdf', 'image/jpeg', 'image/png'}
+logger = logging.getLogger(__name__)
 
 
 def document_queryset(organization_id):
@@ -217,24 +219,31 @@ def save_document_file(document, uploaded_file, user):
     order = latest.orden_version + 1 if latest else 1
     extension = Path(file_data['name']).suffix.lower()
     storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{extension}'
-    storage_key = default_storage.save(storage_name, uploaded_file)
-    return ArchivoDocumento.objects.create(
-        id=uuid4(),
-        documento=document,
-        estado_version=state,
-        proveedor_almacenamiento=provider,
-        numero_mayor=major,
-        numero_menor=0,
-        orden_version=order,
-        es_vigente=True,
-        nombre_archivo_original=file_data['name'],
-        clave_almacenamiento=storage_key,
-        tipo_mime=file_data['mime_type'],
-        tamano_bytes=file_data['size'],
-        sha256=file_data['sha256'],
-        comentario_cambio='Carga inicial de archivo',
-        creada_por=user,
-    )
+    storage_key = None
+    try:
+        storage_key = default_storage.save(storage_name, uploaded_file)
+        return ArchivoDocumento.objects.create(
+            id=uuid4(),
+            documento=document,
+            estado_version=state,
+            proveedor_almacenamiento=provider,
+            numero_mayor=major,
+            numero_menor=0,
+            orden_version=order,
+            es_vigente=True,
+            nombre_archivo_original=file_data['name'],
+            clave_almacenamiento=storage_key,
+            tipo_mime=file_data['mime_type'],
+            tamano_bytes=file_data['size'],
+            sha256=file_data['sha256'],
+            comentario_cambio='Carga inicial de archivo',
+            creada_por=user,
+        )
+    except Exception as error:
+        if storage_key:
+            default_storage.delete(storage_key)
+        logger.exception('Error al persistir archivo documental para documento %s', document.id)
+        raise ValidationError({'file': 'No se pudo guardar el archivo documental.'}) from error
 
 
 def record_document_event(request, document, action_code, resource_code='DOCUMENTO', resource_id=None):
