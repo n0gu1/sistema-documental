@@ -25,15 +25,15 @@ ORDEN RECOMENDADO
 3. USUARIOS, ROLES Y PERMISOS
 [~] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
 [~] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos.
-[ ] Completar CRUD de usuarios.
-[ ] Activar, suspender y bloquear usuarios.
-[ ] Implementar restablecimiento de contrasenas.
+[x] Completar CRUD de usuarios.
+[x] Activar, suspender y bloquear usuarios.
+[x] Implementar restablecimiento de contrasenas.
 [ ] Implementar autenticacion multifactor (MFA).
-[ ] Implementar gestion de sesiones y dispositivos.
-[ ] Crear roles administrables.
-[ ] Crear permisos administrables.
-[ ] Asignar multiples roles a usuarios.
-[ ] Aplicar permisos por rol, area y documento.
+[x] Implementar gestion de sesiones y dispositivos.
+[x] Crear roles administrables.
+[x] Crear permisos administrables.
+[x] Asignar multiples roles a usuarios.
+[~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; faltan los modulos documentales.
 
 4. DOCUMENTOS Y ARCHIVOS
 [ ] Crear modelo de documentos.

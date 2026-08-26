@@ -10,8 +10,9 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
+from .auth_utils import user_has_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
-from .serializers import ChangePasswordSerializer, LoginSerializer
+from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
 
 
 class SerializerTests(SimpleTestCase):
@@ -68,6 +69,21 @@ class SerializerTests(SimpleTestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('new_password', serializer.errors)
 
+    def test_user_creation_rejects_weak_temporary_password(self):
+        serializer = UserCreateSerializer(
+            data={
+                'username': 'nuevo.usuario',
+                'email': 'nuevo@example.com',
+                'first_name': 'Nuevo',
+                'last_name': 'Usuario',
+                'organization_id': str(uuid4()),
+                'temporary_password': '12345678',
+            },
+        )
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('temporary_password', serializer.errors)
+
 
 class AuthenticationTests(SimpleTestCase):
     def test_session_token_is_stored_as_sha256(self):
@@ -87,6 +103,14 @@ class AuthenticationTests(SimpleTestCase):
 
         with self.assertRaises(PermissionDenied):
             IsAuthenticatedAndPasswordCurrent().has_permission(request, object())
+
+    @patch('documentos.auth_utils.get_user_permission_codes', return_value=['USUARIOS_VER'])
+    @patch('documentos.auth_utils.get_user_roles', return_value=[])
+    def test_documental_permission_comes_from_active_role_assignments(self, get_roles, get_permissions):
+        user = SimpleNamespace(id=uuid4())
+
+        self.assertTrue(user_has_permission(user, 'USUARIOS_VER'))
+        self.assertFalse(user_has_permission(user, 'ROLES_ADMINISTRAR'))
 
 
 @override_settings(
@@ -200,6 +224,11 @@ class AuthApiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['status'], 'running')
+
+    def test_user_administration_requires_authentication(self):
+        response = self.client.get('/api/admin/users/')
+
+        self.assertEqual(response.status_code, 401)
 
     @patch('documentos.views.transaction.atomic', return_value=nullcontext())
     @patch('documentos.views.record_auth_event')

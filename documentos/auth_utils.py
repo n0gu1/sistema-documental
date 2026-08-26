@@ -33,6 +33,34 @@ def get_user_roles(user_id):
         return [{'code': code, 'name': name} for code, name in cursor.fetchall()]
 
 
+def get_user_permission_codes(user_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''
+            SELECT DISTINCT p.codigo
+            FROM gestion_documental.usuarios_roles ur
+            JOIN gestion_documental.roles r ON r.id = ur.rol_id
+            JOIN gestion_documental.roles_permisos rp ON rp.rol_id = r.id
+            JOIN gestion_documental.permisos p ON p.id = rp.permiso_id
+            WHERE ur.usuario_id = %s
+              AND r.activo
+              AND p.activo
+              AND rp.concedido
+              AND (ur.vigente_hasta IS NULL OR ur.vigente_hasta > CURRENT_TIMESTAMP)
+            ORDER BY p.codigo
+            ''',
+            [user_id],
+        )
+        return [code for (code,) in cursor.fetchall()]
+
+
+def user_has_permission(user, permission_code):
+    roles = get_user_roles(user.id)
+    if any(role['code'] == 'ADMINISTRADOR' for role in roles):
+        return True
+    return permission_code in get_user_permission_codes(user.id)
+
+
 def serialize_user(user):
     return {
         'id': str(user.id),
