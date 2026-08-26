@@ -238,6 +238,7 @@ def save_document_file(document, uploaded_file, user):
             sha256=file_data['sha256'],
             comentario_cambio='Carga inicial de archivo',
             creada_por=user,
+            creada_en=timezone.now(),
         )
     except Exception as error:
         if storage_key:
