@@ -10,7 +10,7 @@ VERIFICACION REALIZADA EL 2026-08-26
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
 - `python manage.py test`: 22 pruebas exitosas.
-- Render: deploy del commit `6dea583` en estado `live`.
+- Render: deploy del commit `3a4f5ea` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
 - Render `/api/admin/users/` sin autenticacion: HTTP 401.
@@ -26,7 +26,7 @@ ORDEN RECOMENDADO
 [x] Configurar variables de entorno para produccion.
 [x] Configurar base de datos de produccion.
 [x] Configurar hosts permitidos, CORS y CSRF.
-[~] Configurar almacenamiento seguro de archivos. S3/B2 y sus credenciales ya estan configurados en Render; falta probar una carga real y completar los modulos de archivos.
+[x] Configurar almacenamiento seguro de archivos. S3/B2 y sus credenciales estan configurados en Render; la carga y lectura de un PDF fueron verificadas.
 [x] Eliminar valores inseguros por defecto, incluyendo DEBUG y SECRET_KEY.
 
 2. MODELO DE DATOS
@@ -49,6 +49,7 @@ ORDEN RECOMENDADO
 [x] Asignar multiples roles a usuarios.
 [~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; falta restringir por area y por reglas especificas del documento.
 
+4. DOCUMENTOS Y ARCHIVOS
 [x] Crear modelo de documentos. Adaptado al esquema existente de produccion y verificado en Render.
 [x] Crear modelo de metadatos documentales. La tabla se crea mediante la migracion 0005 y fue verificada en el flujo real.
 [x] Crear modelo de archivos asociados. Adaptado a `versiones_documento` y verificado en Render.
