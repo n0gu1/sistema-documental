@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from 'react'
+import EditorDocumentsView from './EditorDocumentsView'
 import './EditorDashboard.css'
 
 const editorDocuments = [
@@ -66,6 +67,7 @@ function Metric({ tone, icon, label, value, detail, direction }) {
 function EditorDashboard({ user, onLogout, logoutPending, error }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [activeView, setActiveView] = useState('dashboard')
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
   const [tasks, setTasks] = useState(initialTasks)
@@ -76,7 +78,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
   const role = user.roles?.find((item) => item.code === 'EDITOR')?.name || 'Editor'
 
   function action(label) {
-    setNotice(`${label} está disponible en esta vista frontend.`)
+    setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista frontend.`)
     setSidebarOpen(false)
   }
 
@@ -89,8 +91,8 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
     <aside className={`editor-sidebar${sidebarOpen ? ' is-open' : ''}`}>
       <EditorBrand />
       <nav className="editor-nav" aria-label="Navegación del editor">
-        <button className="is-active" type="button" onClick={() => action('Dashboard')}><EditorIcon name="dashboard" size={22} /> Dashboard</button>
-        <button type="button" onClick={() => action('Documentos')}><EditorIcon name="document" size={22} /> Documentos</button>
+        <button className={activeView === 'dashboard' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('dashboard'); setSidebarOpen(false) }}><EditorIcon name="dashboard" size={22} /> Dashboard</button>
+        <button className={activeView === 'documents' ? 'is-active' : ''} type="button" onClick={() => { setActiveView('documents'); setSidebarOpen(false) }}><EditorIcon name="document" size={22} /> Documentos</button>
         <button type="button" onClick={() => action('Versiones')}><EditorIcon name="layers" size={22} /> Versiones</button>
         <button type="button" onClick={() => action('Bitácora personal')}><EditorIcon name="history" size={22} /> Bitácora personal</button>
         <button type="button" onClick={() => action('Reportes básicos')}><EditorIcon name="chart" size={22} /> Reportes básicos</button>
@@ -102,6 +104,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
       <header className="editor-topbar"><button className="editor-menu" type="button" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><EditorIcon name="menu" size={25} /></button><label className="editor-search"><EditorIcon name="search" size={20} /><input type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." value={query} onChange={(event) => setQuery(event.target.value)} /></label><div className="editor-topbar__actions"><button className="editor-notification" type="button" aria-label="Notificaciones" onClick={() => setNotice('Tienes 3 notificaciones nuevas.')}><EditorIcon name="bell" size={24} /><span>3</span></button><div className="editor-profile"><button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}><span className="editor-avatar">{initials}</span><span><strong>{user.full_name || 'Carlos Méndez'}</strong><small>{role}</small></span><EditorIcon name="chevron" size={17} /></button>{profileOpen && <div className="editor-profile__menu"><span>{user.email}</span><button type="button" onClick={onLogout} disabled={logoutPending}><EditorIcon name="logout" size={17} /> {logoutPending ? 'Cerrando...' : 'Cerrar sesión'}</button></div>}</div></div></header>
       <div className="editor-content">
         {error && <p className="editor-error" role="alert">{error}</p>}
+        {activeView === 'documents' ? <EditorDocumentsView globalQuery={query} onAction={action} /> : <>
         <header className="editor-heading"><div><h1>Dashboard del Editor</h1><p>Gestiona tus documentos, versiones y actividades personales.</p></div><time><EditorIcon name="calendar" size={18} /> 23 de mayo de 2024</time></header>
         <section className="editor-metrics" aria-label="Resumen del editor"><Metric tone="blue" icon="document" label="Mis documentos" value="24" detail="12%" /><Metric tone="orange" icon="history" label="Pendientes de revisión" value="7" detail="17%" direction="down" /><Metric tone="violet" icon="comment" label="Comentarios recibidos" value="16" detail="11%" direction="down" /><Metric tone="teal" icon="layers" label="Versiones activas" value="31" detail="8%" /></section>
         <div className="editor-upper-grid">
@@ -111,6 +114,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
         </div>
         <div className="editor-lower-grid"><section className="editor-card editor-documents"><div className="editor-card__heading"><h2><EditorIcon name="document" size={20} /> Documentos recientes</h2><button type="button" onClick={() => action('Todos los documentos')}>Ver todos</button></div><div className="editor-table-wrap"><table><thead><tr><th>Código</th><th>Título</th><th>Estado</th><th>Última actualización</th><th>Responsable</th></tr></thead><tbody>{visibleDocuments.map((item) => <tr key={item.code}><td>{item.code}</td><td>{item.title}</td><td><span className={`editor-status editor-status--${item.status.toLowerCase().replace(' ', '-')}`}>{item.status}</span></td><td>{item.updated}</td><td>{item.owner}</td></tr>)}</tbody></table>{!visibleDocuments.length && <p className="editor-empty">No se encontraron documentos.</p>}</div></section><section className="editor-card editor-quick-actions"><div className="editor-card__heading"><h2><EditorIcon name="lightning" size={20} /> Acciones rápidas</h2></div><div className="editor-quick-actions__grid"><button type="button" onClick={() => action('Crear un nuevo documento')}><EditorIcon name="document" size={34} /><strong>Nuevo<br />documento</strong></button><button type="button" onClick={() => action('Subir un documento')}><EditorIcon name="upload" size={34} /><strong>Subir<br />documento</strong></button><button type="button" onClick={() => action('Crear una nueva versión')}><EditorIcon name="layers" size={34} /><strong>Nueva<br />versión</strong></button><button type="button" onClick={() => action('Enviar a revisión')}><EditorIcon name="send" size={34} /><strong>Enviar a<br />revisión</strong></button><button type="button" onClick={() => action('Generar reporte básico')}><EditorIcon name="chart" size={34} /><strong>Generar<br />reporte básico</strong></button></div></section></div>
         <footer className="editor-footer"><span>© 2024 Consultoría Alexandria. Todos los derechos reservados.</span><span>Versión 2.1.0</span></footer>
+        </>}
       </div><span className="editor-live-notice" role="status">{notice}</span>
     </section>
   </main>
