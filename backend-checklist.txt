@@ -44,24 +44,24 @@ ORDEN RECOMENDADO
 [x] Crear roles administrables.
 [x] Crear permisos administrables.
 [x] Asignar multiples roles a usuarios.
-[~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; faltan los modulos documentales.
+[~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; falta restringir por area y por reglas especificas del documento.
 
 4. DOCUMENTOS Y ARCHIVOS
-[ ] Crear modelo de documentos.
-[ ] Crear modelo de metadatos documentales.
-[ ] Crear modelo de archivos asociados.
-[ ] Implementar crear documentos.
-[ ] Implementar editar documentos.
-[ ] Implementar eliminar y archivar documentos.
-[ ] Implementar carga de archivos.
-[ ] Validar extension, MIME, tamano y contenido de archivos.
-[ ] Implementar almacenamiento privado de archivos.
-[ ] Implementar descarga autorizada.
-[ ] Implementar vista previa autorizada.
-[ ] Implementar busqueda documental.
-[ ] Implementar filtros avanzados.
-[ ] Implementar ordenamiento y paginacion.
-[ ] Implementar exportacion del listado documental.
+[x] Crear modelo de documentos.
+[x] Crear modelo de metadatos documentales.
+[x] Crear modelo de archivos asociados.
+[x] Implementar crear documentos.
+[x] Implementar editar documentos.
+[x] Implementar eliminar y archivar documentos.
+[x] Implementar carga de archivos.
+[x] Validar extension, MIME, tamano y contenido de archivos.
+[x] Implementar almacenamiento privado de archivos.
+[x] Implementar descarga autorizada.
+[x] Implementar vista previa autorizada.
+[x] Implementar busqueda documental.
+[x] Implementar filtros avanzados.
+[x] Implementar ordenamiento y paginacion.
+[x] Implementar exportacion del listado documental.
 
 5. VERSIONAMIENTO
 [ ] Crear versiones inmutables de documentos.

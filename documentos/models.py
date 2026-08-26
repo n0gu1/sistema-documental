@@ -1,6 +1,12 @@
 import uuid
+from pathlib import Path
 
 from django.db import models
+
+
+def document_file_upload_to(instance, filename):
+    extension = Path(filename).suffix.lower()
+    return f'{instance.documento.organizacion_id}/{instance.documento_id}/{uuid.uuid4()}{extension}'
 
 
 class UsuarioDocumental(models.Model):
@@ -358,3 +364,138 @@ class RolPermisoDocumental(models.Model):
     class Meta:
         managed = False
         db_table = '"gestion_documental"."roles_permisos"'
+
+
+class Documento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion = models.ForeignKey(
+        Organizacion,
+        db_column='organizacion_id',
+        on_delete=models.PROTECT,
+        related_name='documentos',
+    )
+    codigo = models.CharField(max_length=64)
+    titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True)
+    contenido = models.TextField(blank=True)
+    palabras_clave = models.TextField(blank=True)
+    alcance = models.TextField(blank=True)
+    area = models.ForeignKey(
+        Area,
+        db_column='area_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='documentos',
+    )
+    tipo = models.ForeignKey(
+        TipoDocumento,
+        db_column='tipo_id',
+        on_delete=models.PROTECT,
+        related_name='documentos',
+    )
+    clasificacion = models.ForeignKey(
+        ClasificacionDocumento,
+        db_column='clasificacion_id',
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='documentos',
+    )
+    estado = models.ForeignKey(
+        EstadoDocumento,
+        db_column='estado_id',
+        on_delete=models.PROTECT,
+        related_name='documentos',
+    )
+    responsable = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='responsable_id',
+        on_delete=models.PROTECT,
+        related_name='documentos_responsable',
+    )
+    creado_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='creado_por_id',
+        on_delete=models.PROTECT,
+        related_name='documentos_creados',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    archivado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."documentos"'
+        ordering = ['-actualizado_en', 'codigo']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organizacion', 'codigo'],
+                name='uq_documentos_organizacion_codigo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(codigo__regex=r'^[A-Z0-9_-]+$'),
+                name='ck_documentos_codigo_formato',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['organizacion', 'estado'], name='ix_docs_org_estado'),
+            models.Index(fields=['organizacion', 'actualizado_en'], name='ix_docs_org_actualizado'),
+            models.Index(fields=['organizacion', 'area'], name='ix_docs_org_area'),
+        ]
+
+    def __str__(self):
+        return f'{self.codigo} - {self.titulo}'
+
+
+class MetadatoDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    documento = models.ForeignKey(
+        Documento,
+        db_column='documento_id',
+        on_delete=models.CASCADE,
+        related_name='metadatos',
+    )
+    clave = models.CharField(max_length=100)
+    valor = models.TextField(blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."documentos_metadatos"'
+        ordering = ['clave']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['documento', 'clave'],
+                name='uq_documentos_metadatos_documento_clave',
+            ),
+        ]
+
+
+class ArchivoDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    documento = models.ForeignKey(
+        Documento,
+        db_column='documento_id',
+        on_delete=models.CASCADE,
+        related_name='archivos',
+    )
+    archivo = models.FileField(upload_to=document_file_upload_to)
+    nombre_original = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=150)
+    tamano = models.BigIntegerField()
+    sha256 = models.CharField(max_length=64)
+    subido_por = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='subido_por_id',
+        on_delete=models.PROTECT,
+        related_name='archivos_subidos',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."archivos_documentos"'
+        ordering = ['-creado_en']
+        indexes = [
+            models.Index(fields=['documento', 'creado_en'], name='ix_archivos_doc_fecha'),
+            models.Index(fields=['sha256'], name='ix_archivos_sha256'),
+        ]

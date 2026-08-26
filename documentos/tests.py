@@ -4,13 +4,16 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .auth_utils import user_has_permission
+from .document_serializers import DocumentCreateSerializer
+from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
 
@@ -83,6 +86,67 @@ class SerializerTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('temporary_password', serializer.errors)
+
+    def test_document_serializer_accepts_scalar_metadata(self):
+        serializer = DocumentCreateSerializer(data={
+            'code': 'POL-001',
+            'title': 'Politica de calidad',
+            'type_id': str(uuid4()),
+            'metadata': {'owner': 'Calidad', 'year': 2026},
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['metadata']['year'], 2026)
+
+    def test_document_serializer_rejects_two_status_selectors(self):
+        serializer = DocumentCreateSerializer(data={
+            'code': 'POL-002',
+            'title': 'Politica de seguridad',
+            'type_id': str(uuid4()),
+            'status_id': str(uuid4()),
+            'status_code': 'BORRADOR',
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('non_field_errors', serializer.errors)
+
+
+@override_settings(ALLOWED_UPLOAD_EXTENSIONS=['.pdf', '.png'], MAX_UPLOAD_SIZE_MB=1)
+class DocumentFileValidationTests(SimpleTestCase):
+    def test_pdf_file_is_accepted_and_hashed(self):
+        uploaded_file = SimpleUploadedFile(
+            'politica.pdf',
+            b'%PDF-1.7\ncontenido de prueba',
+            content_type='application/pdf',
+        )
+
+        result = validate_uploaded_file(uploaded_file)
+
+        self.assertEqual(result['name'], 'politica.pdf')
+        self.assertEqual(result['mime_type'], 'application/pdf')
+        self.assertEqual(len(result['sha256']), 64)
+
+    def test_file_with_disallowed_extension_is_rejected(self):
+        uploaded_file = SimpleUploadedFile('archivo.exe', b'MZ', content_type='application/octet-stream')
+
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(uploaded_file)
+
+    def test_file_with_wrong_mime_or_content_is_rejected(self):
+        uploaded_file = SimpleUploadedFile('archivo.pdf', b'no es pdf', content_type='application/pdf')
+
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(uploaded_file)
+
+    def test_file_over_limit_is_rejected(self):
+        uploaded_file = SimpleUploadedFile(
+            'grande.pdf',
+            b'%PDF-1.7' + b'x' * (1024 * 1024),
+            content_type='application/pdf',
+        )
+
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(uploaded_file)
 
 
 class AuthenticationTests(SimpleTestCase):
@@ -224,6 +288,11 @@ class AuthApiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['status'], 'running')
+
+    def test_documents_require_authentication(self):
+        response = self.client.get('/api/documents/')
+
+        self.assertEqual(response.status_code, 401)
 
     def test_user_administration_requires_authentication(self):
         response = self.client.get('/api/admin/users/')
