@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
 import ReaderDashboard from './ReaderDashboard'
+import ReaderLibraryView from './ReaderLibraryView'
 import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
@@ -175,9 +176,16 @@ function Login() {
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [user, setUser] = useState(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+
+  useEffect(() => {
+    const openLibrary = () => setLibraryOpen(true)
+    window.addEventListener('reader-library-open', openLibrary)
+    return () => window.removeEventListener('reader-library-open', openLibrary)
+  }, [])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -244,6 +252,7 @@ function Login() {
     try {
       await apiRequest('/api/auth/logout/', { method: 'POST' })
       setUser(null)
+      setLibraryOpen(false)
       setIdentity('')
     } catch (requestError) {
       setError(requestError.message)
@@ -270,7 +279,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><button className="reader-library-back" type="button" onClick={() => setLibraryOpen(false)}>← Volver al dashboard</button><ReaderLibraryView onAction={() => {}} /></div>}</>
   }
 
   return (

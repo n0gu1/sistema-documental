@@ -79,6 +79,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error }) {
   const role = user.roles?.find((item) => item.code === 'LECTOR')?.name || 'Lector'
 
   function action(label) {
+    if (label === 'La biblioteca documental') window.dispatchEvent(new Event('reader-library-open'))
     setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista frontend.`)
     setSidebarOpen(false)
   }
