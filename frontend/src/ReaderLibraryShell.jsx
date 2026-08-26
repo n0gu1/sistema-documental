@@ -4,7 +4,7 @@ import './EditorDashboard.css'
 import './ReaderDashboard.css'
 import './ReaderLibraryView.css'
 
-function ShellIcon({ name, size = 20 }) {
+export function ShellIcon({ name, size = 20 }) {
   let content
   switch (name) {
     case 'dashboard': content = <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>; break
@@ -22,7 +22,7 @@ function ShellIcon({ name, size = 20 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function ReaderLibraryBrand() {
+export function ReaderLibraryBrand() {
   return <div className="editor-brand" aria-label="Consultoría Alexandria"><svg viewBox="0 0 52 52" aria-hidden="true"><path d="M5 18h42L26 7 5 18ZM10 21v19M18 21v19M26 21v19M34 21v19M42 21v19M6 44h40" /></svg><div><span>Consultoría</span><strong>Alexandria</strong></div></div>
 }
 

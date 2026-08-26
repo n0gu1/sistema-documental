@@ -3,6 +3,7 @@ import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
 import ReaderDashboard from './ReaderDashboard'
 import ReaderLibraryShell from './ReaderLibraryShell'
+import ReaderDocumentShell from './ReaderDocumentShell'
 import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
@@ -177,14 +178,17 @@ function Login() {
   const [remember, setRemember] = useState(false)
   const [user, setUser] = useState(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [documentOpen, setDocumentOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
   useEffect(() => {
     const openLibrary = () => setLibraryOpen(true)
+    const openDocument = () => setDocumentOpen(true)
     window.addEventListener('reader-library-open', openLibrary)
-    return () => window.removeEventListener('reader-library-open', openLibrary)
+    window.addEventListener('reader-document-open', openDocument)
+    return () => { window.removeEventListener('reader-library-open', openLibrary); window.removeEventListener('reader-document-open', openDocument) }
   }, [])
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -253,6 +257,7 @@ function Login() {
       await apiRequest('/api/auth/logout/', { method: 'POST' })
       setUser(null)
       setLibraryOpen(false)
+      setDocumentOpen(false)
       setIdentity('')
     } catch (requestError) {
       setError(requestError.message)
@@ -279,7 +284,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}</>
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} onClose={() => setDocumentOpen(false)} /></div>}</>
   }
 
   return (

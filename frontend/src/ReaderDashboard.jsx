@@ -80,6 +80,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error }) {
 
   function action(label) {
     if (label === 'La biblioteca documental') window.dispatchEvent(new Event('reader-library-open'))
+    if (label === 'Los documentos disponibles') window.dispatchEvent(new Event('reader-document-open'))
     setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista frontend.`)
     setSidebarOpen(false)
   }
