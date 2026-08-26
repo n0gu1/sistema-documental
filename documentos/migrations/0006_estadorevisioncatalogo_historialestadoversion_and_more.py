@@ -15,8 +15,8 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql=(
                 "INSERT INTO gestion_documental.estados_version "
-                "(id, codigo, nombre, es_final, permite_edicion) "
-                "SELECT 6, 'PUBLICADO', 'Publicado', TRUE, FALSE "
+                "(codigo, nombre, es_final, permite_edicion) "
+                "SELECT 'PUBLICADO', 'Publicado', TRUE, FALSE "
                 "WHERE NOT EXISTS ("
                 "SELECT 1 FROM gestion_documental.estados_version WHERE codigo = 'PUBLICADO'"
                 ");"
