@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
+import ReviewerDashboard from './ReviewerDashboard'
 import './Login.css'
 
 function errorMessage(data) {
@@ -252,6 +253,7 @@ function Login() {
 
   const isAdministrator = user?.roles?.some((role) => role.code === 'ADMINISTRADOR')
   const isEditor = user?.roles?.some((role) => role.code === 'EDITOR')
+  const isReviewer = user?.roles?.some((role) => ['REVISOR', 'REVIEWER'].includes(role.code))
 
   if (user && !user.must_change_password && isAdministrator) {
     return <Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
@@ -259,6 +261,10 @@ function Login() {
 
   if (user && !user.must_change_password && isEditor) {
     return <EditorDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+  }
+
+  if (user && !user.must_change_password && isReviewer) {
+    return <ReviewerDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
   }
 
   return (
