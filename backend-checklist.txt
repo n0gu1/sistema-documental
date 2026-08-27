@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-26
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 24 pruebas exitosas.
+- `python manage.py test`: 31 pruebas exitosas.
 - Render: deploy del commit `fdf4cd0` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -20,6 +20,8 @@ VERIFICACION REALIZADA EL 2026-08-26
 - Render versionamiento autenticado: segunda version HTTP 201, historial de dos versiones HTTP 200, primera version historica `1.0`, segunda version vigente `2.0`, comparacion HTTP 200, linea de tiempo HTTP 200 y descarga de version anterior HTTP 200.
 - Render flujo documental autenticado: migracion 0006 aplicada, envio a revision HTTP 201, asignacion de revisor, fecha limite y prioridad verificadas, bandeja HTTP 200, checklist actualizado HTTP 200, comentarios y respuestas HTTP 201, resolucion HTTP 200, aprobacion HTTP 200, publicacion HTTP 200, devolucion HTTP 200 y rechazo HTTP 200.
 - Render limpieza posterior: los tres documentos temporales del flujo fueron eliminados y la consulta de verificacion devolvio cero registros.
+- Render funciones del lector: deploy del commit `f26e6f6` en estado `live`, migracion 0007 aplicada, biblioteca, historial y favoritos autenticados HTTP 200; la consulta de verificacion devolvio cero registros posteriores a la limpieza.
+- Render proteccion del lector: las rutas de biblioteca, historial y favoritos requieren autenticacion; los endpoints documentales existentes limitan al lector a versiones PUBLICADO autorizadas y bloquean la exportacion administrativa.
 - Las migraciones se ejecutaron correctamente durante el deploy de Render.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
 
@@ -93,11 +95,11 @@ ORDEN RECOMENDADO
 [x] Implementar publicacion de versiones.
 
 7. FUNCIONES DEL LECTOR
-[ ] Mostrar solamente documentos publicados y autorizados.
-[ ] Implementar detalle y lectura documental.
-[ ] Registrar historial de lectura.
-[ ] Implementar favoritos.
-[ ] Registrar consultas y descargas.
+[x] Mostrar solamente documentos publicados y autorizados.
+[x] Implementar detalle y lectura documental.
+[x] Registrar historial de lectura.
+[x] Implementar favoritos.
+[x] Registrar consultas y descargas.
 
 8. NOTIFICACIONES
 [ ] Crear notificaciones internas.
