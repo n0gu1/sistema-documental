@@ -251,6 +251,16 @@ function Login() {
     }
   }
 
+  function openReaderView(view, documentId = null) {
+    const target = view === 'documents' ? 'library' : view
+    setLibraryOpen(target === 'library')
+    setDocumentOpen(target === 'document')
+    setHistoryOpen(target === 'history')
+    setReadingOpen(target === 'reading')
+    setFavoritesOpen(target === 'favorites')
+    if (documentId) setReaderDocumentId(documentId)
+  }
+
   const isAdministrator = user?.roles?.some((role) => role.code === 'ADMINISTRADOR')
   const isEditor = user?.roles?.some((role) => role.code === 'EDITOR')
   const isReviewer = user?.roles?.some((role) => ['REVISOR', 'REVIEWER'].includes(role.code))
@@ -269,7 +279,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => setDocumentOpen(false)} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => setHistoryOpen(false)} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => setReadingOpen(false)} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => setFavoritesOpen(false)} /></div>}</>
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} onNavigate={openReaderView} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} /></div>}</>
   }
 
   return (

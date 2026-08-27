@@ -16,7 +16,7 @@ function ReaderMetric({ icon, tone, label, value, detail }) {
   return <article className="reader-metric"><span className={`reader-metric-icon is-${tone}`}><ReaderIcon name={icon} size={29} /></span><div><p>{label}</p><strong>{value}</strong><small>{detail}</small></div></article>
 }
 
-function ReaderDashboard({ user, onLogout, logoutPending, error }) {
+function ReaderDashboard({ user, onLogout, logoutPending, error, onNavigate }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -42,8 +42,8 @@ function ReaderDashboard({ user, onLogout, logoutPending, error }) {
   const recentActivity = history.slice(0, 5)
 
   function action(label) {
-    const events = { 'La biblioteca documental': 'reader-library-open', 'Los documentos disponibles': 'reader-document-open', 'El historial de versiones': 'reader-history-open', 'El historial de lectura': 'reader-reading-open', 'Tus favoritos': 'reader-favorites-open' }
-    if (events[label]) window.dispatchEvent(new Event(events[label]))
+    const views = { 'La biblioteca documental': 'library', 'Los documentos disponibles': 'library', 'El historial de versiones': 'history', 'El historial de lectura': 'reading', 'Tus favoritos': 'favorites' }
+    if (views[label]) onNavigate?.(views[label], views[label] === 'history' ? documents[0]?.id : null)
     setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista.`)
     setSidebarOpen(false)
   }

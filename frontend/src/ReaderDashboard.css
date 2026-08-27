@@ -2,3 +2,15 @@
 @media (max-width: 1250px) { .reader-metrics { gap: 11px; }.reader-metric { padding: 13px; gap: 12px; }.reader-metric-icon { width: 54px; height: 54px; flex-basis: 54px; }.reader-upper-grid { grid-template-columns: 1fr 1fr; }.reader-publications { grid-column: 1 / -1; }.reader-lower-grid { grid-template-columns: 1fr; } }
 @media (max-width: 850px) { .reader-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .reader-heading { align-items: flex-start; flex-direction: column; }.reader-heading p { font-size: 12px; line-height: 1.4; }.reader-heading time { display: none; }.reader-metrics { grid-template-columns: 1fr; }.reader-upper-grid { grid-template-columns: 1fr; }.reader-publications { grid-column: auto; }.reader-lower-grid { grid-template-columns: 1fr; }.reader-quick-grid { grid-template-columns: 1fr; } }
+
+.reader-library-overlay { background: #f7f9fc; }
+.reader-library-overlay > .reader-shell { width: 100%; min-height: 100vh; }
+.reader-library-overlay .editor-content { min-height: calc(100vh - 78px); }
+@media (max-width: 850px) {
+  .reader-library-overlay > .reader-shell { display: block; }
+  .reader-library-overlay .editor-sidebar { position: relative; width: 100%; height: auto; min-height: 0; padding: 14px; transform: none; }
+  .reader-library-overlay .editor-brand { min-height: 54px; padding-bottom: 12px; }
+  .reader-library-overlay .editor-nav { margin-top: 12px; flex-direction: row; gap: 6px; overflow-x: auto; }
+  .reader-library-overlay .editor-nav button { min-height: 42px; padding: 0 12px; flex: 0 0 auto; font-size: 12px; white-space: nowrap; }
+  .reader-library-overlay .reader-sidebar-illustration, .reader-library-overlay .reader-sidebar-footer { display: none; }
+}

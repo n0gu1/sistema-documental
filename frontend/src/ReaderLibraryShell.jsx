@@ -13,6 +13,25 @@ export function ReaderLibraryBrand() {
   return <div className="editor-brand" aria-label="Consultoría Alexandria"><svg viewBox="0 0 52 52" aria-hidden="true"><path d="M5 18h42L26 7 5 18ZM10 21v19M18 21v19M26 21v19M34 21v19M42 21v19M6 44h40" /></svg><div><span>Consultoría</span><strong>Alexandria</strong></div></div>
 }
 
+const readerNavigation = [
+  ['dashboard', 'Dashboard', 'dashboard'],
+  ['library', 'Biblioteca documental', 'library'],
+  ['document', 'Documentos disponibles', 'documents'],
+  ['layers', 'Historial de versiones', 'history'],
+  ['history', 'Historial de lectura', 'reading'],
+  ['favorite', 'Favoritos', 'favorites'],
+]
+
+export function ReaderNavigation({ active, onNavigate, onClose }) {
+  function navigate(view) {
+    if (view === 'dashboard') return onClose ? onClose() : onNavigate?.('dashboard')
+    if (view === 'documents') return onNavigate?.('library')
+    return onNavigate?.(view)
+  }
+
+  return <nav className="editor-nav reader-nav" aria-label="Navegación del lector">{readerNavigation.map(([icon, label, view]) => <button className={active === view ? 'is-active' : ''} type="button" key={view} onClick={() => navigate(view)}><ShellIcon name={icon} size={22} /> {label}</button>)}</nav>
+}
+
 export function ReaderShellHeader({ user, onLogout, logoutPending }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Usuario'
@@ -20,8 +39,8 @@ export function ReaderShellHeader({ user, onLogout, logoutPending }) {
   return <header className="editor-topbar"><label className="editor-search"><ShellIcon name="search" size={20} /><input type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." /></label><div className="editor-topbar__actions"><button className="editor-notification" type="button" aria-label="Notificaciones"><ShellIcon name="bell" size={23} /></button><div className="editor-profile"><button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((current) => !current)}><span className="editor-avatar">{initials}</span><span><strong>{displayName}</strong><small>Lector</small></span><ShellIcon name="chevron" size={17} /></button>{profileOpen && <div className="editor-profile__menu"><span>{user.email}</span>{onLogout && <button type="button" onClick={onLogout} disabled={logoutPending}><ShellIcon name="logout" size={16} /> {logoutPending ? 'Cerrando sesión...' : 'Cerrar sesión'}</button>}</div>}</div></div></header>
 }
 
-function ReaderLibraryShell({ user, onClose, onLogout, logoutPending }) {
-  return <main className="editor-shell reader-shell reader-library-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><nav className="editor-nav reader-nav" aria-label="Navegación del lector"><button type="button" onClick={onClose}><ShellIcon name="dashboard" size={22} /> Dashboard</button><button className="is-active" type="button"><ShellIcon name="library" size={22} /> Biblioteca documental</button><button type="button"><ShellIcon name="document" size={22} /> Documentos disponibles</button><button type="button"><ShellIcon name="layers" size={22} /> Historial de versiones</button><button type="button"><ShellIcon name="history" size={22} /> Historial de lectura</button><button type="button"><ShellIcon name="favorite" size={22} /> Favoritos</button></nav><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} onLogout={onLogout} logoutPending={logoutPending} /><main className="editor-content reader-library-content"><ReaderLibraryView onAction={() => {}} /></main></section></main>
+function ReaderLibraryShell({ user, onClose, onLogout, logoutPending, onNavigate }) {
+  return <main className="editor-shell reader-shell reader-library-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><ReaderNavigation active="library" onNavigate={onNavigate} onClose={onClose} /><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} onLogout={onLogout} logoutPending={logoutPending} /><main className="editor-content reader-library-content"><ReaderLibraryView onAction={() => {}} /></main></section></main>
 }
 
 export default ReaderLibraryShell

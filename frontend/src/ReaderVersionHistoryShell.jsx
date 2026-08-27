@@ -1,11 +1,11 @@
 import ReaderVersionHistoryView from './ReaderVersionHistoryView'
-import { ReaderLibraryBrand, ReaderShellHeader, ShellIcon } from './ReaderLibraryShell'
+import { ReaderLibraryBrand, ReaderNavigation, ReaderShellHeader } from './ReaderLibraryShell'
 import './EditorDashboard.css'
 import './ReaderDashboard.css'
 import './ReaderVersionHistoryView.css'
 
-function ReaderVersionHistoryShell({ user, documentId, onClose }) {
-  return <main className="editor-shell reader-shell reader-history-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><nav className="editor-nav reader-nav" aria-label="Navegación del lector"><button type="button" onClick={onClose}><ShellIcon name="dashboard" size={22} /> Dashboard</button><button type="button" onClick={onClose}><ShellIcon name="library" size={22} /> Biblioteca documental</button><button type="button"><ShellIcon name="document" size={22} /> Documentos disponibles</button><button className="is-active" type="button"><ShellIcon name="layers" size={22} /> Historial de versiones</button><button type="button"><ShellIcon name="history" size={22} /> Historial de lectura</button><button type="button"><ShellIcon name="favorite" size={22} /> Favoritos</button></nav><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} /><main className="editor-content reader-history-content"><ReaderVersionHistoryView documentId={documentId} onBack={onClose} onAction={() => {}} /></main></section></main>
+function ReaderVersionHistoryShell({ user, documentId, onClose, onNavigate }) {
+  return <main className="editor-shell reader-shell reader-history-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><ReaderNavigation active="history" onNavigate={onNavigate} onClose={onClose} /><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} /><main className="editor-content reader-history-content"><ReaderVersionHistoryView documentId={documentId} onBack={onClose} onAction={() => {}} /></main></section></main>
 }
 
 export default ReaderVersionHistoryShell
