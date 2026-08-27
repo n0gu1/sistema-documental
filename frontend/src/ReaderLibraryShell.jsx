@@ -40,7 +40,7 @@ export function ReaderShellHeader({ user, onLogout, logoutPending }) {
 }
 
 function ReaderLibraryShell({ user, onClose, onLogout, logoutPending, onNavigate }) {
-  return <main className="editor-shell reader-shell reader-library-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><ReaderNavigation active="library" onNavigate={onNavigate} onClose={onClose} /><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} onLogout={onLogout} logoutPending={logoutPending} /><main className="editor-content reader-library-content"><ReaderLibraryView onAction={() => {}} /></main></section></main>
+  return <main className="editor-shell reader-shell reader-library-shell"><aside className="editor-sidebar"><ReaderLibraryBrand /><ReaderNavigation active="library" onNavigate={onNavigate} onClose={onClose} /><div className="reader-sidebar-illustration" aria-hidden="true">♜</div><div className="reader-sidebar-footer">© {new Date().getFullYear()} Consultoría Alexandria.<br />Todos los derechos reservados.</div></aside><section className="editor-workspace"><ReaderShellHeader user={user} onLogout={onLogout} logoutPending={logoutPending} /><main className="editor-content reader-library-content"><ReaderLibraryView onAction={() => {}} onNavigate={onNavigate} /></main></section></main>
 }
 
 export default ReaderLibraryShell

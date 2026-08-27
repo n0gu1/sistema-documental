@@ -4,6 +4,7 @@
 @media (max-width: 600px) { .reader-heading { align-items: flex-start; flex-direction: column; }.reader-heading p { font-size: 12px; line-height: 1.4; }.reader-heading time { display: none; }.reader-metrics { grid-template-columns: 1fr; }.reader-upper-grid { grid-template-columns: 1fr; }.reader-publications { grid-column: auto; }.reader-lower-grid { grid-template-columns: 1fr; }.reader-quick-grid { grid-template-columns: 1fr; } }
 
 .reader-library-overlay { background: #f7f9fc; }
+.reader-sidebar-illustration { pointer-events: none; }
 .reader-library-overlay > .reader-shell { width: 100%; min-height: 100vh; }
 .reader-library-overlay .editor-content { min-height: calc(100vh - 78px); }
 @media (max-width: 850px) {

@@ -15,7 +15,7 @@ function LibraryIcon({ name, size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill={name === 'star' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function ReaderLibraryView({ onAction }) {
+function ReaderLibraryView({ onAction, onNavigate }) {
   const [documents, setDocuments] = useState([])
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('Todas las áreas')
@@ -73,7 +73,7 @@ function ReaderLibraryView({ onAction }) {
         <div className="reader-library-filter-actions"><span>{loading ? 'Cargando documentos...' : `${visibleDocuments.length} documentos disponibles`}</span><button type="button" onClick={clearFilters}>Limpiar filtros</button></div>
       </section>
       <section className="reader-library-table-card"><div className="reader-library-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>Versión</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.id}><td>{document.code}</td><td><button className="reader-library-document-link" type="button" onClick={() => openDocument(document)}>{document.title}</button></td><td>{document.area}</td><td>{document.type}</td><td>{document.version}</td><td>{document.updated}</td><td><div className="reader-library-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => openDocument(document)}><LibraryIcon name="eye" size={16} /></button>{document.downloadUrl && <button type="button" aria-label={`Descargar ${document.title}`} onClick={() => downloadFile(document.downloadUrl)}><LibraryIcon name="download" size={16} /></button>}<button className={document.favorite ? 'is-favorite' : ''} type="button" aria-label={`${document.favorite ? 'Quitar de' : 'Agregar a'} favoritos`} onClick={() => toggleFavorite(document)}><LibraryIcon name="star" size={16} /></button></div></td></tr>)}</tbody></table>{!loading && !visibleDocuments.length && <div className="editor-doc-empty"><LibraryIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div><footer><span>Mostrando {visibleDocuments.length} de {documents.length} documentos</span></footer></section>
-    </main><aside className="reader-library-sidebar"><section><h2>Accesos rápidos</h2><button type="button" onClick={() => { setStatus('Publicado'); onAction('Mostrando documentos publicados.') }}><LibraryIcon name="eye" size={17} />Documentos publicados</button><button type="button" onClick={() => window.dispatchEvent(new Event('reader-favorites-open'))}><LibraryIcon name="star" size={17} />Mis favoritos</button></section></aside></div>
+    </main><aside className="reader-library-sidebar"><section><h2>Accesos rápidos</h2><button type="button" onClick={() => { setStatus('Publicado'); onAction('Mostrando documentos publicados.') }}><LibraryIcon name="eye" size={17} />Documentos publicados</button><button type="button" onClick={() => onNavigate?.('favorites')}><LibraryIcon name="star" size={17} />Mis favoritos</button></section></aside></div>
   </div>
 }
 
