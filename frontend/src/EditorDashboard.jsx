@@ -51,6 +51,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
   const [dashboardDocuments, setDashboardDocuments] = useState([])
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const initials = `${user.first_name?.[0] || 'C'}${user.last_name?.[0] || 'M'}`
+  const today = new Intl.DateTimeFormat('es-ES', { dateStyle: 'long' }).format(new Date())
   useEffect(() => {
     let active = true
     apiRequest('/api/documents/?limit=5')
@@ -87,7 +88,7 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
       <div className="editor-content">
         {error && <p className="editor-error" role="alert">{error}</p>}
          {activeView === 'documents' ? <EditorDocumentsView globalQuery={query} onAction={action} onEditDocument={(document) => { setSelectedDocument(document); setActiveView('edit') }} /> : activeView === 'edit' ? <EditorDocumentEditView document={selectedDocument || dashboardDocuments[0]} onBack={() => setActiveView('documents')} onAction={action} /> : activeView === 'versions' ? <EditorVersionsView onAction={action} /> : activeView === 'audit' ? <EditorActivityLogView user={user} /> : activeView === 'reports' ? <EditorBasicReportsView globalQuery={query} /> : <>
-        <header className="editor-heading"><div><h1>Dashboard del Editor</h1><p>Gestiona tus documentos, versiones y actividades personales.</p></div><time><EditorIcon name="calendar" size={18} /> 23 de mayo de 2024</time></header>
+         <header className="editor-heading"><div><h1>Dashboard del Editor</h1><p>Gestiona tus documentos, versiones y actividades personales.</p></div><time><EditorIcon name="calendar" size={18} /> {today}</time></header>
          <section className="editor-metrics" aria-label="Resumen del editor"><Metric tone="blue" icon="document" label="Mis documentos" value={dashboardDocuments.length} detail="Datos registrados" /><Metric tone="orange" icon="history" label="Pendientes de revisión" value={dashboardDocuments.filter((item) => item.status === 'En revisión').length} detail="Datos registrados" direction="down" /><Metric tone="violet" icon="comment" label="Comentarios recibidos" value="—" detail="No disponible" direction="down" /><Metric tone="teal" icon="layers" label="Versiones activas" value={dashboardDocuments.filter((item) => item.version !== '—').length} detail="Datos registrados" /></section>
         <div className="editor-upper-grid">
           <section className="editor-card editor-activity"><div className="editor-card__heading"><h2><EditorIcon name="history" size={20} /> Actividad reciente</h2><button type="button" onClick={() => action('La actividad completa')}>Ver todas</button></div><div className="editor-activity__list">{activities.map((item) => <article key={`${item[0]}-${item[2]}`}><i /><div><strong>{item[0]}</strong><a href="#documento" onClick={(event) => { event.preventDefault(); action(item[1]) }}>{item[1]}</a></div><time>{item[2]}</time></article>)}</div></section>
