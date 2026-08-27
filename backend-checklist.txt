@@ -193,4 +193,4 @@ ORDEN RECOMENDADO
 [ ] Validar permisos y flujos en Render.
 [ ] Ejecutar pruebas completas de aceptacion.
 
-Estado de despliegue: commit 743d1f9 publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. La validacion autenticada de permisos y flujos queda pendiente de credenciales de prueba por rol.
+Estado de despliegue: commit e793eb1 publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. Las cuatro cuentas de prueba autenticaron correctamente y sus paneles cargaron las APIs esperadas; la ejecucion de mutaciones documentales queda pendiente porque no hay documentos ni revisiones disponibles para probarlas sin crear datos nuevos.
