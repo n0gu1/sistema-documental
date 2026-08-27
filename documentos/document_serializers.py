@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .security_utils import sanitize_text
+
 
 class DocumentCreateSerializer(serializers.Serializer):
     code = serializers.RegexField(r'^[A-Z0-9_-]+$', max_length=64)
@@ -15,6 +17,15 @@ class DocumentCreateSerializer(serializers.Serializer):
         if attrs.get('metadata') is not None and not isinstance(attrs['metadata'], dict):
             raise serializers.ValidationError({'metadata': 'Los metadatos deben ser un objeto JSON.'})
         return attrs
+
+    def validate_title(self, value):
+        return sanitize_text(value)
+
+    def validate_description(self, value):
+        return sanitize_text(value)
+
+    def validate_file_comment(self, value):
+        return sanitize_text(value)
 
 
 class DocumentUpdateSerializer(DocumentCreateSerializer):

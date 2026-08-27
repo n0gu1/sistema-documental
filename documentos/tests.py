@@ -4,6 +4,7 @@ from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
+from zipfile import ZipFile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
@@ -18,15 +19,23 @@ from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archi
 from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
-from .document_views import compare_versions
+from .document_views import compare_versions, validate_metadata
 from .file_validation import validate_uploaded_file
-from .permissions import IsAuthenticatedAndPasswordCurrent
+from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
+from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_document_permission
 from .reader_views import ReaderAccessSerializer
 from .reports_views import build_pdf, build_xlsx, summarize_report
 from .notifications import create_notification
+from .security_utils import sanitize_text
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
-from .workflow_views import SubmitReviewSerializer, VERSION_TRANSITIONS, transition_version
+from .workflow_views import (
+    ChecklistSerializer,
+    ReviewCommentSerializer,
+    SubmitReviewSerializer,
+    VERSION_TRANSITIONS,
+    transition_version,
+)
 
 
 class SerializerTests(SimpleTestCase):
@@ -110,6 +119,19 @@ class SerializerTests(SimpleTestCase):
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data['metadata']['year'], 2026)
 
+    def test_metadata_validation_rejects_nested_values(self):
+        serializer = DocumentCreateSerializer(data={
+            'code': 'POL-004',
+            'title': 'Politica de calidad',
+            'area_id': str(uuid4()),
+            'type_id': 1,
+            'metadata': {'owner': {'name': 'Calidad'}},
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        with self.assertRaises(ValidationError):
+            validate_metadata(serializer.validated_data['metadata'])
+
     def test_document_serializer_rejects_non_numeric_type_id(self):
         serializer = DocumentCreateSerializer(data={
             'code': 'POL-002',
@@ -128,6 +150,28 @@ class SerializerTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('file', serializer.errors)
+
+    def test_document_serializer_sanitizes_markup_from_text_fields(self):
+        serializer = DocumentCreateSerializer(data={
+            'code': 'POL-003',
+            'title': ' <script>alert(1)</script> Politica ',
+            'description': '<b>Descripcion</b> segura',
+            'area_id': str(uuid4()),
+            'type_id': 1,
+        })
+
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(serializer.validated_data['title'], 'alert(1) Politica')
+        self.assertEqual(serializer.validated_data['description'], 'Descripcion segura')
+
+    def test_workflow_serializers_sanitize_user_text(self):
+        comment = ReviewCommentSerializer(data={'content': '<img src=x>Observacion', 'type': 'OBSERVACION'})
+        checklist = ChecklistSerializer(data={'title': '<b>Verificar</b>'})
+
+        self.assertTrue(comment.is_valid(), comment.errors)
+        self.assertTrue(checklist.is_valid(), checklist.errors)
+        self.assertEqual(comment.validated_data['content'], 'Observacion')
+        self.assertEqual(checklist.validated_data['title'], 'Verificar')
 
 
 class ReportFormatTests(SimpleTestCase):
@@ -325,6 +369,56 @@ class DocumentFileValidationTests(SimpleTestCase):
         with self.assertRaises(ValidationError):
             validate_uploaded_file(uploaded_file)
 
+    def test_ooxml_file_with_macro_is_rejected(self):
+        content = BytesIO()
+        with ZipFile(content, 'w') as archive:
+            archive.writestr('[Content_Types].xml', '<Types/>')
+            archive.writestr('word/vbaProject.bin', b'macro')
+        uploaded_file = SimpleUploadedFile(
+            'archivo.docx',
+            content.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(uploaded_file)
+
+    def test_ooxml_file_with_traversal_path_is_rejected(self):
+        content = BytesIO()
+        with ZipFile(content, 'w') as archive:
+            archive.writestr('../payload.txt', b'contenido')
+        uploaded_file = SimpleUploadedFile(
+            'archivo.docx',
+            content.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+
+        with self.assertRaises(ValidationError):
+            validate_uploaded_file(uploaded_file)
+
+
+class ModelContractTests(SimpleTestCase):
+    def test_document_models_have_safe_display_values_and_storage_path(self):
+        organization_id = uuid4()
+        document_id = uuid4()
+        document = Documento(id=document_id, organizacion_id=organization_id, codigo='POL-001', nombre='Politica')
+        organization = Organizacion(codigo='ORG', nombre='Organizacion')
+        system_config = ConfiguracionSistema(organizacion_id=organization_id)
+
+        self.assertEqual(str(document), 'POL-001 - Politica')
+        self.assertEqual(str(organization), 'Organizacion')
+        self.assertEqual(system_config.general, {})
+        upload_path = document_file_upload_to(
+            SimpleNamespace(documento_id=document_id, documento=document),
+            'carpeta/archivo.PDF',
+        )
+        self.assertTrue(upload_path.startswith(f'{organization_id}/{document_id}/'))
+        self.assertTrue(upload_path.endswith('.pdf'))
+        self.assertNotIn('carpeta', upload_path)
+
+    def test_sanitize_text_removes_markup_and_control_characters(self):
+        self.assertEqual(sanitize_text('<p>Texto</p>\x00\x01 seguro'), 'Texto seguro')
+
 
 class AuthenticationTests(SimpleTestCase):
     def test_session_token_is_stored_as_sha256(self):
@@ -352,6 +446,29 @@ class AuthenticationTests(SimpleTestCase):
 
         self.assertTrue(user_has_permission(user, 'USUARIOS_VER'))
         self.assertFalse(user_has_permission(user, 'ROLES_ADMINISTRAR'))
+
+
+class PermissionTests(SimpleTestCase):
+    @patch('documentos.permissions.user_has_permission', return_value=False)
+    def test_permission_class_rejects_user_without_permission(self, has_permission):
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_authenticated=True, debe_cambiar_contrasena=False, id=uuid4()),
+        )
+        view = SimpleNamespace(permission_code='documentos.gestionar')
+
+        with self.assertRaises(PermissionDenied):
+            HasDocumentalPermission().has_permission(request, view)
+        has_permission.assert_called_once_with(request.user, 'documentos.gestionar')
+
+    @patch('documentos.permissions.user_has_permission', return_value=True)
+    def test_permission_class_accepts_user_with_permission(self, has_permission):
+        request = SimpleNamespace(
+            user=SimpleNamespace(is_authenticated=True, debe_cambiar_contrasena=False, id=uuid4()),
+        )
+        view = SimpleNamespace(permission_code='documentos.gestionar')
+
+        self.assertTrue(HasDocumentalPermission().has_permission(request, view))
+        has_permission.assert_called_once_with(request.user, 'documentos.gestionar')
 
 
 @override_settings(
@@ -460,11 +577,42 @@ class AuthApiTests(SimpleTestCase):
         record_auth_event.assert_called_once()
         check_password.assert_called_once_with('correcta', 'encoded')
 
-    def test_health_endpoint_is_public(self):
+    @patch('documentos.views.connection')
+    def test_health_endpoint_is_public_and_checks_database(self, connection_mock):
+        connection_mock.cursor.return_value.__enter__.return_value.fetchone.return_value = (1,)
         response = self.client.get('/api/health/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['status'], 'running')
+        self.assertEqual(response.data['checks']['database'], 'ok')
+
+    @patch('documentos.views.logger.critical')
+    @patch('documentos.views.connection')
+    def test_health_endpoint_reports_database_failure(self, connection_mock, critical):
+        connection_mock.cursor.return_value.__enter__.side_effect = RuntimeError('database unavailable')
+
+        response = self.client.get('/api/health/')
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.data['status'], 'degraded')
+        critical.assert_called_once()
+
+    def test_protected_endpoints_require_authentication(self):
+        paths = [
+            '/api/settings/',
+            '/api/backups/',
+            '/api/documents/',
+            '/api/documents/export/',
+            '/api/reviews/inbox/',
+            '/api/reader/documents/',
+            '/api/notifications/',
+            '/api/audit/',
+            '/api/reports/',
+        ]
+
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 401)
 
     def test_documents_require_authentication(self):
         response = self.client.get('/api/documents/')

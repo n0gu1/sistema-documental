@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import timedelta
 
@@ -5,6 +6,7 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
 from django.db.models import Q
+from django.db import connection
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -20,6 +22,8 @@ from .authentication import hash_session_token
 from .config_service import security_policy_for
 from .models import SesionDocumental, UsuarioDocumental
 from .serializers import ChangePasswordSerializer, LoginSerializer
+
+logger = logging.getLogger(__name__)
 
 DUMMY_PASSWORD_HASH = (
     'pbkdf2_sha256$1000000$7wTMS8ohL5mGFbXJDZVsFI$'
@@ -301,4 +305,18 @@ class HealthView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        return Response({'message': 'Sistema Documental', 'status': 'running'})
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('SELECT 1')
+                cursor.fetchone()
+        except Exception:
+            logger.critical('SALUD_OPERATIVA_FALLIDA componente=database', exc_info=True)
+            return Response(
+                {
+                    'message': 'Sistema Documental',
+                    'status': 'degraded',
+                    'checks': {'database': 'error'},
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({'message': 'Sistema Documental', 'status': 'running', 'checks': {'database': 'ok'}})

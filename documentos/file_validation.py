@@ -1,5 +1,6 @@
 import hashlib
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile, is_zipfile
 
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
@@ -15,6 +16,13 @@ MIME_BY_EXTENSION = {
     '.png': {'image/png'},
 }
 
+OOXML_EXTENSIONS = {'.docx', '.xlsx', '.pptx'}
+MAX_ARCHIVE_ENTRIES = 2000
+MAX_ARCHIVE_UNCOMPRESSED_MB = 200
+BLOCKED_ARCHIVE_SUFFIXES = {
+    '.bat', '.cmd', '.com', '.dll', '.exe', '.js', '.msi', '.ps1', '.scr', '.vbe', '.vbs',
+}
+
 
 def _content_matches(extension, content):
     signatures = {
@@ -27,6 +35,37 @@ def _content_matches(extension, content):
         '.png': content.startswith(b'\x89PNG\r\n\x1a\n'),
     }
     return signatures.get(extension, False)
+
+
+def _validate_archive_safety(extension, uploaded_file):
+    if extension not in OOXML_EXTENSIONS:
+        return
+    position = uploaded_file.tell()
+    try:
+        uploaded_file.seek(0)
+        if not is_zipfile(uploaded_file):
+            raise ValidationError({'file': 'El archivo OOXML no es un contenedor ZIP valido.'})
+        uploaded_file.seek(0)
+        with ZipFile(uploaded_file) as archive:
+            members = archive.infolist()
+            if len(members) > MAX_ARCHIVE_ENTRIES:
+                raise ValidationError({'file': 'El archivo contiene demasiados elementos internos.'})
+            uncompressed_size = 0
+            for member in members:
+                parts = Path(member.filename.replace('\\', '/')).parts
+                if Path(member.filename).is_absolute() or '..' in parts:
+                    raise ValidationError({'file': 'El archivo contiene una ruta interna no segura.'})
+                if member.filename.lower().endswith('vbaproject.bin'):
+                    raise ValidationError({'file': 'Los archivos con macros no estan permitidos.'})
+                if Path(member.filename).suffix.lower() in BLOCKED_ARCHIVE_SUFFIXES:
+                    raise ValidationError({'file': 'El archivo contiene un recurso ejecutable no permitido.'})
+                uncompressed_size += member.file_size
+                if uncompressed_size > MAX_ARCHIVE_UNCOMPRESSED_MB * 1024 * 1024:
+                    raise ValidationError({'file': 'El contenido descomprimido supera el limite de seguridad.'})
+    except BadZipFile as error:
+        raise ValidationError({'file': 'El archivo OOXML esta danado o no es valido.'}) from error
+    finally:
+        uploaded_file.seek(position)
 
 
 def validate_uploaded_file(uploaded_file, organization_id=None):
@@ -59,6 +98,8 @@ def validate_uploaded_file(uploaded_file, organization_id=None):
     uploaded_file.seek(position)
     if not _content_matches(extension, header):
         raise ValidationError({'file': 'El contenido no coincide con el tipo de archivo declarado.'})
+
+    _validate_archive_safety(extension, uploaded_file)
 
     digest = hashlib.sha256()
     for chunk in uploaded_file.chunks():

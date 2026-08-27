@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .config_service import security_policy_for
+from .security_utils import sanitize_text
 
 
 class LoginSerializer(serializers.Serializer):
@@ -75,6 +76,15 @@ class UserCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError(list(error.messages)) from error
         return value
 
+    def validate_username(self, value):
+        return sanitize_text(value)
+
+    def validate_first_name(self, value):
+        return sanitize_text(value)
+
+    def validate_last_name(self, value):
+        return sanitize_text(value)
+
 
 class UserUpdateSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=254, required=False)
@@ -82,6 +92,12 @@ class UserUpdateSerializer(serializers.Serializer):
     last_name = serializers.CharField(max_length=120, trim_whitespace=True, required=False)
     area_id = serializers.UUIDField(required=False, allow_null=True)
     active = serializers.BooleanField(required=False)
+
+    def validate_first_name(self, value):
+        return sanitize_text(value)
+
+    def validate_last_name(self, value):
+        return sanitize_text(value)
 
 
 class UserStatusSerializer(serializers.Serializer):
@@ -112,8 +128,20 @@ class RoleCreateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120, trim_whitespace=True)
     description = serializers.CharField(required=False, allow_blank=True)
 
+    def validate_name(self, value):
+        return sanitize_text(value)
+
+    def validate_description(self, value):
+        return sanitize_text(value)
+
 
 class RoleUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120, trim_whitespace=True, required=False)
     description = serializers.CharField(required=False, allow_blank=True)
     active = serializers.BooleanField(required=False)
+
+    def validate_name(self, value):
+        return sanitize_text(value)
+
+    def validate_description(self, value):
+        return sanitize_text(value)

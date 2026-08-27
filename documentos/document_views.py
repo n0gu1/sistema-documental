@@ -30,6 +30,7 @@ from .models import (
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import get_accessible_published_document, has_document_permission, is_reader_user, published_document_queryset
+from .security_utils import sanitize_text
 
 
 READ_PERMISSION = 'documentos.consultar'
@@ -259,7 +260,7 @@ def save_metadata(document, metadata):
         MetadatoDocumento.objects.update_or_create(
             documento=document,
             clave=key,
-            defaults={'valor': '' if value is None else str(value)},
+            defaults={'valor': '' if value is None else sanitize_text(str(value))},
         )
 
 

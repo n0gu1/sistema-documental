@@ -23,6 +23,7 @@ from .models import (
     UsuarioDocumental,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .security_utils import sanitize_text
 from .notifications import (
     notify_document_publication,
     notify_review_assignment,
@@ -69,9 +70,18 @@ class SubmitReviewSerializer(serializers.Serializer):
             raise serializers.ValidationError('No repita revisores en la asignacion.')
         return value
 
+    def validate_comment(self, value):
+        return sanitize_text(value)
+
+    def validate_checklist(self, value):
+        return [sanitize_text(item) for item in value]
+
 
 class ReviewDecisionSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True, max_length=2000)
+
+    def validate_comment(self, value):
+        return sanitize_text(value)
 
 
 class ReviewAssignmentSerializer(serializers.Serializer):
@@ -91,9 +101,15 @@ class ReviewCommentSerializer(serializers.Serializer):
         default='OBSERVACION',
     )
 
+    def validate_content(self, value):
+        return sanitize_text(value)
+
 
 class ChecklistSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255, trim_whitespace=True)
+
+    def validate_title(self, value):
+        return sanitize_text(value)
 
 
 class ChecklistUpdateSerializer(serializers.Serializer):
