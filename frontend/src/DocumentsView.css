@@ -1,5 +1,48 @@
 .documents-view { min-width: 0; }
 
+.documents-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(6, 27, 57, .45);
+}
+
+.documents-modal form {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  background: #fff;
+  border: 1px solid #d9e3ef;
+  border-radius: 12px;
+  box-shadow: 0 18px 50px rgba(12, 33, 67, .2);
+}
+
+.documents-modal header,
+.documents-modal footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.documents-modal h2 { margin: 0; color: #0c2143; font-size: 20px; }
+.documents-modal header button { border: 0; color: #687991; background: transparent; font-size: 24px; cursor: pointer; }
+.documents-modal label { display: grid; gap: 6px; color: #52657f; font-size: 11px; font-weight: 700; }
+.documents-modal input,
+.documents-modal textarea,
+.documents-modal select { width: 100%; box-sizing: border-box; padding: 10px 11px; color: #0c2143; background: #fff; border: 1px solid #cfdbea; border-radius: 6px; font: inherit; font-weight: 400; }
+.documents-modal textarea { min-height: 78px; resize: vertical; }
+.documents-modal footer { justify-content: flex-end; margin-top: 4px; }
+.documents-modal footer button { padding: 10px 16px; color: #0b63d1; background: #fff; border: 1px solid #cfdbea; border-radius: 6px; font-weight: 700; cursor: pointer; }
+.documents-modal footer button.is-primary { color: #fff; background: #0869e8; border-color: #0869e8; }
+.documents-modal footer button:disabled { cursor: not-allowed; opacity: .6; }
+
 .documents-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(510px, .85fr);

@@ -398,6 +398,23 @@ class DocumentListCreateView(APIView):
         return Response({'document': serialize_document(document, request, include_details=True)}, status=status.HTTP_201_CREATED)
 
 
+class DocumentCatalogView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request):
+        require_permission(request, READ_PERMISSION)
+        return Response({
+            'areas': [
+                {'id': str(item.id), 'code': item.codigo, 'name': item.nombre}
+                for item in AreaCatalogo.objects.filter(organizacion_id=request.user.organizacion_id, activa=True).order_by('nombre')
+            ],
+            'types': [
+                {'id': item.id, 'code': item.codigo, 'name': item.nombre}
+                for item in TipoDocumentoCatalogo.objects.filter(activo=True).order_by('nombre')
+            ],
+        })
+
+
 class DocumentDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]

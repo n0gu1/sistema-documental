@@ -8,7 +8,8 @@ function errorMessage(data) {
 
 export async function apiRequest(path, { method = 'GET', body } = {}) {
   const headers = {}
-  if (body) headers['Content-Type'] = 'application/json'
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
+  if (body && !isFormData) headers['Content-Type'] = 'application/json'
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrfResponse = await fetch('/api/auth/csrf/', { credentials: 'include' })
@@ -21,7 +22,7 @@ export async function apiRequest(path, { method = 'GET', body } = {}) {
     method,
     headers,
     credentials: 'include',
-    body: body ? JSON.stringify(body) : undefined,
+    body: body ? (isFormData ? body : JSON.stringify(body)) : undefined,
   })
   const data = response.status === 204 ? null : await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(errorMessage(data))
