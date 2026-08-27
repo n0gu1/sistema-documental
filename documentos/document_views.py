@@ -10,7 +10,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import parsers, status
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -29,6 +29,7 @@ from .models import (
     TipoDocumentoCatalogo,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .reader_access import get_accessible_published_document, has_document_permission, is_reader_user, published_document_queryset
 
 
 READ_PERMISSION = 'documentos.consultar'
@@ -223,6 +224,12 @@ def get_document_or_404(request, document_id, include_archived=False):
     return document
 
 
+def get_read_document_or_404(request, document_id):
+    if is_reader_user(request.user):
+        return get_accessible_published_document(request.user, document_id, READ_PERMISSION)
+    return get_document_or_404(request, document_id)
+
+
 def get_reference_or_error(model, object_id, organization_id, field_name):
     filters = {'pk': object_id}
     if model is not TipoDocumentoCatalogo:
@@ -329,6 +336,25 @@ class DocumentListCreateView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
+        if is_reader_user(request.user):
+            from .reader_views import serialize_reader_document
+
+            documents = [
+                document for document in published_document_queryset(request.user.organizacion_id)
+                if has_document_permission(request.user, document.id, READ_PERMISSION)
+            ]
+            total = len(documents)
+            try:
+                limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
+                offset = max(int(request.query_params.get('offset', 0)), 0)
+            except (TypeError, ValueError) as error:
+                raise ValidationError({'code': 'INVALID_PAGINATION', 'detail': 'La paginacion no es valida.'}) from error
+            page = documents[offset:offset + limit]
+            return Response({
+                'count': total,
+                'next_offset': offset + limit if offset + limit < total else None,
+                'results': [serialize_reader_document(document, request) for document in page],
+            })
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
         total, offset, limit, documents = page_queryset(queryset, request.query_params)
         return Response({
@@ -377,7 +403,11 @@ class DocumentDetailView(APIView):
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        document = get_read_document_or_404(request, document_id)
+        if is_reader_user(request.user):
+            from .reader_views import serialize_reader_document
+
+            return Response({'document': serialize_reader_document(document, request, include_details=True)})
         return Response({'document': serialize_document(document, request, include_details=True)})
 
     def patch(self, request, document_id):
@@ -448,8 +478,11 @@ class DocumentFileListCreateView(APIView):
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
-        document = get_document_or_404(request, document_id)
-        return Response({'files': [serialize_file(item, request) for item in document.archivos.all()]})
+        document = get_read_document_or_404(request, document_id)
+        files = document.archivos.all()
+        if is_reader_user(request.user):
+            files = files.filter(estado_version__codigo='PUBLICADO')
+        return Response({'files': [serialize_file(item, request) for item in files]})
 
     def post(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
@@ -472,8 +505,10 @@ class DocumentVersionListView(APIView):
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        document = get_read_document_or_404(request, document_id)
         versions = version_queryset(document)
+        if is_reader_user(request.user):
+            versions = versions.filter(estado_version__codigo='PUBLICADO')
         return Response({
             'current_version_id': str(next((item.id for item in versions if item.es_vigente), '')) or None,
             'versions': [serialize_version(item, request) for item in versions],
@@ -507,10 +542,12 @@ class DocumentVersionCompareView(APIView):
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        document = get_read_document_or_404(request, document_id)
         first_id = parse_version_id(request.query_params.get('from_version'), 'from_version')
         second_id = parse_version_id(request.query_params.get('to_version'), 'to_version')
         versions = version_queryset(document).filter(pk__in=[first_id, second_id])
+        if is_reader_user(request.user):
+            versions = versions.filter(estado_version__codigo='PUBLICADO')
         by_id = {version.id: version for version in versions}
         if first_id not in by_id or second_id not in by_id:
             raise Http404
@@ -522,9 +559,11 @@ class DocumentVersionTimelineView(APIView):
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        document = get_read_document_or_404(request, document_id)
         events = []
         for version in version_queryset(document):
+            if is_reader_user(request.user) and version.estado_version.codigo != 'PUBLICADO':
+                continue
             events.append({
                 'id': str(version.id),
                 'type': 'version_created',
@@ -567,7 +606,13 @@ class DocumentFileDownloadView(APIView):
 
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
-        document, document_file = get_document_file_or_404(request, document_id, file_id)
+        if is_reader_user(request.user):
+            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar')
+            document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
+            if not document_file:
+                raise Http404
+        else:
+            document, document_file = get_document_file_or_404(request, document_id, file_id)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -578,7 +623,13 @@ class DocumentFileDownloadView(APIView):
 class DocumentVersionDownloadView(DocumentFileDownloadView):
     def get(self, request, document_id, version_id):
         require_permission(request, READ_PERMISSION)
-        document, document_file = get_document_version_or_404(request, document_id, version_id)
+        if is_reader_user(request.user):
+            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar')
+            document_file = document.archivos.filter(pk=version_id, estado_version__codigo='PUBLICADO').first()
+            if not document_file:
+                raise Http404
+        else:
+            document, document_file = get_document_version_or_404(request, document_id, version_id)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -591,7 +642,13 @@ class DocumentFilePreviewView(APIView):
 
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
-        document, document_file = get_document_file_or_404(request, document_id, file_id)
+        if is_reader_user(request.user):
+            document = get_accessible_published_document(request.user, document_id, READ_PERMISSION)
+            document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
+            if not document_file:
+                raise Http404
+        else:
+            document, document_file = get_document_file_or_404(request, document_id, file_id)
         if document_file.tipo_mime not in PREVIEWABLE_MIMES:
             return Response({'code': 'PREVIEW_NOT_AVAILABLE', 'detail': 'Este tipo de archivo no tiene vista previa.'}, status=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
@@ -606,6 +663,8 @@ class DocumentExportView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
+        if is_reader_user(request.user):
+            raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="documentos.csv"'

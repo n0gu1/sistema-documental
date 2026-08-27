@@ -4,6 +4,7 @@ from . import views
 from . import management_views
 from . import document_views
 from . import workflow_views
+from . import reader_views
 
 urlpatterns = [
     path('auth/csrf/', views.CsrfTokenView.as_view(), name='auth-csrf'),
@@ -66,5 +67,13 @@ urlpatterns = [
         document_views.DocumentFilePreviewView.as_view(),
         name='document-file-preview',
     ),
+    path('reader/documents/', reader_views.ReaderDocumentListView.as_view(), name='reader-documents'),
+    path('reader/documents/<uuid:document_id>/', reader_views.ReaderDocumentDetailView.as_view(), name='reader-document-detail'),
+    path('reader/documents/<uuid:document_id>/read/', reader_views.ReaderDocumentReadView.as_view(), name='reader-document-read'),
+    path('reader/documents/<uuid:document_id>/favorite/', reader_views.ReaderFavoriteView.as_view(), name='reader-favorite'),
+    path('reader/history/', reader_views.ReaderReadingHistoryView.as_view(), name='reader-history'),
+    path('reader/favorites/', reader_views.ReaderFavoritesView.as_view(), name='reader-favorites'),
+    path('reader/documents/<uuid:document_id>/versions/<uuid:version_id>/download/', reader_views.ReaderVersionDownloadView.as_view(), name='reader-version-download'),
+    path('reader/documents/<uuid:document_id>/versions/<uuid:version_id>/preview/', reader_views.ReaderVersionPreviewView.as_view(), name='reader-version-preview'),
     path('health/', views.HealthView.as_view(), name='health'),
 ]

@@ -721,3 +721,77 @@ class ComentarioRevision(models.Model):
     class Meta:
         db_table = '"gestion_documental"."revision_comentarios"'
         ordering = ['creado_en']
+
+
+class RegistroAccesoDocumento(models.Model):
+    TIPOS = (
+        ('CONSULTA', 'Consulta'),
+        ('LECTURA', 'Lectura'),
+        ('DESCARGA', 'Descarga'),
+        ('VISTA_PREVIA', 'Vista previa'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    documento = models.ForeignKey(
+        Documento,
+        db_column='documento_id',
+        on_delete=models.CASCADE,
+        related_name='registros_acceso',
+    )
+    version_documento = models.ForeignKey(
+        ArchivoDocumento,
+        db_column='version_documento_id',
+        on_delete=models.CASCADE,
+        related_name='registros_acceso',
+    )
+    usuario = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='usuario_id',
+        on_delete=models.PROTECT,
+        related_name='accesos_documentales',
+    )
+    tipo = models.CharField(max_length=20, choices=TIPOS)
+    detalle = models.TextField(null=True, blank=True)
+    duracion_segundos = models.PositiveIntegerField(null=True, blank=True)
+    pagina_final = models.PositiveIntegerField(null=True, blank=True)
+    direccion_ip = models.GenericIPAddressField(null=True, blank=True)
+    agente_usuario = models.TextField(null=True, blank=True)
+    registrado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."documentos_accesos"'
+        ordering = ['-registrado_en']
+        indexes = [
+            models.Index(fields=['usuario', '-registrado_en'], name='ix_accesos_usuario_fecha'),
+            models.Index(fields=['documento', '-registrado_en'], name='ix_accesos_documento_fecha'),
+            models.Index(fields=['tipo', '-registrado_en'], name='ix_accesos_tipo_fecha'),
+        ]
+
+
+class FavoritoDocumento(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    documento = models.ForeignKey(
+        Documento,
+        db_column='documento_id',
+        on_delete=models.CASCADE,
+        related_name='favoritos',
+    )
+    usuario = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='usuario_id',
+        on_delete=models.CASCADE,
+        related_name='documentos_favoritos',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."documentos_favoritos"'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['documento', 'usuario'],
+                name='uq_documentos_favoritos_documento_usuario',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['usuario', '-creado_en'], name='ix_favoritos_usuario_fecha'),
+        ]

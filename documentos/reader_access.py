@@ -1,0 +1,97 @@
+from django.db import connection
+from django.http import Http404
+
+from .auth_utils import get_client_ip, user_has_permission
+from .models import Documento, RegistroAccesoDocumento
+
+
+MANAGEMENT_PERMISSIONS = {
+    'documentos.gestionar',
+    'usuarios.consultar',
+    'usuarios.gestionar',
+    'roles.gestionar',
+    'revisiones.enviar',
+    'revisiones.consultar',
+    'revisiones.aprobar',
+    'revisiones.rechazar',
+}
+
+
+def is_reader_user(user):
+    return not any(user_has_permission(user, permission) for permission in MANAGEMENT_PERMISSIONS)
+
+
+def has_document_permission(user, document_id, permission_code):
+    global_permission = user_has_permission(user, permission_code)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''
+            SELECT
+                EXISTS (
+                    SELECT 1
+                    FROM gestion_documental.documentos_roles_permisos drp
+                    JOIN gestion_documental.permisos p ON p.id = drp.permiso_id
+                    WHERE drp.documento_id = %s
+                      AND p.codigo = %s
+                      AND p.activo
+                ) AS has_document_roles,
+                EXISTS (
+                    SELECT 1
+                    FROM gestion_documental.documentos_roles_permisos drp
+                    JOIN gestion_documental.permisos p ON p.id = drp.permiso_id
+                    JOIN gestion_documental.usuarios_roles ur ON ur.rol_id = drp.rol_id
+                    JOIN gestion_documental.roles r ON r.id = ur.rol_id
+                    WHERE drp.documento_id = %s
+                      AND ur.usuario_id = %s
+                      AND p.codigo = %s
+                      AND p.activo
+                      AND r.activo
+                      AND (ur.vigente_hasta IS NULL OR ur.vigente_hasta > CURRENT_TIMESTAMP)
+                ) AS role_allowed
+            ''',
+            [document_id, permission_code, document_id, user.id, permission_code],
+        )
+        has_document_roles, role_allowed = cursor.fetchone()
+    if has_document_roles:
+        return role_allowed
+    return global_permission
+
+
+def published_document_queryset(organization_id):
+    return Documento.objects.filter(
+        organizacion_id=organization_id,
+        eliminado_en__isnull=True,
+        archivos__estado_version__codigo='PUBLICADO',
+    ).select_related('area', 'tipo_documento', 'creado_por').distinct()
+
+
+def published_version(document, version_id=None):
+    versions = document.archivos.select_related('estado_version', 'creada_por').filter(
+        estado_version__codigo='PUBLICADO',
+    ).order_by('-orden_version')
+    if version_id is not None:
+        versions = versions.filter(pk=version_id)
+    return versions.first()
+
+
+def get_accessible_published_document(user, document_id, permission_code='documentos.consultar'):
+    document = published_document_queryset(user.organizacion_id).filter(pk=document_id).first()
+    if not document or not has_document_permission(user, document.id, permission_code):
+        raise Http404
+    if not published_version(document):
+        raise Http404
+    return document
+
+
+def record_reader_access(request, document, version, access_type, detail=None, duration=None, page=None):
+    return RegistroAccesoDocumento.objects.create(
+        documento=document,
+        version_documento=version,
+        usuario=request.user,
+        tipo=access_type,
+        detalle=detail,
+        duracion_segundos=duration,
+        pagina_final=page,
+        direccion_ip=get_client_ip(request),
+        agente_usuario=request.META.get('HTTP_USER_AGENT', ''),
+    )

@@ -16,6 +16,8 @@ from .document_serializers import DocumentCreateSerializer, DocumentFileSerializ
 from .document_views import compare_versions
 from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .reader_access import has_document_permission
+from .reader_views import ReaderAccessSerializer
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
 from .workflow_views import SubmitReviewSerializer, VERSION_TRANSITIONS, transition_version
 
@@ -454,3 +456,41 @@ class AuthApiTests(SimpleTestCase):
         check_password.assert_called_once_with('Actual123!', 'old-encoded-password')
         make_password.assert_called_once_with('StrongDifferent987!')
         record_auth_event.assert_called_once()
+
+
+class ReaderAccessTests(SimpleTestCase):
+    def test_reader_access_serializer_accepts_reading_progress(self):
+        serializer = ReaderAccessSerializer(
+            data={
+                'version_id': str(uuid4()),
+                'duration_seconds': 90,
+                'last_page': 4,
+            },
+        )
+
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data['duration_seconds'], 90)
+
+    def test_reader_access_serializer_rejects_negative_progress(self):
+        serializer = ReaderAccessSerializer(data={'duration_seconds': -1})
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('duration_seconds', serializer.errors)
+
+    @patch('documentos.reader_access.user_has_permission', return_value=True)
+    @patch('documentos.reader_access.connection')
+    def test_document_acl_overrides_global_permission_when_document_is_restricted(self, cursor, user_has_permission_mock):
+        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (True, False)
+        user = SimpleNamespace(id=uuid4())
+
+        self.assertFalse(has_document_permission(user, uuid4(), 'documentos.consultar'))
+        user_has_permission_mock.assert_called_once_with(user, 'documentos.consultar')
+
+    @patch('documentos.reader_access.user_has_permission', return_value=True)
+    @patch('documentos.reader_access.connection')
+    def test_global_permission_applies_when_document_has_no_acl(self, cursor, user_has_permission_mock):
+        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (False, False)
+        user = SimpleNamespace(id=uuid4())
+
+        self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
+        user_has_permission_mock.assert_called_once_with(user, 'documentos.consultar')
