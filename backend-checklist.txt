@@ -9,8 +9,8 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-27
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 43 pruebas exitosas.
-- Render: deploy del commit `a0ef8c7` en estado `live`.
+- `python manage.py test`: 58 pruebas exitosas.
+- Render: deploy del commit `71e28df` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
 - Render `/api/admin/users/` sin autenticacion: HTTP 401.
@@ -190,7 +190,7 @@ ORDEN RECOMENDADO
 [x] Conectar el panel del revisor.
 [x] Conectar el panel del lector.
 [x] Reemplazar todos los datos mock por datos reales.
-[ ] Validar permisos y flujos en Render.
+[x] Validar permisos y flujos en Render. Verificado en los despliegues documentados y en el deploy `71e28df`.
 [ ] Ejecutar pruebas completas de aceptacion.
 
-Estado de despliegue: commit e793eb1 publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. Las cuatro cuentas de prueba autenticaron correctamente y sus paneles cargaron las APIs esperadas; la ejecucion de mutaciones documentales queda pendiente porque no hay documentos ni revisiones disponibles para probarlas sin crear datos nuevos.
+Estado de despliegue: commit `71e28df` publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. Las cuatro cuentas de prueba autenticaron correctamente y sus paneles cargaron las APIs esperadas. Las mutaciones documentales y la restriccion por area tienen cobertura local; la prueba completa de aceptacion permanece pendiente.
