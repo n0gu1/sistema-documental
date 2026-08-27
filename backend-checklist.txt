@@ -192,3 +192,5 @@ ORDEN RECOMENDADO
 [x] Reemplazar todos los datos mock por datos reales.
 [ ] Validar permisos y flujos en Render.
 [ ] Ejecutar pruebas completas de aceptacion.
+
+Estado de despliegue: commit 743d1f9 publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. La validacion autenticada de permisos y flujos queda pendiente de credenciales de prueba por rol.
