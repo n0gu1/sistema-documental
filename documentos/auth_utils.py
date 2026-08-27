@@ -115,7 +115,7 @@ def record_auth_event(
                     resource_id,
                     successful,
                     result,
-                    json.dumps(details or {}),
+                    json.dumps(details or {}, default=str),
                     get_client_ip(request),
                     request.META.get('HTTP_USER_AGENT', ''),
                     action_code,
@@ -123,10 +123,19 @@ def record_auth_event(
                 ],
             )
             if cursor.rowcount != 1:
-                logger.error(
-                    'No se encontró el catálogo de auditoría action=%s resource=%s',
+                logger.critical(
+                    'AUDITORIA_NO_REGISTRADA catalogo_no_encontrado action=%s resource=%s user=%s resource_id=%s',
                     action_code,
                     resource_code,
+                    user_id,
+                    resource_id,
                 )
     except Exception:
-        logger.exception('No se pudo registrar el evento de autenticación')
+        logger.critical(
+            'AUDITORIA_NO_REGISTRADA error persistiendo action=%s resource=%s user=%s resource_id=%s',
+            action_code,
+            resource_code,
+            user_id,
+            resource_id,
+            exc_info=True,
+        )

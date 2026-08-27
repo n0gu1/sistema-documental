@@ -297,6 +297,7 @@ class ReviewSubmitView(APIView):
                 reviews.append(review)
         record_document_event(request, document, 'REVISION_SOLICITADA', resource_code='ARCHIVO', resource_id=version.id)
         for review in reviews:
+            record_document_event(request, document, 'REVISION_ASIGNADA', resource_code='ARCHIVO', resource_id=version.id)
             notify_review_assignment(review, actor_id=request.user.id)
         return Response({'reviews': [serialize_review(review) for review in reviews]}, status=status.HTTP_201_CREATED)
 
@@ -370,6 +371,13 @@ class ReviewAssignmentView(APIView):
         if detail_updates:
             detail.actualizado_en = timezone.now()
             detail.save(update_fields=[*detail_updates, 'actualizado_en'])
+        record_document_event(
+            request,
+            review.version_documento.documento,
+            'REVISION_ASIGNADA',
+            resource_code='ARCHIVO',
+            resource_id=review.version_documento_id,
+        )
         notify_review_assignment(review, actor_id=request.user.id)
         return Response({'review': serialize_review(review)})
 
@@ -417,6 +425,8 @@ class ReviewDecisionView(APIView):
             record_document_event(request, document, 'DOCUMENTO_APROBADO', resource_code='ARCHIVO', resource_id=version.id)
         elif self.action == 'reject':
             record_document_event(request, document, 'DOCUMENTO_RECHAZADO', resource_code='ARCHIVO', resource_id=version.id)
+        elif self.action == 'return':
+            record_document_event(request, document, 'REVISION_DEVUELTA', resource_code='ARCHIVO', resource_id=version.id)
         notify_review_decision(review, self.action)
         return Response({'review': serialize_review(review)})
 
@@ -457,6 +467,13 @@ class ReviewCommentListCreateView(APIView):
             comentario_padre=parent,
             tipo='RESPUESTA' if parent else serializer.validated_data['type'],
             contenido=serializer.validated_data['content'],
+        )
+        record_document_event(
+            request,
+            review.version_documento.documento,
+            'REVISION_COMENTADA',
+            resource_code='ARCHIVO',
+            resource_id=review.version_documento_id,
         )
         notify_review_comment(review, request.user.id)
         return Response({'comment': serialize_comment(comment)}, status=status.HTTP_201_CREATED)
@@ -540,5 +557,6 @@ class VersionPublishView(APIView):
             version.es_vigente = True
             version.save(update_fields=['es_vigente'])
         record_document_event(request, document, 'DOCUMENTO_APROBADO', resource_code='ARCHIVO', resource_id=version.id)
+        record_document_event(request, document, 'DOCUMENTO_PUBLICADO', resource_code='ARCHIVO', resource_id=version.id)
         notify_document_publication(document, version, actor_id=request.user.id)
         return Response({'version': {'id': str(version.id), 'status': 'PUBLICADO', 'is_current': True}})

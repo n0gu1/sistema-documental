@@ -11,7 +11,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
-from .auth_utils import user_has_permission
+from .audit_views import audit_query_parts
+from .auth_utils import record_auth_event, user_has_permission
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import compare_versions
 from .file_validation import validate_uploaded_file
@@ -400,6 +401,11 @@ class AuthApiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_audit_requires_authentication(self):
+        response = self.client.get('/api/audit/')
+
+        self.assertEqual(response.status_code, 401)
+
     @patch('documentos.views.transaction.atomic', return_value=nullcontext())
     @patch('documentos.views.record_auth_event')
     @patch('documentos.views.serialize_user')
@@ -536,3 +542,38 @@ class NotificationTests(SimpleTestCase):
             fail_silently=False,
         )
         notification.save.assert_called_once_with(update_fields=['correo_enviado_en'])
+
+
+class AuditTests(SimpleTestCase):
+    def test_audit_query_builds_parameterized_filters(self):
+        where, values = audit_query_parts({
+            'organization_id': uuid4(),
+            'action': 'sesion_fallida',
+            'module': 'usuario',
+            'result': 'false',
+            'ip': '127.0.0.1',
+            'search': 'contraseña',
+            'critical': 'true',
+        })
+
+        self.assertIn('a.codigo = %s', where)
+        self.assertIn('tr.codigo = %s', where)
+        self.assertIn('ba.exitoso = %s', where)
+        self.assertIn('NOT ba.exitoso', where)
+        self.assertEqual(values[1:4], ['SESION_FALLIDA', 'USUARIO', False])
+
+    @patch('documentos.auth_utils.logger.critical')
+    @patch('documentos.auth_utils.connection')
+    def test_audit_failures_are_reported_as_critical(self, connection, critical):
+        connection.cursor.return_value.__enter__.side_effect = RuntimeError('database unavailable')
+        request = SimpleNamespace(META={'REMOTE_ADDR': '127.0.0.1', 'HTTP_USER_AGENT': 'test'})
+
+        record_auth_event(
+            action_code='SESION_INICIADA',
+            resource_code='SESION',
+            organization_id=uuid4(),
+            request=request,
+            successful=True,
+        )
+
+        critical.assert_called_once()

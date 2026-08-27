@@ -1,7 +1,7 @@
 from django.db import connection
 from django.http import Http404
 
-from .auth_utils import get_client_ip, user_has_permission
+from .auth_utils import get_client_ip, record_auth_event, user_has_permission
 from .models import Documento, RegistroAccesoDocumento
 
 
@@ -84,7 +84,7 @@ def get_accessible_published_document(user, document_id, permission_code='docume
 
 
 def record_reader_access(request, document, version, access_type, detail=None, duration=None, page=None):
-    return RegistroAccesoDocumento.objects.create(
+    access = RegistroAccesoDocumento.objects.create(
         documento=document,
         version_documento=version,
         usuario=request.user,
@@ -95,3 +95,22 @@ def record_reader_access(request, document, version, access_type, detail=None, d
         direccion_ip=get_client_ip(request),
         agente_usuario=request.META.get('HTTP_USER_AGENT', ''),
     )
+    action_code = {
+        'CONSULTA': 'DOCUMENTO_CONSULTADO',
+        'LECTURA': 'LECTURA_REGISTRADA',
+        'DESCARGA': 'ARCHIVO_DESCARGADO',
+        'VISTA_PREVIA': 'ARCHIVO_PREVISUALIZADO',
+    }[access_type]
+    record_auth_event(
+        action_code=action_code,
+        resource_code='ARCHIVO' if access_type in {'DESCARGA', 'VISTA_PREVIA'} else 'DOCUMENTO',
+        organization_id=document.organizacion_id,
+        user_id=request.user.id,
+        session_id=getattr(request.auth, 'id', None),
+        resource_id=version.id if access_type in {'DESCARGA', 'VISTA_PREVIA'} else document.id,
+        request=request,
+        successful=True,
+        result='Acceso documental registrado',
+        details={'access_id': str(access.id), 'version_id': str(version.id)},
+    )
+    return access

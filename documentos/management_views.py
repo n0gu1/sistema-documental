@@ -359,6 +359,17 @@ class SessionRevokeView(APIView):
             revocada_en=now,
             motivo_revocacion='Sesión revocada desde administración',
         )
+        record_auth_event(
+            action_code='SESION_REVOCADA',
+            resource_code='SESION',
+            organization_id=request.user.organizacion_id,
+            user_id=request.user.id,
+            session_id=getattr(request.auth, 'id', None),
+            resource_id=session.id,
+            request=request,
+            successful=True,
+            result='Sesion revocada correctamente',
+        )
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -406,6 +417,14 @@ class RoleListCreateView(APIView):
             creado_en=now,
             actualizado_en=now,
         )
+        record_management_event(
+            request,
+            request.user,
+            'ROL_MODIFICADO',
+            'Rol creado',
+            resource_code='ROL',
+            resource_id=role.id,
+        )
         return Response(
             {
                 'role': {
@@ -444,6 +463,14 @@ class RoleDetailView(APIView):
             RolDocumental.objects.filter(pk=role.pk).update(**updates)
             for field, value in updates.items():
                 setattr(role, field, value)
+        record_management_event(
+            request,
+            request.user,
+            'ROL_MODIFICADO',
+            'Rol actualizado',
+            resource_code='ROL',
+            resource_id=role.id,
+        )
         return Response({'role': role_to_dict(role)})
 
 
@@ -518,6 +545,14 @@ class RolePermissionsView(APIView):
                     asignado_por_id=request.user.id,
                     asignado_en=timezone.now(),
                 )
+        record_management_event(
+            request,
+            request.user,
+            'PERMISO_MODIFICADO',
+            'Permisos de rol actualizados',
+            resource_code='PERMISO',
+            resource_id=role.pk,
+        )
         return Response({'role_id': str(role.pk), 'permission_ids': [str(item) for item in valid_permission_ids]})
 
 
@@ -543,18 +578,18 @@ def assign_roles(user, role_ids, assigned_by_id):
                 )
 
 
-def record_management_event(request, user, action_code, result):
+def record_management_event(request, user, action_code, result, resource_code='USUARIO', resource_id=None):
     record_auth_event(
         action_code=action_code,
-        resource_code='USUARIO',
+        resource_code=resource_code,
         organization_id=user.organizacion_id,
         user_id=request.user.id,
         session_id=getattr(request.auth, 'id', None),
-        resource_id=user.id,
+        resource_id=resource_id or user.id,
         request=request,
         successful=True,
         result=result,
-        details={'target_user_id': str(user.id), 'ip': get_client_ip(request)},
+        details={'target_id': str(resource_id or user.id), 'ip': get_client_ip(request)},
     )
 
 
