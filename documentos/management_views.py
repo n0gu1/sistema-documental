@@ -21,7 +21,6 @@ from .models import (
     UsuarioDocumental,
     UsuarioRolDocumental,
     ArchivoDocumento,
-    AreaCatalogo,
     DetalleSolicitudRevision,
     Documento,
     SolicitudRevision,
@@ -209,17 +208,11 @@ class UserListCreateView(APIView):
         limit, offset = get_pagination(request)
         total = queryset.count()
         users = queryset.order_by('apellidos', 'nombres')[offset:offset + limit]
-        area_names = {
-            str(area['id']): area['nombre']
-            for area in AreaCatalogo.objects.filter(
-                id__in=[user.area_id for user in users if user.area_id],
-            ).values('id', 'nombre')
-        }
         return Response(
             {
                 'count': total,
                 'next_offset': offset + limit if offset + limit < total else None,
-                'results': [serialize_management_user(user, area_names.get(str(user.area_id))) for user in users],
+                'results': [serialize_management_user(user) for user in users],
             },
         )
 
@@ -270,8 +263,7 @@ class UserDetailView(APIView):
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
-        return Response({'user': serialize_management_user(user, area_name)})
+        return Response({'user': serialize_management_user(user)})
 
     def patch(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
@@ -311,8 +303,7 @@ class UserDetailView(APIView):
             for field, value in updates.items():
                 setattr(user, field, value)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado')
-        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
-        return Response({'user': serialize_management_user(user, area_name)})
+        return Response({'user': serialize_management_user(user)})
 
 
 class UserStatusView(APIView):
@@ -340,8 +331,7 @@ class UserStatusView(APIView):
         user.activo = active
         user.deshabilitado_en = None if active else now
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Estado de usuario actualizado')
-        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
-        return Response({'user': serialize_management_user(user, area_name)})
+        return Response({'user': serialize_management_user(user)})
 
 
 class UserLockView(APIView):
