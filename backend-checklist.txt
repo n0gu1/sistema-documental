@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-27
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 36 pruebas exitosas.
+- `python manage.py test`: 37 pruebas exitosas.
 - Render: deploy del commit `a0ef8c7` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -26,6 +26,9 @@ VERIFICACION REALIZADA EL 2026-08-27
 - Pruebas de notificaciones: persistencia y envio SMTP cubiertos por prueba unitaria; el envio por correo queda desactivado por defecto en Render hasta configurar credenciales SMTP mediante variables privadas.
 - Render auditoria: deploy del commit `a0ef8c7` en estado `live`, migracion 0009 aplicada, consulta autenticada HTTP 200 con paginacion y 81 eventos, filtros por accion, resultado, criticidad y fecha HTTP 200, alertas HTTP 200 con deteccion de intentos fallidos, exportacion CSV HTTP 200 y acceso sin credenciales HTTP 401.
 - Pruebas de auditoria: los eventos de autenticacion, operaciones documentales, cambios administrativos, lecturas, descargas, publicaciones y exportaciones se registran en la bitacora; los fallos de persistencia generan registro critico `AUDITORIA_NO_REGISTRADA` y tienen cobertura unitaria.
+- Render administracion y dashboard: deploy del commit `f505eef` en estado `live`; dashboard HTTP 200 con indicadores, estados, documentos recientes, cola de revisiones y actividad.
+- Render administracion autenticada: listado y detalle de usuarios HTTP 200, roles de usuario HTTP 200, sesiones HTTP 200, catalogo de permisos HTTP 200 y listado de roles HTTP 200; la interfaz muestra 4 usuarios, 4 roles y 21 permisos reales.
+- Pruebas locales de administracion: `python manage.py check` correcto y 37 pruebas exitosas; las acciones mutantes de administracion no se ejecutaron sobre datos de produccion.
 - Las migraciones se ejecutaron correctamente durante el deploy de Render.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
 
@@ -123,12 +126,12 @@ ORDEN RECOMENDADO
 [x] Evitar perdida silenciosa de eventos de auditoria.
 
 10. ADMINISTRACION Y DASHBOARD
-[ ] Crear indicadores reales del dashboard.
-[ ] Crear resumen de documentos recientes.
-[ ] Crear cola real de revisiones pendientes.
-[ ] Implementar administracion de usuarios desde el panel.
-[ ] Implementar administracion de roles y permisos desde el panel.
-[ ] Implementar consulta de actividad por usuario.
+[x] Crear indicadores reales del dashboard.
+[x] Crear resumen de documentos recientes.
+[x] Crear cola real de revisiones pendientes.
+[x] Implementar administracion de usuarios desde el panel.
+[x] Implementar administracion de roles y permisos desde el panel.
+[x] Implementar consulta de actividad por usuario.
 
 11. REPORTES
 [ ] Crear consultas para reportes ejecutivos.
@@ -176,8 +179,8 @@ ORDEN RECOMENDADO
 [ ] Configurar alertas operativas.
 
 15. INTEGRACION FINAL
-[ ] Crear cliente API compartido en el frontend.
-[ ] Conectar el panel del administrador.
+[x] Crear cliente API compartido en el frontend.
+[x] Conectar el panel del administrador.
 [ ] Conectar el panel del editor.
 [ ] Conectar el panel del revisor.
 [ ] Conectar el panel del lector.
