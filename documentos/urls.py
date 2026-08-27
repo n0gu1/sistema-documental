@@ -5,6 +5,7 @@ from . import management_views
 from . import document_views
 from . import workflow_views
 from . import reader_views
+from . import notification_views
 
 urlpatterns = [
     path('auth/csrf/', views.CsrfTokenView.as_view(), name='auth-csrf'),
@@ -75,5 +76,8 @@ urlpatterns = [
     path('reader/favorites/', reader_views.ReaderFavoritesView.as_view(), name='reader-favorites'),
     path('reader/documents/<uuid:document_id>/versions/<uuid:version_id>/download/', reader_views.ReaderVersionDownloadView.as_view(), name='reader-version-download'),
     path('reader/documents/<uuid:document_id>/versions/<uuid:version_id>/preview/', reader_views.ReaderVersionPreviewView.as_view(), name='reader-version-preview'),
+    path('notifications/', notification_views.NotificationListView.as_view(), name='notifications'),
+    path('notifications/read-all/', notification_views.NotificationReadAllView.as_view(), name='notifications-read-all'),
+    path('notifications/<uuid:notification_id>/read/', notification_views.NotificationReadView.as_view(), name='notification-read'),
     path('health/', views.HealthView.as_view(), name='health'),
 ]

@@ -795,3 +795,61 @@ class FavoritoDocumento(models.Model):
         indexes = [
             models.Index(fields=['usuario', '-creado_en'], name='ix_favoritos_usuario_fecha'),
         ]
+
+
+class Notificacion(models.Model):
+    TIPOS = (
+        ('REVISION_ASIGNADA', 'Revision asignada'),
+        ('COMENTARIO_REVISION', 'Comentario de revision'),
+        ('APROBACION_REVISION', 'Revision aprobada'),
+        ('DEVOLUCION_REVISION', 'Revision devuelta'),
+        ('RECHAZO_REVISION', 'Revision rechazada'),
+        ('PUBLICACION_DOCUMENTO', 'Documento publicado'),
+    )
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    usuario = models.ForeignKey(
+        UsuarioDocumental,
+        db_column='usuario_id',
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    tipo = models.CharField(max_length=30, choices=TIPOS)
+    titulo = models.CharField(max_length=200)
+    mensaje = models.TextField()
+    documento = models.ForeignKey(
+        Documento,
+        db_column='documento_id',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    version_documento = models.ForeignKey(
+        ArchivoDocumento,
+        db_column='version_documento_id',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    solicitud_revision = models.ForeignKey(
+        SolicitudRevision,
+        db_column='solicitud_revision_id',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='notificaciones',
+    )
+    leida_en = models.DateTimeField(null=True, blank=True)
+    correo_enviado_en = models.DateTimeField(null=True, blank=True)
+    error_correo = models.TextField(null=True, blank=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = '"gestion_documental"."notificaciones"'
+        ordering = ['-creado_en']
+        indexes = [
+            models.Index(fields=['usuario', 'leida_en', '-creado_en'], name='ix_notif_usuario_estado_fecha'),
+            models.Index(fields=['tipo', '-creado_en'], name='ix_notif_tipo_fecha'),
+        ]

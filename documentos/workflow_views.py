@@ -23,6 +23,12 @@ from .models import (
     UsuarioDocumental,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .notifications import (
+    notify_document_publication,
+    notify_review_assignment,
+    notify_review_comment,
+    notify_review_decision,
+)
 
 
 REVIEW_READ = 'revisiones.consultar'
@@ -290,6 +296,8 @@ class ReviewSubmitView(APIView):
                     add_resolution_comment(review, request.user, data['comment'], comment_type='OBSERVACION')
                 reviews.append(review)
         record_document_event(request, document, 'REVISION_SOLICITADA', resource_code='ARCHIVO', resource_id=version.id)
+        for review in reviews:
+            notify_review_assignment(review, actor_id=request.user.id)
         return Response({'reviews': [serialize_review(review) for review in reviews]}, status=status.HTTP_201_CREATED)
 
 
@@ -362,6 +370,7 @@ class ReviewAssignmentView(APIView):
         if detail_updates:
             detail.actualizado_en = timezone.now()
             detail.save(update_fields=[*detail_updates, 'actualizado_en'])
+        notify_review_assignment(review, actor_id=request.user.id)
         return Response({'review': serialize_review(review)})
 
 
@@ -408,6 +417,7 @@ class ReviewDecisionView(APIView):
             record_document_event(request, document, 'DOCUMENTO_APROBADO', resource_code='ARCHIVO', resource_id=version.id)
         elif self.action == 'reject':
             record_document_event(request, document, 'DOCUMENTO_RECHAZADO', resource_code='ARCHIVO', resource_id=version.id)
+        notify_review_decision(review, self.action)
         return Response({'review': serialize_review(review)})
 
 
@@ -448,6 +458,7 @@ class ReviewCommentListCreateView(APIView):
             tipo='RESPUESTA' if parent else serializer.validated_data['type'],
             contenido=serializer.validated_data['content'],
         )
+        notify_review_comment(review, request.user.id)
         return Response({'comment': serialize_comment(comment)}, status=status.HTTP_201_CREATED)
 
 
@@ -529,4 +540,5 @@ class VersionPublishView(APIView):
             version.es_vigente = True
             version.save(update_fields=['es_vigente'])
         record_document_event(request, document, 'DOCUMENTO_APROBADO', resource_code='ARCHIVO', resource_id=version.id)
+        notify_document_publication(document, version, actor_id=request.user.id)
         return Response({'version': {'id': str(version.id), 'status': 'PUBLICADO', 'is_current': True}})

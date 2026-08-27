@@ -18,6 +18,7 @@ from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_document_permission
 from .reader_views import ReaderAccessSerializer
+from .notifications import create_notification
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
 from .workflow_views import SubmitReviewSerializer, VERSION_TRANSITIONS, transition_version
 
@@ -394,6 +395,11 @@ class AuthApiTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_notifications_require_authentication(self):
+        response = self.client.get('/api/notifications/')
+
+        self.assertEqual(response.status_code, 401)
+
     @patch('documentos.views.transaction.atomic', return_value=nullcontext())
     @patch('documentos.views.record_auth_event')
     @patch('documentos.views.serialize_user')
@@ -494,3 +500,39 @@ class ReaderAccessTests(SimpleTestCase):
 
         self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
         user_has_permission_mock.assert_called_once_with(user, 'documentos.consultar')
+
+
+class NotificationTests(SimpleTestCase):
+    @override_settings(NOTIFICATIONS_EMAIL_ENABLED=True, DEFAULT_FROM_EMAIL='no-reply@example.com')
+    @patch('documentos.notifications.send_mail')
+    @patch('documentos.notifications.Notificacion.objects.create')
+    def test_create_notification_persists_and_sends_email(self, create, send_mail):
+        notification = MagicMock()
+        create.return_value = notification
+        user = SimpleNamespace(correo='lector@example.com')
+
+        result = create_notification(
+            user=user,
+            notification_type='REVISION_ASIGNADA',
+            title='Nueva revision asignada',
+            message='Revisa el documento DOC-001.',
+        )
+
+        self.assertIs(result, notification)
+        create.assert_called_once_with(
+            usuario=user,
+            tipo='REVISION_ASIGNADA',
+            titulo='Nueva revision asignada',
+            mensaje='Revisa el documento DOC-001.',
+            documento=None,
+            version_documento=None,
+            solicitud_revision=None,
+        )
+        send_mail.assert_called_once_with(
+            'Nueva revision asignada',
+            'Revisa el documento DOC-001.',
+            'no-reply@example.com',
+            ['lector@example.com'],
+            fail_silently=False,
+        )
+        notification.save.assert_called_once_with(update_fields=['correo_enviado_en'])
