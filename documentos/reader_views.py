@@ -178,7 +178,8 @@ class ReaderReadingHistoryView(APIView):
 
     def get(self, request):
         queryset = RegistroAccesoDocumento.objects.select_related(
-            'documento', 'version_documento', 'version_documento__estado_version',
+            'documento', 'documento__area', 'documento__tipo_documento',
+            'version_documento', 'version_documento__estado_version',
         ).filter(usuario_id=request.user.id, documento__organizacion_id=request.user.organizacion_id)
         access_type = request.query_params.get('type')
         if access_type:
@@ -200,10 +201,19 @@ class ReaderReadingHistoryView(APIView):
                     'id': str(record.id),
                     'type': record.tipo,
                     'detail': record.detalle or '',
-                    'document': {'id': str(record.documento_id), 'code': record.documento.codigo, 'title': record.documento.nombre},
+                    'document': {
+                        'id': str(record.documento_id),
+                        'code': record.documento.codigo,
+                        'title': record.documento.nombre,
+                        'area': {'id': str(record.documento.area_id), 'name': record.documento.area.nombre},
+                        'type': {'id': record.documento.tipo_documento_id, 'name': record.documento.tipo_documento.nombre},
+                    },
                     'version': f'{record.version_documento.numero_mayor}.{record.version_documento.numero_menor}',
                     'duration_seconds': record.duracion_segundos,
                     'last_page': record.pagina_final,
+                    'ip_address': record.direccion_ip,
+                    'user_agent': record.agente_usuario,
+                    'result': 'Exitoso',
                     'registered_at': record.registrado_en,
                 }
                 for record in records
