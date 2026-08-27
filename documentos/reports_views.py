@@ -380,7 +380,7 @@ class ReportScheduleListView(APIView):
     def get(self, request):
         scope = request.query_params.get('scope', 'executive')
         require_report_access(request, scope)
-        schedules = ProgramacionReporte.objects.filter(organizacion_id=request.user.organizacion_id, alcance=scope)
+        schedules = ProgramacionReporte.objects.filter(organizacion_id=request.user.organizacion_id, alcance=scope, activa=True)
         return Response({'schedules': [serialize_schedule(item) for item in schedules]})
 
     def post(self, request):
