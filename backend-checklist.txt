@@ -162,14 +162,14 @@ ORDEN RECOMENDADO
 [x] Configurar alertas de respaldos fallidos.
 
 13. CONFIGURACION E INTEGRACIONES
-[ ] Guardar configuracion de la organizacion.
-[ ] Guardar politicas de contrasena.
-[ ] Guardar politicas de sesion.
-[ ] Guardar configuracion SMTP.
-[ ] Guardar limites y tipos de archivo permitidos.
-[ ] Guardar branding, logo y favicon.
-[ ] Implementar configuracion de notificaciones.
-[ ] Implementar integraciones externas.
+[x] Guardar configuracion de la organizacion.
+[x] Guardar politicas de contrasena.
+[x] Guardar politicas de sesion.
+[x] Guardar configuracion SMTP.
+[x] Guardar limites y tipos de archivo permitidos.
+[x] Guardar branding, logo y favicon.
+[x] Implementar configuracion de notificaciones.
+[x] Implementar integraciones externas.
 
 14. CALIDAD Y SEGURIDAD
 [ ] Crear pruebas de modelos.
