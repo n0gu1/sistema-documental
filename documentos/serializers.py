@@ -3,6 +3,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from .config_service import security_policy_for
+
 
 class LoginSerializer(serializers.Serializer):
     identity = serializers.CharField(max_length=254, trim_whitespace=True)
@@ -36,6 +38,18 @@ class ChangePasswordSerializer(serializers.Serializer):
             validate_password(attrs['new_password'], user=password_user)
         except DjangoValidationError as error:
             raise serializers.ValidationError({'new_password': list(error.messages)}) from error
+
+        policy = security_policy_for(getattr(user, 'organizacion_id', None))
+        new_password = attrs['new_password']
+        if len(new_password) < policy['min_length']:
+            raise serializers.ValidationError({'new_password': [f'La contraseña debe tener al menos {policy["min_length"]} caracteres.']})
+        if policy['strong_password'] and policy['complexity'] == 'high' and not all([
+            any(character.isupper() for character in new_password),
+            any(character.islower() for character in new_password),
+            any(character.isdigit() for character in new_password),
+            any(not character.isalnum() for character in new_password),
+        ]):
+            raise serializers.ValidationError({'new_password': ['La contraseña debe combinar mayúsculas, minúsculas, números y símbolos.']})
 
         return attrs
 
