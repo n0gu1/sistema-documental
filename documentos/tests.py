@@ -1,5 +1,6 @@
 from contextlib import nullcontext
 from datetime import timedelta
+from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -20,6 +21,7 @@ from .file_validation import validate_uploaded_file
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_document_permission
 from .reader_views import ReaderAccessSerializer
+from .reports_views import build_pdf, build_xlsx, summarize_report
 from .notifications import create_notification
 from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
 from .workflow_views import SubmitReviewSerializer, VERSION_TRANSITIONS, transition_version
@@ -124,6 +126,41 @@ class SerializerTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('file', serializer.errors)
+
+
+class ReportFormatTests(SimpleTestCase):
+    def setUp(self):
+        self.rows = [{
+            'code': 'POL-001',
+            'title': 'Politica de calidad',
+            'area': 'Calidad',
+            'type': 'Politica',
+            'responsible': 'Juan Perez',
+            'status_code': 'PUBLICADO',
+            'status': 'Publicado',
+            'version': '1.0',
+            'updated_at': timezone.now(),
+        }]
+
+    def test_summary_groups_report_rows(self):
+        summary = summarize_report(self.rows, 'executive')
+
+        self.assertEqual(summary['total'], 1)
+        self.assertEqual(summary['published'], 1)
+        self.assertEqual(summary['by_area'], [{'name': 'Calidad', 'count': 1}])
+
+    def test_xlsx_contains_summary_and_detail_sheets(self):
+        data = {'scope': 'executive', 'summary': summarize_report(self.rows, 'executive'), 'rows': self.rows}
+
+        workbook = __import__('openpyxl').load_workbook(BytesIO(build_xlsx(data)))
+
+        self.assertEqual(workbook.sheetnames, ['Resumen', 'Detalle'])
+        self.assertEqual(workbook['Detalle']['A2'].value, 'POL-001')
+
+    def test_pdf_has_valid_signature(self):
+        data = {'scope': 'executive', 'summary': summarize_report(self.rows, 'executive'), 'rows': self.rows}
+
+        self.assertTrue(build_pdf(data).startswith(b'%PDF-'))
 
 
 class VersioningTests(SimpleTestCase):
@@ -404,6 +441,11 @@ class AuthApiTests(SimpleTestCase):
 
     def test_audit_requires_authentication(self):
         response = self.client.get('/api/audit/')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_reports_require_authentication(self):
+        response = self.client.get('/api/reports/')
 
         self.assertEqual(response.status_code, 401)
 
