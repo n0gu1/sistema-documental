@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { apiRequest, normalizeDocument, downloadFile } from './documentApi'
+import { apiRequest, downloadFile, normalizeDocument } from './documentApi'
 import './ReaderLibraryView.css'
 
 function LibraryIcon({ name, size = 18 }) {
@@ -11,7 +11,11 @@ function LibraryIcon({ name, size = 18 }) {
         ? <path d="m12 3 2.8 5.8 6.2.9-4.5 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.7l6.2-.9L12 3Z" />
         : name === 'eye'
           ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>
-          : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
+          : name === 'calendar'
+            ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></>
+            : name === 'bookmark'
+              ? <path d="M6 3h12v18l-6-4-6 4z" />
+              : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
   return <svg width={size} height={size} viewBox="0 0 24 24" fill={name === 'star' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
@@ -40,6 +44,10 @@ function ReaderLibraryView({ onAction, onNavigate }) {
     && (type === 'Todos los tipos' || document.type === type)
     && (status === 'Todos los estados' || document.status === status)
   ))
+  const areas = [...new Set(documents.map((document) => document.area).filter(Boolean))]
+  const types = [...new Set(documents.map((document) => document.type).filter(Boolean))]
+  const statuses = [...new Set(documents.map((document) => document.status).filter(Boolean))]
+  const selectedDocument = visibleDocuments[0]
 
   async function toggleFavorite(document) {
     try {
@@ -54,26 +62,38 @@ function ReaderLibraryView({ onAction, onNavigate }) {
   }
 
   function clearFilters() {
-    setQuery(''); setArea('Todas las áreas'); setType('Todos los tipos'); setStatus('Todos los estados')
+    setQuery('')
+    setArea('Todas las áreas')
+    setType('Todos los tipos')
+    setStatus('Todos los estados')
     onAction('Se limpiaron los filtros.')
   }
 
-  const areas = [...new Set(documents.map((document) => document.area))]
-  const types = [...new Set(documents.map((document) => document.type))]
+  function openSelectedDocument() {
+    if (selectedDocument) return openDocument(selectedDocument)
+    onAction('No hay documentos disponibles para consultar.')
+  }
 
   return <div className="reader-library">
     <header className="reader-library-heading"><div><h1>Biblioteca documental</h1><p>Explora y consulta los documentos institucionales disponibles.</p></div></header>
     {error && <p className="editor-error" role="alert">{error}</p>}
-    <div className="reader-library-layout"><main>
-      <section className="reader-library-filters">
-        <label className="reader-library-free-search"><span>Búsqueda libre</span><div><LibraryIcon name="search" size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por código, documento o palabra clave..." /></div></label>
-        <label><span>Área</span><select value={area} onChange={(event) => setArea(event.target.value)}><option>Todas las áreas</option>{areas.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label><span>Tipo de documento</span><select value={type} onChange={(event) => setType(event.target.value)}><option>Todos los tipos</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label><span>Estado</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option>Todos los estados</option><option>Publicado</option></select></label>
-        <div className="reader-library-filter-actions"><span>{loading ? 'Cargando documentos...' : `${visibleDocuments.length} documentos disponibles`}</span><button type="button" onClick={clearFilters}>Limpiar filtros</button></div>
-      </section>
-      <section className="reader-library-table-card"><div className="reader-library-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>Versión</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.id}><td>{document.code}</td><td><button className="reader-library-document-link" type="button" onClick={() => openDocument(document)}>{document.title}</button></td><td>{document.area}</td><td>{document.type}</td><td>{document.version}</td><td>{document.updated}</td><td><div className="reader-library-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => openDocument(document)}><LibraryIcon name="eye" size={16} /></button>{document.downloadUrl && <button type="button" aria-label={`Descargar ${document.title}`} onClick={() => downloadFile(document.downloadUrl)}><LibraryIcon name="download" size={16} /></button>}<button className={document.favorite ? 'is-favorite' : ''} type="button" aria-label={`${document.favorite ? 'Quitar de' : 'Agregar a'} favoritos`} onClick={() => toggleFavorite(document)}><LibraryIcon name="star" size={16} /></button></div></td></tr>)}</tbody></table>{!loading && !visibleDocuments.length && <div className="editor-doc-empty"><LibraryIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div><footer><span>Mostrando {visibleDocuments.length} de {documents.length} documentos</span></footer></section>
-    </main><aside className="reader-library-sidebar"><section><h2>Accesos rápidos</h2><button type="button" onClick={() => { setStatus('Publicado'); onAction('Mostrando documentos publicados.') }}><LibraryIcon name="eye" size={17} />Documentos publicados</button><button type="button" onClick={() => onNavigate?.('favorites')}><LibraryIcon name="star" size={17} />Mis favoritos</button></section></aside></div>
+    <div className="reader-library-layout">
+      <main>
+        <section className="reader-library-filters">
+          <label className="reader-library-filter-search"><span>Búsqueda libre</span><div><LibraryIcon name="search" size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por código, documento o palabra clave..." /></div></label>
+          <label><span>Área</span><select value={area} onChange={(event) => setArea(event.target.value)}><option>Todas las áreas</option>{areas.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Tipo de documento</span><select value={type} onChange={(event) => setType(event.target.value)}><option>Todos los tipos</option>{types.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label><span>Estado</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option>Todos los estados</option>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <div className="reader-library-filter-actions"><button className="is-primary" type="button" onClick={openSelectedDocument}><LibraryIcon name="eye" size={17} /> Ver documento</button><button type="button" onClick={clearFilters}>Limpiar filtros</button></div>
+        </section>
+        <section className="reader-library-table-card">
+          <header className="reader-library-results-heading"><span><LibraryIcon size={17} /> <strong>{loading ? 'Cargando documentos...' : `${visibleDocuments.length} documentos encontrados`}</strong></span></header>
+          <div className="reader-library-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>Versión vigente</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.id}><td>{document.code}</td><td><button className="reader-library-document-link" type="button" onClick={() => openDocument(document)}>{document.title}</button></td><td>{document.area}</td><td>{document.type}</td><td>{document.version}</td><td>{document.updated}</td><td><div className="reader-library-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => openDocument(document)}><LibraryIcon name="eye" size={16} /></button>{document.downloadUrl && <button type="button" aria-label={`Descargar ${document.title}`} onClick={() => downloadFile(document.downloadUrl)}><LibraryIcon name="download" size={16} /></button>}<button className={document.favorite ? 'is-favorite' : ''} type="button" aria-label={`${document.favorite ? 'Quitar de' : 'Agregar a'} favoritos`} onClick={() => toggleFavorite(document)}><LibraryIcon name="star" size={16} /></button></div></td></tr>)}</tbody></table>{!loading && !visibleDocuments.length && <div className="reader-library-empty"><LibraryIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div>
+          <footer><span>Mostrando {visibleDocuments.length} de {documents.length} documentos</span></footer>
+        </section>
+      </main>
+      <aside className="reader-library-sidebar"><section><header><h2><LibraryIcon name="bookmark" size={18} /> Documentos recientes</h2><button type="button" onClick={() => onNavigate?.('library')}>Ver todos</button></header><div className="reader-library-recent-list">{documents.slice(0, 5).length ? documents.slice(0, 5).map((document) => <button type="button" key={document.id} onClick={() => openDocument(document)}><span className="reader-library-recent-icon"><LibraryIcon name="document" size={18} /></span><span><strong>{document.code}</strong><small>{document.title}</small><time>{document.updated}</time></span></button>) : <p className="reader-library-empty">No hay documentos recientes.</p>}</div></section></aside>
+    </div>
   </div>
 }
 
