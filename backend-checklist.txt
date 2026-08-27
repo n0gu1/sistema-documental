@@ -134,15 +134,15 @@ ORDEN RECOMENDADO
 [x] Implementar consulta de actividad por usuario.
 
 11. REPORTES
-[ ] Crear consultas para reportes ejecutivos.
-[ ] Crear reportes para editores.
-[ ] Crear reportes para revisores.
-[ ] Filtrar reportes por fecha, area, tipo, estado y responsable.
-[ ] Generar reportes en PDF.
-[ ] Generar reportes en Excel/XLSX.
-[ ] Guardar historial de reportes generados.
-[ ] Descargar reportes generados.
-[ ] Programar reportes automaticos.
+[x] Crear consultas para reportes ejecutivos.
+[x] Crear reportes para editores.
+[x] Crear reportes para revisores.
+[x] Filtrar reportes por fecha, area, tipo, estado y responsable.
+[x] Generar reportes en PDF.
+[x] Generar reportes en Excel/XLSX.
+[x] Guardar historial de reportes generados.
+[x] Descargar reportes generados.
+[x] Programar reportes automaticos.
 
 12. RESPALDOS Y RECUPERACION
 [ ] Configurar respaldos automaticos.
