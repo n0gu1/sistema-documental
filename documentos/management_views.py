@@ -53,7 +53,6 @@ def serialize_management_user(user, area_name=None):
         'organization_id': str(user.organizacion_id),
         'area_id': str(user.area_id) if user.area_id else None,
         'area_name': area_name,
-        'roles': get_user_roles(user.id),
         'active': user.activo,
         'failed_attempts': user.intentos_fallidos,
         'locked_until': user.bloqueado_hasta,
