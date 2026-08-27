@@ -687,7 +687,7 @@ class ReporteGenerado(models.Model):
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = '"gestion_documental"."reportes_generados"'
+        db_table = '"gestion_documental"."reportes_generados_v2"'
         ordering = ['-creado_en']
         indexes = [
             models.Index(fields=['organizacion_id', '-creado_en'], name='ix_reportes_org_fecha'),
@@ -709,7 +709,7 @@ class ProgramacionReporte(models.Model):
     actualizada_en = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = '"gestion_documental"."programaciones_reportes"'
+        db_table = '"gestion_documental"."programaciones_reportes_v2"'
         ordering = ['proxima_ejecucion_en']
         indexes = [
             models.Index(fields=['organizacion_id', 'activa', 'proxima_ejecucion_en'], name='ix_prog_reportes_ejecucion'),
