@@ -14,7 +14,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import record_auth_event
+from .auth_utils import record_auth_event, user_has_permission
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer
 from .file_validation import validate_uploaded_file
 from .management_views import require_permission
@@ -220,7 +220,11 @@ def get_document_or_404(request, document_id, include_archived=False):
     if not include_archived:
         queryset = queryset.filter(eliminado_en__isnull=True)
     document = queryset.select_related('area', 'tipo_documento', 'creado_por').filter(pk=document_id).first()
-    if not document:
+    if not document or not has_document_permission(
+        request.user,
+        document.id,
+        WRITE_PERMISSION if user_has_permission(request.user, WRITE_PERMISSION) else READ_PERMISSION,
+    ):
         raise Http404
     return document
 

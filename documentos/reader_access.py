@@ -1,7 +1,7 @@
 from django.db import connection
 from django.http import Http404
 
-from .auth_utils import get_client_ip, record_auth_event, user_has_permission
+from .auth_utils import get_client_ip, get_user_roles, record_auth_event, user_has_permission
 from .models import Documento, RegistroAccesoDocumento
 
 
@@ -54,7 +54,16 @@ def has_document_permission(user, document_id, permission_code):
         has_document_roles, role_allowed = cursor.fetchone()
     if has_document_roles:
         return role_allowed
-    return global_permission
+    if not global_permission or not getattr(user, 'area_id', None):
+        return global_permission
+    is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+    if is_admin:
+        return True
+    document = Documento.objects.filter(pk=document_id).only('area_id', 'creado_por_id').first()
+    if not document:
+        return False
+    # An assigned area scopes broad permissions; explicit document grants above take precedence.
+    return not user.area_id or document.area_id == user.area_id or document.creado_por_id == user.id
 
 
 def published_document_queryset(organization_id):

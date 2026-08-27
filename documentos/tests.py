@@ -778,6 +778,21 @@ class ReaderAccessTests(SimpleTestCase):
         self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
         user_has_permission_mock.assert_called_once_with(user, 'documentos.consultar')
 
+    @patch('documentos.reader_access.get_user_roles', return_value=[{'code': 'EDITOR', 'name': 'Editor'}])
+    @patch('documentos.reader_access.user_has_permission', return_value=True)
+    @patch('documentos.reader_access.connection')
+    @patch('documentos.reader_access.Documento.objects')
+    def test_area_scope_blocks_global_permission_outside_assigned_area(self, documents, cursor, user_has_permission_mock, roles_mock):
+        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (False, False)
+        documents.filter.return_value.only.return_value.first.return_value = SimpleNamespace(
+            area_id=uuid4(),
+            creado_por_id=uuid4(),
+        )
+        user = SimpleNamespace(id=uuid4(), area_id=uuid4())
+
+        self.assertFalse(has_document_permission(user, uuid4(), 'documentos.consultar'))
+        roles_mock.assert_called_once_with(user.id)
+
 
 class NotificationTests(SimpleTestCase):
     @override_settings(NOTIFICATIONS_EMAIL_ENABLED=True, DEFAULT_FROM_EMAIL='no-reply@example.com')

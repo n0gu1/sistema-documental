@@ -64,7 +64,7 @@ ORDEN RECOMENDADO
 [x] Crear roles administrables.
 [x] Crear permisos administrables.
 [x] Asignar multiples roles a usuarios.
-[~] Aplicar permisos por rol, area y documento. La autorizacion por rol y permiso esta disponible; falta restringir por area y por reglas especificas del documento.
+[x] Aplicar permisos por rol, area y documento. Los permisos globales respetan el area asignada; los permisos explicitos por documento tienen precedencia y los administradores mantienen acceso global.
 
 4. DOCUMENTOS Y ARCHIVOS
 [x] Crear modelo de documentos. Adaptado al esquema existente de produccion y verificado en Render.
