@@ -4,7 +4,7 @@ from datetime import datetime, time
 from django.db import connection
 from django.http import HttpResponse
 from django.utils import timezone
-from rest_framework import serializers, status
+from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -18,6 +18,24 @@ AUDIT_COLUMNS = [
     'resource_code', 'module', 'resource_id', 'successful', 'result', 'details',
     'ip', 'user_agent',
 ]
+AUDIT_TIMESTAMP_CANDIDATES = ('creado_en', 'registrado_en', 'fecha_hora', 'fecha_evento', 'ocurrido_en', 'created_at')
+
+
+def audit_timestamp_column():
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'gestion_documental'
+              AND table_name = 'bitacora_auditoria'
+            ''',
+        )
+        columns = {row[0] for row in cursor.fetchall()}
+    for candidate in AUDIT_TIMESTAMP_CANDIDATES:
+        if candidate in columns:
+            return candidate
+    raise serializers.ValidationError({'code': 'AUDIT_SCHEMA_ERROR', 'detail': 'La bitacora no tiene una columna temporal compatible.'})
 
 
 def require_audit_access(request):
@@ -37,16 +55,16 @@ def parse_audit_datetime(value, field_name, end=False):
     return parsed
 
 
-def audit_query_parts(params):
+def audit_query_parts(params, timestamp_column='creado_en'):
     filters = ['ba.organizacion_id = %s']
     values = [params['organization_id']]
     date_from = parse_audit_datetime(params.get('date_from'), 'date_from')
     date_to = parse_audit_datetime(params.get('date_to'), 'date_to', end=True)
     if date_from:
-        filters.append('ba.creado_en >= %s')
+        filters.append(f'ba.{timestamp_column} >= %s')
         values.append(date_from)
     if date_to:
-        filters.append('ba.creado_en <= %s')
+        filters.append(f'ba.{timestamp_column} <= %s')
         values.append(date_to)
     if params.get('user_id'):
         filters.append('ba.usuario_id = %s')
@@ -96,12 +114,13 @@ def audit_base_sql(where):
 
 
 def fetch_audit_rows(params, limit, offset=0):
-    where, values = audit_query_parts(params)
+    timestamp_column = audit_timestamp_column()
+    where, values = audit_query_parts(params, timestamp_column)
     with connection.cursor() as cursor:
         cursor.execute(
             f'''SELECT
                 ba.id,
-                ba.creado_en AS event_at,
+                ba.{timestamp_column} AS event_at,
                 ba.usuario_id AS user_id,
                 u.nombre_usuario AS username,
                 TRIM(COALESCE(u.nombres, '') || ' ' || COALESCE(u.apellidos, '')) AS user_name,
@@ -116,7 +135,7 @@ def fetch_audit_rows(params, limit, offset=0):
                 ba.direccion_ip::text AS ip,
                 ba.agente_usuario AS user_agent
             {audit_base_sql(where)}
-            ORDER BY ba.creado_en DESC, ba.id DESC
+            ORDER BY ba.{timestamp_column} DESC, ba.id DESC
             LIMIT %s OFFSET %s''',
             [*values, limit, offset],
         )
@@ -178,21 +197,22 @@ class AuditAlertsView(APIView):
 
     def get(self, request):
         require_audit_access(request)
+        timestamp_column = audit_timestamp_column()
         with connection.cursor() as cursor:
             cursor.execute(
-                '''
+                f'''
                 SELECT
                     ba.direccion_ip::text AS ip,
                     ba.usuario_id AS user_id,
                     COALESCE(u.nombre_usuario, 'desconocido') AS username,
                     COUNT(*) AS failed_attempts,
-                    MAX(ba.creado_en) AS last_event_at
+                    MAX(ba.{timestamp_column}) AS last_event_at
                 FROM gestion_documental.bitacora_auditoria ba
                 LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
                 JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
                 WHERE ba.organizacion_id = %s
                   AND a.codigo = 'SESION_FALLIDA'
-                  AND ba.creado_en >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+                  AND ba.{timestamp_column} >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
                 GROUP BY ba.direccion_ip, ba.usuario_id, u.nombre_usuario
                 HAVING COUNT(*) >= 3
                 ORDER BY failed_attempts DESC, last_event_at DESC
