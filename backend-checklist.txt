@@ -172,16 +172,16 @@ ORDEN RECOMENDADO
 [x] Implementar integraciones externas.
 
 14. CALIDAD Y SEGURIDAD
-[ ] Crear pruebas de modelos.
-[ ] Crear pruebas de endpoints.
-[ ] Crear pruebas de permisos por rol.
-[ ] Crear pruebas del flujo documental.
-[ ] Crear pruebas de carga y descarga de archivos.
-[ ] Crear pruebas de auditoria.
-[ ] Agregar validacion y sanitizacion de entradas.
-[ ] Agregar proteccion contra archivos maliciosos.
-[ ] Agregar monitoreo y registro de errores.
-[ ] Configurar alertas operativas.
+[x] Crear pruebas de modelos.
+[x] Crear pruebas de endpoints.
+[x] Crear pruebas de permisos por rol.
+[x] Crear pruebas del flujo documental.
+[x] Crear pruebas de carga y descarga de archivos.
+[x] Crear pruebas de auditoria.
+[x] Agregar validacion y sanitizacion de entradas.
+[x] Agregar proteccion contra archivos maliciosos.
+[x] Agregar monitoreo y registro de errores.
+[x] Configurar alertas operativas.
 
 15. INTEGRACION FINAL
 [x] Crear cliente API compartido en el frontend.

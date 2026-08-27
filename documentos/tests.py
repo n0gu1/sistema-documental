@@ -19,7 +19,7 @@ from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archi
 from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
-from .document_views import compare_versions, validate_metadata
+from .document_views import DocumentFileDownloadView, compare_versions, validate_metadata
 from .file_validation import validate_uploaded_file
 from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
@@ -395,6 +395,44 @@ class DocumentFileValidationTests(SimpleTestCase):
 
         with self.assertRaises(ValidationError):
             validate_uploaded_file(uploaded_file)
+
+    @patch('documentos.document_views.is_reader_user', return_value=False)
+    @patch('documentos.document_views.record_document_event')
+    @patch('documentos.document_views.open_stored_file', return_value=BytesIO(b'%PDF-1.7 contenido'))
+    @patch('documentos.document_views.get_document_file_or_404')
+    @patch('documentos.document_views.require_permission')
+    def test_document_file_download_returns_attachment_and_records_access(
+        self,
+        require_permission,
+        get_document_file,
+        open_file,
+        record_event,
+        is_reader,
+    ):
+        document_id = uuid4()
+        file_id = uuid4()
+        document = SimpleNamespace(id=document_id)
+        document_file = SimpleNamespace(
+            id=file_id,
+            documento_id=document_id,
+            tipo_mime='application/pdf',
+            nombre_archivo_original='manual".pdf',
+            clave_almacenamiento='documentos/manual.pdf',
+        )
+        get_document_file.return_value = (document, document_file)
+        request = APIRequestFactory().get(f'/api/documents/{document_id}/files/{file_id}/download/')
+        request.user = SimpleNamespace(id=uuid4(), organizacion_id=uuid4())
+        request.auth = None
+
+        response = DocumentFileDownloadView().get(request, document_id, file_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertEqual(response['Content-Disposition'], 'attachment; filename="manual.pdf"')
+        require_permission.assert_called_once()
+        open_file.assert_called_once_with(document_file)
+        record_event.assert_called_once()
+        is_reader.assert_called_once_with(request.user)
 
 
 class ModelContractTests(SimpleTestCase):
