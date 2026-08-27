@@ -38,9 +38,12 @@ def audit_timestamp_column():
     raise serializers.ValidationError({'code': 'AUDIT_SCHEMA_ERROR', 'detail': 'La bitacora no tiene una columna temporal compatible.'})
 
 
-def require_audit_access(request):
-    if not any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(request.user.id)):
-        raise PermissionDenied({'code': 'AUDIT_ACCESS_REQUIRED', 'detail': 'Solo un administrador puede consultar la bitacora.'})
+def require_audit_access(request, allow_own_events=False):
+    if any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(request.user.id)):
+        return
+    if allow_own_events and request.query_params.get('user_id') == str(request.user.id):
+        return
+    raise PermissionDenied({'code': 'AUDIT_ACCESS_REQUIRED', 'detail': 'Solo un administrador puede consultar la bitacora.'})
 
 
 def parse_audit_datetime(value, field_name, end=False):
@@ -150,7 +153,7 @@ class AuditListView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request):
-        require_audit_access(request)
+        require_audit_access(request, allow_own_events=True)
         try:
             limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
             offset = max(int(request.query_params.get('offset', 0)), 0)
