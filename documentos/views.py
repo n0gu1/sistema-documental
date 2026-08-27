@@ -17,6 +17,7 @@ from rest_framework.views import APIView
 
 from .auth_utils import get_client_ip, record_auth_event, serialize_user
 from .authentication import hash_session_token
+from .config_service import security_policy_for
 from .models import SesionDocumental, UsuarioDocumental
 from .serializers import ChangePasswordSerializer, LoginSerializer
 
@@ -84,6 +85,7 @@ class LoginView(APIView):
                 check_password(password, DUMMY_PASSWORD_HASH)
             else:
                 user = matches[0]
+                security_policy = security_policy_for(user.organizacion_id)
                 password_matches = check_password(password, user.hash_contrasena)
 
                 if user.bloqueado_hasta and user.bloqueado_hasta > now:
@@ -102,9 +104,9 @@ class LoginView(APIView):
                     if user.activo:
                         attempts = user.intentos_fallidos + 1
                         updates = {'intentos_fallidos': attempts, 'actualizado_en': now}
-                        if attempts >= settings.AUTH_MAX_FAILED_ATTEMPTS:
+                        if attempts >= security_policy['max_failed_attempts']:
                             updates['bloqueado_hasta'] = now + timedelta(
-                                minutes=settings.AUTH_LOCK_MINUTES,
+                                minutes=security_policy.get('lock_minutes', settings.AUTH_LOCK_MINUTES),
                             )
                         UsuarioDocumental.objects.filter(pk=user.pk).update(**updates)
                 elif outcome != 'locked':
@@ -112,7 +114,7 @@ class LoginView(APIView):
                     duration = (
                         timedelta(days=settings.AUTH_REMEMBER_DAYS)
                         if remember
-                        else timedelta(hours=settings.AUTH_SESSION_HOURS)
+                        else timedelta(hours=security_policy['max_session_hours'])
                     )
                     session = SesionDocumental.objects.create(
                         usuario=user,

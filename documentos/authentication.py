@@ -7,6 +7,7 @@ from rest_framework.authentication import BaseAuthentication, SessionAuthenticat
 from rest_framework.exceptions import AuthenticationFailed
 
 from .models import SesionDocumental
+from .config_service import security_policy_for
 
 
 def hash_session_token(token):
@@ -40,7 +41,13 @@ class CookieTokenAuthentication(BaseAuthentication):
 
         SessionAuthentication().enforce_csrf(request)
 
-        activity_cutoff = now - timedelta(minutes=5)
+        activity_cutoff = now - timedelta(minutes=security_policy_for(session.usuario.organizacion_id)['inactivity_minutes'])
+        if session.ultima_actividad_en < activity_cutoff:
+            SesionDocumental.objects.filter(pk=session.pk, revocada_en__isnull=True).update(
+                revocada_en=now,
+                motivo_revocacion='Sesion expirada por inactividad',
+            )
+            raise AuthenticationFailed('La sesion ha expirado por inactividad.')
         if session.ultima_actividad_en < activity_cutoff:
             SesionDocumental.objects.filter(pk=session.pk).update(ultima_actividad_en=now)
             session.ultima_actividad_en = now

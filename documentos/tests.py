@@ -15,6 +15,7 @@ from .authentication import CookieTokenAuthentication, hash_session_token
 from .audit_views import audit_query_parts
 from .auth_utils import record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
+from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import compare_versions
@@ -180,6 +181,28 @@ class BackupSecurityTests(SimpleTestCase):
 
         with self.assertRaises(BackupExecutionError):
             decrypt_archive(bytes(payload))
+
+
+class SettingsSecurityTests(SimpleTestCase):
+    @override_settings(SECRET_KEY='settings-test-secret')
+    def test_smtp_secret_is_encrypted_and_round_trips(self):
+        token = encrypt_secret('smtp-password')
+
+        self.assertNotIn('smtp-password', token)
+        self.assertEqual(decrypt_secret(token), 'smtp-password')
+
+    def test_settings_validate_upload_limits_and_https_webhook(self):
+        uploads = validate_section('uploads', {
+            'max_file_mb': 20,
+            'max_request_mb': 100,
+            'extensions': 'PDF, DOCX',
+        })
+        integrations = validate_section('integrations', {
+            'webhook': {'enabled': True, 'url': 'https://example.com/events'},
+        })
+
+        self.assertEqual(uploads['extensions'], ['.docx', '.pdf'])
+        self.assertTrue(integrations['webhook']['enabled'])
 
 
 class VersioningTests(SimpleTestCase):

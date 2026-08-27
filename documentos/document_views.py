@@ -264,7 +264,7 @@ def save_metadata(document, metadata):
 
 
 def save_document_file(document, uploaded_file, user, comment=''):
-    file_data = validate_uploaded_file(uploaded_file)
+    file_data = validate_uploaded_file(uploaded_file, document.organizacion_id)
     provider = ProveedorAlmacenamiento.objects.filter(
         organizacion_id=document.organizacion_id,
     ).order_by('-activo', 'codigo').first()
@@ -375,7 +375,7 @@ class DocumentListCreateView(APIView):
             return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
-            validate_uploaded_file(uploaded_file)
+            validate_uploaded_file(uploaded_file, organization_id)
         with transaction.atomic():
             document = Documento.objects.create(
                 id=uuid4(),
@@ -418,7 +418,7 @@ class DocumentDetailView(APIView):
         data = serializer.validated_data
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
-            validate_uploaded_file(uploaded_file)
+            validate_uploaded_file(uploaded_file, document.organizacion_id)
         updates = {}
         if 'code' in data:
             if Documento.objects.filter(organizacion_id=document.organizacion_id, codigo=data['code'], eliminado_en__isnull=True).exclude(pk=document.pk).exists():

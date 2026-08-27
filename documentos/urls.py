@@ -9,6 +9,7 @@ from . import notification_views
 from . import audit_views
 from . import reports_views
 from . import backup_views
+from . import settings_views
 
 urlpatterns = [
     path('auth/csrf/', views.CsrfTokenView.as_view(), name='auth-csrf'),
@@ -96,5 +97,8 @@ urlpatterns = [
     path('backups/<uuid:backup_id>/download/', backup_views.BackupDownloadView.as_view(), name='backup-download'),
     path('backups/<uuid:backup_id>/restore/', backup_views.BackupRestoreView.as_view(), name='backup-restore'),
     path('backups/recovery-test/', backup_views.RecoveryTestView.as_view(), name='backup-recovery-test'),
+    path('settings/', settings_views.SystemSettingsView.as_view(), name='system-settings'),
+    path('settings/smtp/test/', settings_views.SmtpTestView.as_view(), name='settings-smtp-test'),
+    path('settings/integrations/<str:provider>/test/', settings_views.IntegrationTestView.as_view(), name='settings-integration-test'),
     path('health/', views.HealthView.as_view(), name='health'),
 ]

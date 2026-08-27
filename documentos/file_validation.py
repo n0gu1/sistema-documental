@@ -29,19 +29,25 @@ def _content_matches(extension, content):
     return signatures.get(extension, False)
 
 
-def validate_uploaded_file(uploaded_file):
+def validate_uploaded_file(uploaded_file, organization_id=None):
     name = Path(uploaded_file.name or '').name
     extension = Path(name).suffix.lower()
-    allowed_extensions = {
+    policy = None
+    if organization_id:
+        from .config_service import upload_policy_for
+
+        policy = upload_policy_for(organization_id)
+    allowed_extensions = set(policy['extensions'] if policy else {
         item.lower() if item.startswith('.') else f'.{item.lower()}'
         for item in settings.ALLOWED_UPLOAD_EXTENSIONS
-    }
+    })
     if extension not in allowed_extensions:
         raise ValidationError({'file': f'Extension no permitida: {extension or "sin extension"}.'})
 
-    max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+    max_size_mb = policy['max_file_mb'] if policy else settings.MAX_UPLOAD_SIZE_MB
+    max_size = max_size_mb * 1024 * 1024
     if uploaded_file.size > max_size:
-        raise ValidationError({'file': f'El archivo supera el limite de {settings.MAX_UPLOAD_SIZE_MB} MB.'})
+        raise ValidationError({'file': f'El archivo supera el limite de {max_size_mb} MB.'})
 
     mime_type = (uploaded_file.content_type or '').lower()
     allowed_mimes = MIME_BY_EXTENSION.get(extension, set())

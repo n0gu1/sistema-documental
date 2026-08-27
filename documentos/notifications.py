@@ -6,6 +6,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import Notificacion
+from .config_service import get_system_config, merge_defaults, smtp_connection_for
 
 
 logger = logging.getLogger(__name__)
@@ -50,15 +51,15 @@ def create_notification(
         version_documento=version,
         solicitud_revision=review,
     )
-    if settings.NOTIFICATIONS_EMAIL_ENABLED and user.correo:
+    notification_config = merge_defaults(get_system_config(getattr(user, 'organizacion_id', None)))['notificaciones']
+    email_enabled = notification_config['email_enabled'] or settings.NOTIFICATIONS_EMAIL_ENABLED
+    if email_enabled and user.correo:
         try:
-            send_mail(
-                title,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.correo],
-                fail_silently=False,
-            )
+            connection = smtp_connection_for(getattr(user, 'organizacion_id', None))
+            mail_options = {'fail_silently': False}
+            if connection:
+                mail_options['connection'] = connection
+            send_mail(title, message, settings.DEFAULT_FROM_EMAIL, [user.correo], **mail_options)
         except Exception as error:
             notification.error_correo = str(error)[:2000]
             notification.save(update_fields=['error_correo'])

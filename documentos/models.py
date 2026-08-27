@@ -761,6 +761,23 @@ class ConfiguracionRespaldo(models.Model):
         db_table = '"gestion_documental"."configuraciones_respaldo_v2"'
 
 
+class ConfiguracionSistema(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion_id = models.UUIDField(unique=True)
+    general = models.JSONField(default=dict)
+    seguridad = models.JSONField(default=dict)
+    smtp = models.JSONField(default=dict)
+    carga = models.JSONField(default=dict)
+    apariencia = models.JSONField(default=dict)
+    notificaciones = models.JSONField(default=dict)
+    integraciones = models.JSONField(default=dict)
+    actualizado_en = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."configuraciones_sistema_v2"'
+
+
 class ComentarioRevision(models.Model):
     TIPOS = (
         ('OBSERVACION', 'Observacion'),

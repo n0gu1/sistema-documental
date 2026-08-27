@@ -6,8 +6,12 @@
 .settings-card { min-width: 0; overflow: hidden; background: #fff; border: 1px solid #dfe6ef; border-radius: 9px; box-shadow: 0 3px 12px rgba(25, 52, 83, .04); }
 .settings-card h2 { margin: 0; color: #132843; font-size: 10px; }
 .settings-live-notice { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.settings-error, .settings-success { margin: 12px 0 0; padding: 10px 12px; border-radius: 6px; font-size: 10px; }
+.settings-error { color: #a42e36; background: #fff0f0; border: 1px solid #f2c9cd; }
+.settings-success { color: #176b42; background: #edf9f1; border: 1px solid #c6e9d2; }
+.settings-help { color: #6e7e92; font-size: 9px; line-height: 1.6; }
 
-.settings-tabs { height: 39px; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-bottom: 1px solid #dce4ed; }
+.settings-tabs { height: 39px; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border-bottom: 1px solid #dce4ed; }
 .settings-tabs button { position: relative; color: #40536d; background: transparent; border: 0; font-size: 8px; cursor: pointer; }
 .settings-tabs button.is-active { color: #0868e7; font-weight: 650; }
 .settings-tabs button.is-active::after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: #0868e7; content: ''; }
@@ -61,6 +65,17 @@
 .settings-tab-placeholder h2 { margin-top: 17px; font-size: 17px; }
 .settings-tab-placeholder p { color: #6b7c91; font-size: 10px; }
 .settings-tab-placeholder button { margin-top: 10px; padding: 8px 18px; color: #0869e8; background: #fff; border: 1px solid #0869e8; border-radius: 5px; cursor: pointer; }
+.settings-integrations { min-height: 390px; padding: 18px 17px; }
+.settings-integration-grid { display: grid; gap: 8px; }
+.settings-integration-grid article { min-height: 52px; padding: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; border: 1px solid #e2e8ef; border-radius: 5px; }
+.settings-integration-grid article strong, .settings-integration-grid article small { display: block; }
+.settings-integration-grid article strong { color: #263b57; font-size: 9px; }
+.settings-integration-grid article small { margin-top: 4px; color: #718197; font-size: 7px; }
+.settings-integration-grid article button { min-width: 48px; height: 25px; color: #0868e7; background: #fff; border: 1px solid #478ff0; border-radius: 4px; font-size: 7px; cursor: pointer; }
+.settings-integration-grid article button:disabled { opacity: .5; cursor: wait; }
+.settings-not-configured { padding: 4px 7px; color: #7a899c; background: #f1f4f7; border-radius: 14px; font-size: 7px; white-space: nowrap; }
+.settings-integrations > .settings-field { max-width: 520px; margin-top: 15px; }
+.settings-changes-card { margin-top: 13px; }
 
 .settings-bottom-grid { margin-top: 13px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .settings-table-card { padding-top: 14px; }
