@@ -15,6 +15,15 @@ CREATE TABLE IF NOT EXISTS gestion_documental.reportes_generados (
     filas integer NOT NULL DEFAULT 0,
     creado_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS id uuid;
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS organizacion_id uuid;
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS generado_por_id uuid;
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS alcance varchar(20);
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS formato varchar(10);
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS nombre varchar(200);
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS filtros jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS filas integer DEFAULT 0;
+ALTER TABLE gestion_documental.reportes_generados ADD COLUMN IF NOT EXISTS creado_en timestamptz DEFAULT CURRENT_TIMESTAMP;
 CREATE INDEX IF NOT EXISTS ix_reportes_org_fecha
     ON gestion_documental.reportes_generados (organizacion_id, creado_en DESC);
 CREATE TABLE IF NOT EXISTS gestion_documental.programaciones_reportes (
@@ -31,6 +40,18 @@ CREATE TABLE IF NOT EXISTS gestion_documental.programaciones_reportes (
     creada_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     actualizada_en timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS id uuid;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS organizacion_id uuid;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS creado_por_id uuid;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS nombre varchar(200);
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS alcance varchar(20);
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS formato varchar(10);
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS frecuencia varchar(10);
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS filtros jsonb DEFAULT '{}'::jsonb;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS proxima_ejecucion_en timestamptz;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS activa boolean DEFAULT TRUE;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS creada_en timestamptz DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE gestion_documental.programaciones_reportes ADD COLUMN IF NOT EXISTS actualizada_en timestamptz DEFAULT CURRENT_TIMESTAMP;
 CREATE INDEX IF NOT EXISTS ix_prog_reportes_ejecucion
     ON gestion_documental.programaciones_reportes (organizacion_id, activa, proxima_ejecucion_en);
 '''
