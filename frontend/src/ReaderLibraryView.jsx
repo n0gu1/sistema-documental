@@ -50,7 +50,7 @@ function ReaderLibraryView({ onAction, onNavigate }) {
   }
 
   function openDocument(document) {
-    window.dispatchEvent(new CustomEvent('reader-document-open', { detail: { documentId: document.id } }))
+    onNavigate?.('document', document.id)
   }
 
   function clearFilters() {

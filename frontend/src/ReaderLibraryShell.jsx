@@ -25,7 +25,7 @@ const readerNavigation = [
 export function ReaderNavigation({ active, onNavigate, onClose }) {
   function navigate(view) {
     if (view === 'dashboard') return onClose ? onClose() : onNavigate?.('dashboard')
-    if (view === 'documents') return onNavigate?.('library')
+    if (view === 'documents') return onNavigate?.('document')
     return onNavigate?.(view)
   }
 

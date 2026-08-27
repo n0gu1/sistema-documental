@@ -42,7 +42,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error, onNavigate }) {
   const recentActivity = history.slice(0, 5)
 
   function action(label) {
-    const views = { 'La biblioteca documental': 'library', 'Los documentos disponibles': 'library', 'El historial de versiones': 'history', 'El historial de lectura': 'reading', 'Tus favoritos': 'favorites' }
+    const views = { 'La biblioteca documental': 'library', 'Los documentos disponibles': 'document', 'El historial de versiones': 'history', 'El historial de lectura': 'reading', 'Tus favoritos': 'favorites' }
     if (views[label]) onNavigate?.(views[label], views[label] === 'history' ? documents[0]?.id : null)
     setNotice(label.endsWith('.') ? label : `${label} está disponible en esta vista.`)
     setSidebarOpen(false)

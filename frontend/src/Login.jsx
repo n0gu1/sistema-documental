@@ -252,7 +252,7 @@ function Login() {
   }
 
   function openReaderView(view, documentId = null) {
-    const target = view === 'documents' ? 'library' : view
+    const target = view === 'documents' ? 'document' : view
     setLibraryOpen(target === 'library')
     setDocumentOpen(target === 'document')
     setHistoryOpen(target === 'history')
