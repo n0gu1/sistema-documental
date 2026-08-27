@@ -107,6 +107,16 @@
 .users-activity article > svg { color: #0869e8; }
 .users-activity time,
 .users-activity small { color: #697b92; font-size: 6px; white-space: nowrap; }
+.users-error,
+.users-notice { margin: 10px 0 0; padding: 10px 12px; border-radius: 6px; font-size: 9px; }
+.users-error { color: #a51e2a; background: #fff0f1; border: 1px solid #f2c4c8; }
+.users-notice { color: #176d45; background: #edfaf3; border: 1px solid #c6ecd7; }
+.users-create-panel { margin-top: 12px; padding: 16px; display: flex; flex-wrap: wrap; align-items: end; gap: 10px; background: #fff; border: 1px solid #dfe7f0; border-radius: 9px; }
+.users-create-panel h2 { width: 100%; margin: 0 0 2px; color: #172b47; font-size: 13px; }
+.users-create-panel label { min-width: 150px; flex: 1; color: #536781; font-size: 8px; }
+.users-create-panel input { width: 100%; height: 32px; margin-top: 5px; padding: 0 8px; color: #31465f; border: 1px solid #d9e2ec; border-radius: 5px; font-size: 9px; }
+.users-create-panel button { height: 32px; padding: 0 13px; color: #075fd7; background: #fff; border: 1px solid #0870ed; border-radius: 5px; font-size: 8px; font-weight: 650; cursor: pointer; }
+.users-create-panel button[type="submit"] { color: #fff; background: #0869e8; }
 
 @media (max-width: 1250px) {
   .users-heading { align-items: flex-start; flex-direction: column; }

@@ -63,6 +63,7 @@ def user_has_permission(user, permission_code):
 def serialize_user(user):
     return {
         'id': str(user.id),
+        'organization_id': str(user.organizacion_id),
         'username': user.nombre_usuario,
         'email': user.correo,
         'first_name': user.nombres,

@@ -15,6 +15,7 @@ urlpatterns = [
     path('auth/logout/', views.LogoutView.as_view(), name='auth-logout'),
     path('auth/change-password/', views.ChangePasswordView.as_view(), name='auth-change-password'),
     path('admin/users/', management_views.UserListCreateView.as_view(), name='admin-users'),
+    path('admin/dashboard/', management_views.AdminDashboardView.as_view(), name='admin-dashboard'),
     path('admin/users/<uuid:user_id>/', management_views.UserDetailView.as_view(), name='admin-user-detail'),
     path('admin/users/<uuid:user_id>/status/', management_views.UserStatusView.as_view(), name='admin-user-status'),
     path('admin/users/<uuid:user_id>/lock/', management_views.UserLockView.as_view(), name='admin-user-lock'),

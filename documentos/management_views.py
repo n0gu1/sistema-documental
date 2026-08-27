@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -19,6 +20,11 @@ from .models import (
     SesionDocumental,
     UsuarioDocumental,
     UsuarioRolDocumental,
+    ArchivoDocumento,
+    AreaCatalogo,
+    DetalleSolicitudRevision,
+    Documento,
+    SolicitudRevision,
 )
 from .serializers import (
     PermissionAssignmentSerializer,
@@ -42,11 +48,13 @@ def require_permission(request, permission_code):
         )
 
 
-def serialize_management_user(user):
+def serialize_management_user(user, area_name=None):
     return {
         **serialize_user(user),
         'organization_id': str(user.organizacion_id),
         'area_id': str(user.area_id) if user.area_id else None,
+        'area_name': area_name,
+        'roles': get_user_roles(user.id),
         'active': user.activo,
         'failed_attempts': user.intentos_fallidos,
         'locked_until': user.bloqueado_hasta,
@@ -62,6 +70,110 @@ def get_user_for_organization(user_id, organization_id):
         return UsuarioDocumental.objects.get(pk=user_id, organizacion_id=organization_id)
     except UsuarioDocumental.DoesNotExist:
         return None
+
+
+def serialize_dashboard_document(document):
+    version = next(iter(getattr(document, 'dashboard_versions', [])), None)
+    return {
+        'id': str(document.id),
+        'code': document.codigo,
+        'title': document.nombre,
+        'type': document.tipo_documento.nombre,
+        'area': document.area.nombre,
+        'responsible': f'{document.creado_por.nombres} {document.creado_por.apellidos}'.strip(),
+        'status': version.estado_version.nombre if version else 'Sin versión',
+        'version': f'{version.numero_mayor}.{version.numero_menor}' if version else None,
+        'updated_at': document.actualizado_en,
+    }
+
+
+class AdminDashboardView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request):
+        require_permission(request, 'usuarios.consultar')
+        organization_id = request.user.organizacion_id
+        now = timezone.now()
+        documents = Documento.objects.filter(
+            organizacion_id=organization_id,
+            eliminado_en__isnull=True,
+        )
+        dashboard_documents = documents.select_related(
+            'area', 'tipo_documento', 'creado_por',
+        ).prefetch_related(Prefetch(
+            'archivos',
+            queryset=ArchivoDocumento.objects.select_related('estado_version').order_by('-es_vigente', '-orden_version'),
+            to_attr='dashboard_versions',
+        )).order_by('-actualizado_en', 'codigo')
+
+        status_codes = ('BORRADOR', 'EN_REVISION', 'APROBADO', 'PUBLICADO', 'ARCHIVADO')
+        status_counts = {
+            code: documents.filter(
+                archivos__es_vigente=True,
+                archivos__estado_version__codigo=code,
+            ).distinct().count()
+            for code in status_codes
+        }
+        pending_reviews = SolicitudRevision.objects.filter(
+            version_documento__documento__organizacion_id=organization_id,
+            estado_revision__codigo='PENDIENTE',
+        )
+        overdue_reviews = pending_reviews.filter(detalle__fecha_limite__lt=now).count()
+        users = UsuarioDocumental.objects.filter(organizacion_id=organization_id)
+
+        from .audit_views import fetch_audit_rows
+
+        _, activity = fetch_audit_rows({'organization_id': organization_id}, 6)
+        activity = [
+            {
+                'id': row['id'],
+                'at': row['event_at'],
+                'user': row['user_name'] or row['username'] or 'Sistema',
+                'action': row['action'] or row['action_code'],
+                'detail': row['result'] or '',
+                'successful': row['successful'],
+            }
+            for row in activity
+        ]
+        reviews = pending_reviews.select_related(
+            'version_documento__documento', 'revisor',
+        ).prefetch_related('detalle').order_by('detalle__fecha_limite', '-solicitada_en')[:6]
+        review_rows = []
+        for review in reviews:
+            try:
+                detail = review.detalle
+            except DetalleSolicitudRevision.DoesNotExist:
+                detail = None
+            review_rows.append({
+                'id': str(review.id),
+                'code': review.version_documento.documento.codigo,
+                'title': review.version_documento.documento.nombre,
+                'reviewer': f'{review.revisor.nombres} {review.revisor.apellidos}'.strip(),
+                'priority': detail.prioridad if detail else 'MEDIA',
+                'deadline': detail.fecha_limite if detail else None,
+                'overdue': bool(detail and detail.fecha_limite and detail.fecha_limite < now),
+            })
+
+        return Response({
+            'metrics': {
+                'total_documents': documents.count(),
+                'published_documents': status_counts['PUBLICADO'],
+                'pending_reviews': pending_reviews.count(),
+                'overdue_reviews': overdue_reviews,
+                'active_users': users.filter(activo=True).count(),
+                'pending_activation': users.filter(activo=True, debe_cambiar_contrasena=True).count(),
+                'blocked_users': users.filter(bloqueado_hasta__gt=now).count(),
+                'active_sessions': SesionDocumental.objects.filter(
+                    usuario__organizacion_id=organization_id,
+                    revocada_en__isnull=True,
+                    expira_en__gt=now,
+                ).count(),
+            },
+            'statuses': status_counts,
+            'recent_documents': [serialize_dashboard_document(document) for document in dashboard_documents[:6]],
+            'pending_queue': review_rows,
+            'activity': activity,
+        })
 
 
 def get_pagination(request):
@@ -97,11 +209,17 @@ class UserListCreateView(APIView):
         limit, offset = get_pagination(request)
         total = queryset.count()
         users = queryset.order_by('apellidos', 'nombres')[offset:offset + limit]
+        area_names = {
+            str(area['id']): area['nombre']
+            for area in AreaCatalogo.objects.filter(
+                id__in=[user.area_id for user in users if user.area_id],
+            ).values('id', 'nombre')
+        }
         return Response(
             {
                 'count': total,
                 'next_offset': offset + limit if offset + limit < total else None,
-                'results': [serialize_management_user(user) for user in users],
+                'results': [serialize_management_user(user, area_names.get(str(user.area_id))) for user in users],
             },
         )
 
@@ -152,7 +270,8 @@ class UserDetailView(APIView):
         user = get_user_for_organization(user_id, request.user.organizacion_id)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        return Response({'user': serialize_management_user(user)})
+        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
+        return Response({'user': serialize_management_user(user, area_name)})
 
     def patch(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
@@ -192,7 +311,8 @@ class UserDetailView(APIView):
             for field, value in updates.items():
                 setattr(user, field, value)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado')
-        return Response({'user': serialize_management_user(user)})
+        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
+        return Response({'user': serialize_management_user(user, area_name)})
 
 
 class UserStatusView(APIView):
@@ -220,7 +340,8 @@ class UserStatusView(APIView):
         user.activo = active
         user.deshabilitado_en = None if active else now
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Estado de usuario actualizado')
-        return Response({'user': serialize_management_user(user)})
+        area_name = AreaCatalogo.objects.filter(pk=user.area_id).values_list('nombre', flat=True).first() if user.area_id else None
+        return Response({'user': serialize_management_user(user, area_name)})
 
 
 class UserLockView(APIView):

@@ -13,6 +13,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .audit_views import audit_query_parts
 from .auth_utils import record_auth_event, user_has_permission
+from .management_views import serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import compare_versions
 from .file_validation import validate_uploaded_file
@@ -577,3 +578,28 @@ class AuditTests(SimpleTestCase):
         )
 
         critical.assert_called_once()
+
+
+class DashboardTests(SimpleTestCase):
+    def test_dashboard_document_serializer_exposes_current_version(self):
+        document = SimpleNamespace(
+            id=uuid4(),
+            codigo='DOC-001',
+            nombre='Politica de seguridad',
+            tipo_documento=SimpleNamespace(nombre='Politica'),
+            area=SimpleNamespace(nombre='Administracion'),
+            creado_por=SimpleNamespace(nombres='Juan', apellidos='Perez'),
+            actualizado_en=timezone.now(),
+            dashboard_versions=[SimpleNamespace(
+                estado_version=SimpleNamespace(nombre='Publicado'),
+                numero_mayor=2,
+                numero_menor=1,
+            )],
+        )
+
+        result = serialize_dashboard_document(document)
+
+        self.assertEqual(result['code'], 'DOC-001')
+        self.assertEqual(result['status'], 'Publicado')
+        self.assertEqual(result['version'], '2.1')
+        self.assertEqual(result['responsible'], 'Juan Perez')

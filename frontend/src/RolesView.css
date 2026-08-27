@@ -7,6 +7,19 @@
 .roles-heading__actions button:hover { background: #f1f7ff; }
 .roles-heading__actions button.is-primary { color: #fff; background: linear-gradient(100deg, #0873f5, #0d5fd4); box-shadow: 0 7px 16px rgba(8, 101, 217, .16); }
 .roles-live-notice { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.roles-error,
+.roles-notice { margin: 10px 0 0; padding: 10px 12px; border-radius: 6px; font-size: 9px; }
+.roles-error { color: #a51e2a; background: #fff0f1; border: 1px solid #f2c4c8; }
+.roles-notice { color: #176d45; background: #edfaf3; border: 1px solid #c6ecd7; }
+.roles-create-panel { margin-top: 12px; padding: 15px; display: flex; flex-wrap: wrap; align-items: end; gap: 10px; background: #fff; border: 1px solid #dfe7f0; border-radius: 9px; }
+.roles-create-panel h2 { width: 100%; }
+.roles-create-panel label { flex: 1; min-width: 180px; color: #536781; font-size: 8px; }
+.roles-create-panel input,
+.roles-create-panel textarea { width: 100%; margin-top: 5px; padding: 7px; color: #31465f; border: 1px solid #d9e2ec; border-radius: 5px; font: inherit; font-size: 9px; box-sizing: border-box; }
+.roles-create-panel input { height: 32px; }
+.roles-create-panel textarea { min-height: 32px; resize: vertical; }
+.roles-create-panel button { height: 32px; padding: 0 13px; color: #075fd7; background: #fff; border: 1px solid #0870ed; border-radius: 5px; font-size: 8px; font-weight: 650; cursor: pointer; }
+.roles-create-panel button[type="submit"] { color: #fff; background: #0869e8; }
 
 .roles-metrics { margin-top: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 .roles-metrics article { min-height: 88px; padding: 15px; display: flex; align-items: center; gap: 15px; background: #fff; border: 1px solid #dfe7f0; border-radius: 9px; box-shadow: 0 4px 14px rgba(24, 52, 84, .045); }
