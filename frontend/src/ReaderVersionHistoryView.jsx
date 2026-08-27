@@ -1,20 +1,46 @@
+import { useEffect, useState } from 'react'
+import { apiRequest, downloadFile, formatDate } from './documentApi'
 import './ReaderVersionHistoryView.css'
 
-const versions = [
-  ['1.2', '22/05/2024 16:45', 'En revisión', '1.48 MB', 'Actualización de lineamientos y flujograma del proceso.'],
-  ['1.1', '16/05/2024 15:20', 'Aprobado', '1.32 MB', 'Se incorporan criterios de evaluación y ajustes menores de redacción.'],
-  ['1.0', '17/04/2024 10:30', 'Aprobado', '1.18 MB', 'Versión inicial del instructivo.'],
-  ['0.2', '03/04/2024 11:15', 'Borrador', '0.98 MB', 'Revisión interna de estructura y contenido.'],
-  ['0.1', '20/03/2024 09:00', 'Borrador', '0.85 MB', 'Borrador inicial del documento.'],
-]
-
 function HistoryIcon({ name, size = 20 }) {
-  const content = name === 'download' ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></> : name === 'share' ? <><circle cx="18" cy="5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="19" r="2.5" /><path d="m8.3 10.8 7.4-4.5M8.3 13.2l7.4 4.5" /></> : name === 'comment' ? <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5H7l-4 3v-5.2A7.4 7.4 0 0 1 4.5 5.3 8.4 8.4 0 0 1 12 3.5a7.6 7.6 0 0 1 8 8Z" /> : name === 'edit' ? <><path d="m4 16 9.5-9.5 4 4L8 20H4zM14.5 5.5l2-2a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2l-2 2" /></> : name === 'minus' ? <path d="M5 12h14" /> : name === 'plus' ? <path d="M12 5v14M5 12h14" /> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : name === 'link' ? <><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" /><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" /></> : name === 'star' ? <path d="m12 3 2.8 5.8 6.2.9-4.5 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.7l6.2-.9L12 3Z" /> : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
+  const content = name === 'download'
+    ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></>
+    : name === 'eye'
+      ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>
+      : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function ReaderVersionHistoryView({ onBack, onAction }) {
-  return <div className="reader-history-view"><header className="reader-history-heading"><h1>Historial de versiones</h1><p>Consulta el historial y las versiones publicadas de cada documento.</p></header><section className="reader-history-layout"><main><header className="reader-history-document"><span className="reader-history-file"><HistoryIcon size={32} /></span><div className="reader-history-doc-title"><h2><b>INS-007</b> Instructivo de Auditoría Interna <em>Versión actual 1.2</em></h2><div><span><b>Área</b>Auditoría Interna</span><span><b>Autor</b>Lucía Fernández</span><span><b>Fecha de actualización</b>22/05/2024 16:45</span><span><b>Estado</b><i>Vigente</i></span></div></div><div className="reader-history-doc-actions"><button type="button" onClick={() => onAction('Ver versión 1.2')}><HistoryIcon name="eye" size={21} />Ver versión</button><button type="button" onClick={() => onAction('Descargar versión 1.2')}><HistoryIcon name="download" size={21} />Descargar</button><button type="button" onClick={() => onAction('Compartir versión 1.2')}><HistoryIcon name="share" size={21} />Compartir</button></div></header><section className="reader-history-table-card"><h2>Historial de versiones</h2><div className="reader-history-table-wrap"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Tamaño</th><th>Comentario</th><th>Acciones</th></tr></thead><tbody>{versions.map((version) => <tr key={version[0]}><td><strong>{version[0]}</strong></td><td>{version[1]}</td><td><span className={`reader-history-status is-${version[2].toLowerCase().replace(' ', '-')}`}>{version[2]}</span></td><td>{version[3]}</td><td>{version[4]}</td><td><button type="button" onClick={() => onAction(`Ver versión ${version[0]}`)}><HistoryIcon name="eye" size={16} /> Ver versión</button></td></tr>)}</tbody></table></div><footer><span>Mostrando 1 a 5 de 5 versiones</span><div><button type="button" disabled>‹</button><button className="is-current" type="button">1</button><button type="button">›</button></div></footer></section><section className="reader-history-comparison"><header><h2>Comparación resumida: versión 1.1 → versión 1.2</h2><div><span className="is-add">＋ Adición</span><span className="is-edit">✎ Modificación</span><span className="is-remove">－ Eliminación</span></div></header><div className="reader-history-compare-grid"><article><h3>Versión anterior 1.1</h3><div><b>3.2 &nbsp; Control de acceso</b><p>El acceso a la información debe otorgarse <mark>únicamente</mark> a las personas autorizadas.</p></div><div><b>4.1 &nbsp; Responsabilidades del auditor</b><p>El auditor debe <mark>registrar los hallazgos</mark> en el formato F-04.</p></div><div className="is-removed"><b>5.1 &nbsp; Conservación de registros</b><p><del>Los registros se conservarán por un período de 2 años.</del></p></div></article><article><h3>Versión actual 1.2</h3><div><b>3.2 &nbsp; Control de acceso</b><p>El acceso a la información debe otorgarse únicamente a las personas autorizadas, <ins>según el principio de mínimo privilegio.</ins></p></div><div><b>4.1 &nbsp; Responsabilidades del auditor</b><p>El auditor debe <ins>registrar y documentar</ins> los hallazgos en el formato F-04.</p></div><div><b>5.1 &nbsp; Conservación de registros</b><p>Los registros se conservarán por un período <ins>mínimo de 5 años.</ins></p></div></article></div></section></main><aside className="reader-history-aside"><section><h2><HistoryIcon name="comment" size={22} /> Comentarios</h2><article><span>JR</span><div><b>Jorge Ramírez</b><time>22/05/2024 17:10</time><p>Se actualizaron los criterios de evaluación y se agregó el nuevo flujograma del proceso.</p></div></article><article><span>LF</span><div><b>Lucía Fernández</b><time>22/05/2024 16:50</time><p>Revisado en conjunto con el equipo de Auditoría. En revisión final.</p></div></article><button type="button" onClick={() => onAction('Todos los comentarios')}>Ver todos los comentarios (2)</button></section><section><h2><HistoryIcon size={22} /> Notas</h2><article><span>LF</span><div><b>Lucía Fernández</b><time>22/05/2024 16:40</time><p>Pendiente validación por parte de Calidad antes de su publicación.</p></div></article><button type="button" onClick={() => onAction('Todas las notas')}>Ver todas las notas (1)</button></section><section><h2><HistoryIcon name="link" size={22} /> Documentos relacionados</h2>{['POL-002 Política de Seguridad de la Información', 'FOR-015 Formato de Evaluación de Proveedores', 'REG-003 Registro de Auditorías'].map((item) => <button key={item} type="button" onClick={() => onAction(item)}><HistoryIcon size={18} />{item}<em>Vigente</em></button>)}<button className="reader-history-related-more" type="button" onClick={() => onAction('Todos los documentos relacionados')}>Ver todos los relacionados (5)</button></section></aside></section><button className="reader-history-back" type="button" onClick={onBack}>← Volver al dashboard</button></div>
+function ReaderVersionHistoryView({ documentId, onAction }) {
+  const [document, setDocument] = useState(null)
+  const [versions, setVersions] = useState([])
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    async function load() {
+      try {
+        let id = documentId
+        if (!id) {
+          const list = await apiRequest('/api/reader/documents/?limit=1')
+          id = list.results?.[0]?.id
+        }
+        if (!id) throw new Error('No hay documentos publicados disponibles.')
+        const [detail, versionData] = await Promise.all([
+          apiRequest(`/api/reader/documents/${id}/`),
+          apiRequest(`/api/documents/${id}/versions/`),
+        ])
+        if (active) { setDocument(detail.document); setVersions(versionData.versions || []) }
+      } catch (requestError) { if (active) setError(requestError.message) }
+    }
+    load()
+    return () => { active = false }
+  }, [documentId])
+
+  if (error) return <div className="reader-history-view"><p className="editor-error" role="alert">{error}</p></div>
+  if (!document) return <div className="reader-history-view"><p>Cargando historial...</p></div>
+  const current = document.version
+  return <div className="reader-history-view"><header className="reader-history-heading"><h1>Historial de versiones</h1><p>Consulta las versiones publicadas del documento.</p></header><section className="reader-history-layout"><main><header className="reader-history-document"><span className="reader-history-file"><HistoryIcon size={32} /></span><div className="reader-history-doc-title"><h2><b>{document.code}</b> {document.title} <em>Versión actual {current?.version || '—'}</em></h2><div><span><b>Área</b>{document.area?.name}</span><span><b>Tipo</b>{document.type?.name}</span><span><b>Actualización</b>{formatDate(document.updated_at)}</span><span><b>Estado</b><i>Publicado</i></span></div></div><div className="reader-history-doc-actions">{current?.preview_url && <button type="button" onClick={() => window.open(current.preview_url, '_blank', 'noopener,noreferrer')}><HistoryIcon name="eye" size={21} />Ver versión</button>}{current?.download_url && <button type="button" onClick={() => downloadFile(current.download_url)}><HistoryIcon name="download" size={21} />Descargar</button>}</div></header><section className="reader-history-table-card"><h2>Versiones publicadas</h2><div className="reader-history-table-wrap"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Tamaño</th><th>Comentario</th><th>Acciones</th></tr></thead><tbody>{versions.map((version) => <tr key={version.id}><td><strong>{version.version}</strong></td><td>{formatDate(version.created_at || version.published_at)}</td><td><span className="reader-history-status is-publicado">Publicado</span></td><td>{version.size ? `${Math.round(version.size / 1024)} KB` : '—'}</td><td>{version.comment || '—'}</td><td><button type="button" onClick={() => version.preview_url ? window.open(version.preview_url, '_blank', 'noopener,noreferrer') : onAction('Vista previa no disponible.')}><HistoryIcon name="eye" size={16} /> Ver versión</button></td></tr>)}</tbody></table>{!versions.length && <p>No hay versiones publicadas registradas.</p>}</div><footer><span>Mostrando {versions.length} versiones</span></footer></section></main></section></div>
 }
 
 export default ReaderVersionHistoryView

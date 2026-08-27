@@ -1,16 +1,6 @@
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
+import { apiRequest, formatDate, normalizeDocument } from './documentApi'
 import './EditorDocumentsView.css'
-
-const documents = [
-  { code: 'POL-001', title: 'Política de Calidad', type: 'Política', area: 'Calidad', status: 'En revisión', version: '1.2', updated: '23/05/2024 10:32', reviewer: 'María González' },
-  { code: 'PRO-005', title: 'Proceso de Compras', type: 'Procedimiento', area: 'Compras', status: 'En revisión', version: '2.0', updated: '23/05/2024 09:18', reviewer: 'Jorge Ramírez' },
-  { code: 'INS-007', title: 'Instructivo de Auditoría Interna', type: 'Instructivo', area: 'Auditoría', status: 'Borrador', version: '1.0', updated: '22/05/2024 16:45', reviewer: '—' },
-  { code: 'FOR-012', title: 'Formato de Solicitud', type: 'Formato', area: 'Administración', status: 'Aprobado', version: '1.1', updated: '20/05/2024 14:07', reviewer: 'Lucía Fernández' },
-  { code: 'POL-002', title: 'Política de Seguridad de la Información', type: 'Política', area: 'Seguridad', status: 'Devuelto con observaciones', version: '1.0', updated: '20/05/2024 11:05', reviewer: 'María González' },
-  { code: 'PRO-008', title: 'Control de Registros', type: 'Procedimiento', area: 'Calidad', status: 'Aprobado', version: '1.3', updated: '17/05/2024 09:36', reviewer: 'Jorge Ramírez' },
-  { code: 'INS-010', title: 'Instructivo para Gestión de No Conformidades', type: 'Instructivo', area: 'Calidad', status: 'En revisión', version: '1.1', updated: '16/05/2024 15:20', reviewer: 'Lucía Fernández' },
-  { code: 'FOR-015', title: 'Formato de Evaluación de Proveedores', type: 'Formato', area: 'Compras', status: 'Borrador', version: '0.1', updated: '15/05/2024 10:08', reviewer: '—' },
-]
 
 function DocumentsIcon({ name, size = 18 }) {
   let content
@@ -40,6 +30,7 @@ function FilterSelect({ label, value, onChange, options }) {
 }
 
 function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
+  const [documents, setDocuments] = useState([])
   const [search, setSearch] = useState('')
   const [type, setType] = useState('Todos')
   const [area, setArea] = useState('Todas')
@@ -47,7 +38,18 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
   const [classification, setClassification] = useState('Todas')
   const [from, setFrom] = useState('')
   const [until, setUntil] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const deferredSearch = useDeferredValue(`${globalQuery} ${search}`.trim().toLowerCase())
+
+  useEffect(() => {
+    let active = true
+    apiRequest('/api/documents/?limit=100')
+      .then((data) => { if (active) setDocuments((data.results || []).map(normalizeDocument)) })
+      .catch((requestError) => { if (active) setError(requestError.message) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
   const visibleDocuments = documents.filter((document) => {
     const searchable = [document.code, document.title, document.type, document.area, document.status, document.reviewer].join(' ').toLowerCase()
     return (!deferredSearch || searchable.includes(deferredSearch)) && (type === 'Todos' || document.type === type) && (area === 'Todas' || document.area === area) && (status === 'Todos' || document.status === status)
@@ -65,12 +67,13 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
   }
 
   return <div className="editor-documents-view">
-    <header className="editor-documents-heading"><div><h1>Mis documentos</h1><p>Crea, actualiza y envía tus documentos personales para revisión.</p></div><section className="editor-documents-summary"><div><DocumentsIcon name="document" size={25} /><span>Total de documentos<strong>48</strong></span></div><div><DocumentsIcon name="clock" size={25} /><span>Última actualización<strong>Hoy, 10:32</strong></span></div></section></header>
+     <header className="editor-documents-heading"><div><h1>Mis documentos</h1><p>Crea, actualiza y envía tus documentos personales para revisión.</p></div><section className="editor-documents-summary"><div><DocumentsIcon name="document" size={25} /><span>Total de documentos<strong>{documents.length}</strong></span></div><div><DocumentsIcon name="clock" size={25} /><span>Última actualización<strong>{documents[0]?.updated || 'Sin registros'}</strong></span></div></section></header>
+     {error && <p className="editor-error" role="alert">{error}</p>}
     <div className="editor-documents-toolbar"><button className="is-primary" type="button" onClick={() => onAction('Crear un nuevo documento')}><DocumentsIcon name="plus" size={19} /> Nuevo documento</button><button type="button" onClick={() => onAction('Subir documento')}><DocumentsIcon name="upload" size={19} /> Subir documento</button><button type="button" onClick={exportList}><DocumentsIcon name="download" size={19} /> Exportar listado</button></div>
-    <section className="editor-document-stats" aria-label="Resumen de documentos"><article><span className="is-draft"><DocumentsIcon name="edit" size={25} /></span><div><small>Borrador</small><strong>7</strong><span>14% del total</span></div></article><article><span className="is-review"><DocumentsIcon name="clock" size={25} /></span><div><small>En revisión</small><strong>16</strong><span>33% del total</span></div></article><article><span className="is-approved"><DocumentsIcon name="check" size={25} /></span><div><small>Aprobado</small><strong>17</strong><span>35% del total</span></div></article><article><span className="is-returned"><DocumentsIcon name="comment" size={25} /></span><div><small>Devuelto con observaciones</small><strong>8</strong><span>17% del total</span></div></article></section>
+     <section className="editor-document-stats" aria-label="Resumen de documentos">{['Borrador', 'En revisión', 'Aprobado', 'Devuelto con observaciones'].map((item, index) => <article key={item}><span className={['is-draft', 'is-review', 'is-approved', 'is-returned'][index]}><DocumentsIcon name={index === 0 ? 'edit' : index === 1 ? 'clock' : index === 2 ? 'check' : 'comment'} size={25} /></span><div><small>{item}</small><strong>{documents.filter((document) => document.status === item).length}</strong><span>{documents.length ? `${Math.round((documents.filter((document) => document.status === item).length / documents.length) * 100)}% del total` : '0% del total'}</span></div></article>)}</section>
     <section className="editor-documents-panel"><div className="editor-doc-filters"><label className="editor-doc-filter editor-doc-filter--search"><span>Buscar documento</span><div><DocumentsIcon name="search" size={17} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por código o título..." /></div></label><FilterSelect label="Tipo" value={type} onChange={setType} options={['Todos', 'Política', 'Procedimiento', 'Instructivo', 'Formato']} /><FilterSelect label="Área" value={area} onChange={setArea} options={['Todas', 'Calidad', 'Compras', 'Auditoría', 'Administración', 'Seguridad']} /><FilterSelect label="Estado" value={status} onChange={setStatus} options={['Todos', 'Borrador', 'En revisión', 'Aprobado', 'Devuelto con observaciones']} /><label className="editor-doc-filter editor-doc-filter--date"><span>Fecha</span><div><DocumentsIcon name="calendar" size={16} /><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /><em>Hasta</em><input type="date" value={until} onChange={(event) => setUntil(event.target.value)} /></div></label><FilterSelect label="Clasificación" value={classification} onChange={setClassification} options={['Todas', 'Pública', 'Uso interno', 'Confidencial']} /><button className="editor-clear-filters" type="button" onClick={clearFilters}><DocumentsIcon name="filter" size={16} /> Limpiar filtros</button></div>
-      <div className="editor-doc-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Tipo</th><th>Estado</th><th>Versión actual</th><th>Última actualización</th><th>Revisor asignado</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.code}><td className="editor-doc-code">{document.code}</td><td>{document.title}</td><td>{document.type}</td><td><span className={`editor-doc-status editor-doc-status--${document.status.toLowerCase().replaceAll(' ', '-')}`}>{document.status}</span></td><td>{document.version}</td><td><strong>{document.updated}</strong><small>por Carlos Méndez</small></td><td>{document.reviewer}</td><td><div className="editor-doc-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => onAction(`Ver ${document.title}`)}><DocumentsIcon name="eye" size={16} /></button><button type="button" aria-label={`Editar ${document.title}`} onClick={() => onEditDocument(document)}><DocumentsIcon name="edit" size={16} /></button><button type="button" aria-label={`Descargar ${document.title}`} onClick={() => onAction(`Descargar ${document.title}`)}><DocumentsIcon name="downloadSmall" size={16} /></button><button type="button" aria-label={`Más acciones de ${document.title}`} onClick={() => onAction(`Más acciones de ${document.title}`)}><DocumentsIcon name="more" size={16} /></button></div></td></tr>)}</tbody></table>{!visibleDocuments.length && <div className="editor-doc-empty"><DocumentsIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div>
-      <footer className="editor-doc-pagination"><span>Mostrando 1 a {visibleDocuments.length} de 48 documentos</span><div><button type="button">«</button><button type="button">‹</button><button className="is-current" type="button">1</button><button type="button">2</button><button type="button">3</button><button type="button">4</button><button type="button">5</button><button type="button">›</button><button type="button">»</button></div><label>Filas por página <select defaultValue="10"><option>10</option><option>25</option><option>50</option></select></label></footer></section>
+       <div className="editor-doc-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Tipo</th><th>Estado</th><th>Versión actual</th><th>Última actualización</th><th>Revisor asignado</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.id}><td className="editor-doc-code">{document.code}</td><td>{document.title}</td><td>{document.type}</td><td><span className={`editor-doc-status editor-doc-status--${document.status.toLowerCase().replaceAll(' ', '-')}`}>{document.status}</span></td><td>{document.version}</td><td><strong>{document.updated}</strong><small>{formatDate(document.created_at, 'Sin fecha')}</small></td><td>{document.reviewer}</td><td><div className="editor-doc-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => onAction(`Ver ${document.title}`)}><DocumentsIcon name="eye" size={16} /></button><button type="button" aria-label={`Editar ${document.title}`} onClick={() => onEditDocument(document)}><DocumentsIcon name="edit" size={16} /></button><button type="button" aria-label={`Descargar ${document.title}`} onClick={() => document.downloadUrl ? window.open(document.downloadUrl, '_blank', 'noopener,noreferrer') : onAction('No hay versión descargable.')}><DocumentsIcon name="downloadSmall" size={16} /></button><button type="button" aria-label={`Más acciones de ${document.title}`} onClick={() => onAction(`Más acciones de ${document.title}`)}><DocumentsIcon name="more" size={16} /></button></div></td></tr>)}</tbody></table>{loading && <div className="editor-doc-empty">Cargando documentos...</div>}{!loading && !visibleDocuments.length && <div className="editor-doc-empty"><DocumentsIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div>
+       <footer className="editor-doc-pagination"><span>Mostrando {visibleDocuments.length} de {documents.length} documentos</span></footer></section>
   </div>
 }
 

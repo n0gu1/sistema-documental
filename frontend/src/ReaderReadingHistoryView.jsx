@@ -1,33 +1,41 @@
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
+import { apiRequest, formatDate } from './documentApi'
 import './ReaderReadingHistoryView.css'
 
-const events = [
-  ['23/05/2024 10:32', 'POL-002 Política de Seguridad de la Información', 'Visualización', 'Vista del documento completo', '190.12.45.67', 'Chrome - Windows', 'blue'],
-  ['23/05/2024 09:18', 'PRO-005 Proceso de Compras', 'Descarga', 'Descarga de versión 2.0 (PDF)', '190.12.45.67', 'Chrome - Windows', 'green'],
-  ['22/05/2024 16:45', 'INS-007 Instructivo de Auditoría Interna', 'Visualización', 'Lectura parcial (páginas 1-12)', '190.12.45.67', 'Edge - Windows', 'blue'],
-  ['22/05/2024 14:07', 'FOR-012 Formato de Solicitud', 'Descarga', 'Descarga de archivo (Excel)', '186.18.23.11', 'Chrome - Windows', 'green'],
-  ['21/05/2024 11:05', 'POL-001 Política de Calidad', 'Visualización', 'Vista del documento completo', '190.12.45.67', 'Chrome - Windows', 'blue'],
-  ['22/05/2024 15:20', 'INS-010 Instructivo para Gestión de No Conformidades', 'Visualización', 'Lectura parcial (páginas 5-7)', '190.12.45.67', 'Firefox - Windows', 'blue'],
-  ['20/05/2024 10:08', 'FOR-015 Formato de Evaluación de Proveedores', 'Descarga', 'Descarga de versión 0.1 (PDF)', '190.12.45.67', 'Firefox - Windows', 'green'],
-]
-
-const recent = [['Descarga de PRO-005 Proceso de Compras', 'Hace 14 min por Ana López', 'green'], ['Visualización de INS-007 Instructivo de Auditoría Interna', 'Hace 1 hora por Ana López', 'blue'], ['Acceso rápido a Biblioteca documental', 'Hace 2 horas por Ana López', 'orange'], ['Visualización de POL-001 Política de Calidad', 'Hace 3 horas por Ana López', 'blue'], ['Descarga de FOR-012 Formato de Solicitud', 'Hace 4 horas por Ana López', 'green']]
-
 function ReadingIcon({ name, size = 18 }) {
-  const content = name === 'download' ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></> : name === 'clock' ? <><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3 2" /></> : name === 'bolt' ? <path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z" /> : name === 'eye' ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : name === 'filter' ? <path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z" /> : name === 'check' ? <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16 9" /></> : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
+  const content = name === 'download' ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></> : name === 'clock' ? <><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3 2" /></> : <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></>
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function Metric({ icon, tone, label, value, detail }) {
-  return <article className="reader-reading-metric"><span className={`reader-reading-metric-icon is-${tone}`}><ReadingIcon name={icon} size={30} /></span><div><span>{label}</span><strong>{value}</strong><small>↑ <b>{detail}</b> vs. ayer</small></div></article>
+function Metric({ icon, tone, label, value }) {
+  return <article className="reader-reading-metric"><span className={`reader-reading-metric-icon is-${tone}`}><ReadingIcon name={icon} size={30} /></span><div><span>{label}</span><strong>{value}</strong><small>Datos registrados</small></div></article>
 }
 
 function ReaderReadingHistoryView({ onAction }) {
+  const [events, setEvents] = useState([])
   const [query, setQuery] = useState('')
   const [action, setAction] = useState('Todas')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
-  const visibleEvents = events.filter((item) => (!deferredQuery || item.join(' ').toLowerCase().includes(deferredQuery)) && (action === 'Todas' || item[2] === action))
-  return <div className="reader-reading-history"><header className="reader-reading-heading"><h1>Historial de lectura</h1><p>Consulta el registro de tus documentos leídos, descargas y accesos recientes.</p></header><section className="reader-reading-metrics"><Metric icon="document" tone="blue" label="Eventos hoy" value="42" detail="16%" /><Metric icon="document" tone="green" label="Documentos consultados" value="18" detail="12%" /><Metric icon="download" tone="orange" label="Descargas realizadas" value="7" detail="40%" /><Metric icon="clock" tone="purple" label="Tiempo promedio de lectura" value="12 min" detail="8%" /></section><section className="reader-reading-filters"><label><span>Fecha</span><input type="text" value="20/05/2024 - 23/05/2024" readOnly /></label><label><span>Documento</span><select><option>Selecciona documento</option><option>POL-002 Política de Seguridad</option><option>PRO-005 Proceso de Compras</option></select></label><label><span>Área</span><select><option>Todas</option><option>Administrativa</option><option>Auditoría Interna</option><option>Calidad</option></select></label><label><span>Tipo de acción</span><select value={action} onChange={(event) => setAction(event.target.value)}><option>Todas</option><option>Visualización</option><option>Descarga</option></select></label><label className="reader-reading-filter-search"><span>Búsqueda libre</span><div><ReadingIcon name="eye" size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por documento, acción, detalle..." /></div></label><button type="button" onClick={() => { setQuery(''); setAction('Todas'); onAction('Filtros limpiados') }}><ReadingIcon name="filter" size={16} /> Limpiar filtros</button></section><section className="reader-reading-main-grid"><section className="reader-reading-log"><header><h2><ReadingIcon name="document" size={18} /> Registro de lectura</h2><button type="button" onClick={() => onAction('Exportar historial')}><ReadingIcon name="download" size={16} /> Exportar</button></header><div className="reader-reading-table-wrap"><table><thead><tr><th>Fecha y hora ↓</th><th>Documento</th><th>Acción</th><th>Detalle</th><th>Resultado</th><th>IP / Dispositivo</th><th></th></tr></thead><tbody>{visibleEvents.map((item) => <tr key={`${item[0]}-${item[1]}`}><td>{item[0]}</td><td><b>{item[1]}</b></td><td><span className={`reader-reading-action is-${item[6]}`}><ReadingIcon name={item[2] === 'Descarga' ? 'download' : 'eye'} size={13} /> {item[2]}</span></td><td>{item[3]}</td><td><span className="reader-reading-success"><ReadingIcon name="check" size={14} /> Exitoso</span></td><td>{item[4]}<br /><small>{item[5]}</small></td><td><button type="button" onClick={() => onAction(`Opciones de ${item[1]}`)}>⋮</button></td></tr>)}</tbody></table></div><footer><span>Mostrando 1 a {visibleEvents.length} de 42 registros</span><div><button type="button">«</button><button type="button">‹</button><button className="is-current" type="button">1</button><button type="button">2</button><button type="button">3</button><button type="button">4</button><button type="button">5</button><button type="button">›</button><button type="button">»</button></div><label>Filas por página <select><option>10</option><option>25</option></select></label></footer></section><aside className="reader-reading-aside"><section className="reader-reading-chart"><h2><ReadingIcon name="document" size={18} /> Distribución por tipo de acción</h2><div className="reader-reading-chart-body"><div className="reader-reading-donut"><strong>42</strong><span>Total</span></div><ul><li><i className="is-blue" />Visualización <b>25 (59.5%)</b></li><li><i className="is-green" />Descarga <b>10 (23.8%)</b></li><li><i className="is-orange" />Acceso rápido <b>4 (9.5%)</b></li><li><i className="is-purple" />Impresión <b>2 (4.8%)</b></li><li><i className="is-gray" />Otros <b>1 (2.4%)</b></li></ul></div></section><section className="reader-reading-recent"><header><h2><ReadingIcon name="document" size={18} /> Eventos recientes</h2><button type="button" onClick={() => onAction('Todos los eventos')}>Ver todos</button></header>{recent.map((item) => <article key={item[0]}><span className={`reader-reading-recent-icon is-${item[2]}`}><ReadingIcon name={item[2] === 'green' ? 'download' : item[2] === 'orange' ? 'bolt' : 'eye'} size={16} /></span><div><b>{item[0]}</b><small>{item[1]}</small></div><em>Exitoso</em></article>)}</section></aside></section><footer className="editor-footer"><span>© 2024 Consultoría Alexandria. Todos los derechos reservados.</span><span>Versión 2.1.0</span></footer></div>
+
+  useEffect(() => {
+    let active = true
+    apiRequest('/api/reader/history/?limit=100')
+      .then((data) => { if (active) setEvents(data.results || []) })
+      .catch((requestError) => { if (active) setError(requestError.message) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const visibleEvents = events.filter((event) => {
+    const displayAction = event.type === 'DESCARGA' ? 'Descarga' : 'Visualización'
+    return (!deferredQuery || [event.document.code, event.document.title, event.detail, displayAction].join(' ').toLowerCase().includes(deferredQuery)) && (action === 'Todas' || displayAction === action)
+  })
+  const downloads = events.filter((event) => event.type === 'DESCARGA').length
+  const readings = events.filter((event) => event.type === 'LECTURA' || event.type === 'VISTA_PREVIA').length
+
+  return <div className="reader-reading-history"><header className="reader-reading-heading"><h1>Historial de lectura</h1><p>Consulta el registro de tus documentos leídos, descargas y accesos recientes.</p></header>{error && <p className="editor-error" role="alert">{error}</p>}<section className="reader-reading-metrics"><Metric icon="document" tone="blue" label="Eventos registrados" value={events.length} /><Metric icon="document" tone="green" label="Documentos consultados" value={new Set(events.map((event) => event.document.id)).size} /><Metric icon="download" tone="orange" label="Descargas realizadas" value={downloads} /><Metric icon="clock" tone="purple" label="Lecturas registradas" value={readings} /></section><section className="reader-reading-filters"><label className="reader-reading-filter-search"><span>Búsqueda libre</span><div><ReadingIcon size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por documento, acción, detalle..." /></div></label><label><span>Tipo de acción</span><select value={action} onChange={(event) => setAction(event.target.value)}><option>Todas</option><option>Visualización</option><option>Descarga</option></select></label><button type="button" onClick={() => { setQuery(''); setAction('Todas'); onAction('Filtros limpiados.') }}>Limpiar filtros</button></section><section className="reader-reading-main-grid"><section className="reader-reading-log"><header><h2><ReadingIcon size={18} /> Registro de lectura</h2></header><div className="reader-reading-log-table"><table><thead><tr><th>Fecha</th><th>Documento</th><th>Acción</th><th>Detalle</th><th>Versión</th><th>Última página</th></tr></thead><tbody>{visibleEvents.map((event) => <tr key={event.id}><td>{formatDate(event.registered_at)}</td><td><strong>{event.document.code}</strong><span>{event.document.title}</span></td><td>{event.type === 'DESCARGA' ? 'Descarga' : 'Visualización'}</td><td>{event.detail || '—'}</td><td>{event.version || '—'}</td><td>{event.last_page || '—'}</td></tr>)}</tbody></table>{!loading && !visibleEvents.length && <p>No hay registros que coincidan con los filtros.</p>}</div></section></section></div>
 }
 
 export default ReaderReadingHistoryView

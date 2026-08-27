@@ -1,14 +1,57 @@
+import { useEffect, useState } from 'react'
+import { apiRequest, downloadFile, formatDate, readerDocumentPath } from './documentApi'
 import './ReaderDocumentView.css'
 
-const sections = ['Objetivo', 'Alcance', 'Lineamientos', '3.1  Gestión de activos de información', '3.2  Control de accesos', '3.3  Clasificación de la información', 'Responsabilidades', 'Cumplimiento', 'Disposiciones finales']
-
 function DocumentIcon({ name, size = 20 }) {
-  const content = name === 'download' ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></> : name === 'link' ? <><path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" /><path d="M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1" /></> : name === 'print' ? <><path d="M6 9V3h12v6M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v7H6z" /></> : name === 'star' ? <path d="m12 3 2.8 5.8 6.2.9-4.5 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.7l6.2-.9L12 3Z" /> : name === 'info' ? <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : name === 'eye' ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
+  const content = name === 'download'
+    ? <><path d="M12 3v12m0 0-4-4m4 4 4-4" /><path d="M4 18v3h16v-3" /></>
+    : name === 'star'
+      ? <path d="m12 3 2.8 5.8 6.2.9-4.5 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3L3 9.7l6.2-.9L12 3Z" />
+      : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill={name === 'star' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function ReaderDocumentView({ onBack, onAction }) {
-  return <div className="reader-document-view"><button className="reader-document-back" type="button" onClick={onBack}>← &nbsp;Volver a documentos disponibles</button><section className="reader-document-layout"><main><header className="reader-document-header"><span className="reader-document-file"><DocumentIcon size={34} /></span><div className="reader-document-title"><h1>POL-002 Política de Seguridad de la Información</h1><div className="reader-document-meta"><span><b>Código</b>POL-002</span><span><b>Área</b>Seguridad de la Información</span><span><b>Tipo</b>Política</span><span><b>Versión</b>1.2</span><span><b>Estado</b><em>En revisión</em></span><span><b>Autor</b>Carlos Méndez</span></div></div></header><nav className="reader-document-tabs" aria-label="Secciones del documento"><button type="button"><DocumentIcon name="grid" size={18} /> Vista general</button><button className="is-active" type="button"><DocumentIcon size={18} /> Contenido</button><button type="button"><DocumentIcon name="link" size={18} /> Anexos</button><button type="button"><DocumentIcon name="history" size={18} /> Historial</button></nav><section className="reader-document-reader"><aside className="reader-document-index"><h2>Índice del contenido</h2><ol>{sections.map((section, index) => <li key={section} className={index === 0 ? 'is-active' : index > 2 && index < 6 ? 'is-subsection' : ''}><button type="button" onClick={() => onAction(`Sección ${section}`)}>{index === 0 ? '1.' : index === 1 ? '2.' : index === 2 ? '3.' : index < 6 ? section.split('  ')[0] : `${index - 2}.`} <span>{index < 3 || index > 5 ? section : section.split('  ')[1]}</span></button></li>)}</ol></aside><article className="reader-document-body"><h2>1. Objetivo</h2><p className="reader-document-callout">Establecer los lineamientos para proteger la información de Consultoría Alexandria asegurando su confidencialidad, integridad y disponibilidad, mediante la gestión adecuada de riesgos y el cumplimiento de la normativa aplicable.</p><h2>2. Alcance</h2><p>Aplica a todas las colaboraciones, contratistas y terceros que accedan, procesen o administren información de Consultoría Alexandria, en cualquier medio o formato.</p><h2>3. Lineamientos</h2><h3>3.1 &nbsp;Gestión de activos de información</h3><p>La organización debe identificar, clasificar y mantener un inventario actualizado de sus activos de información, evaluando su criticidad y aplicando controles de protección adecuados.</p><h3>3.2 &nbsp;Control de accesos</h3><p>El acceso a la información debe otorgarse únicamente a las personas autorizadas, bajo el principio de mínimo privilegio.</p><p>Se deben cumplir las siguientes acciones:</p><ul><li>Asignar accesos de acuerdo con el rol y responsabilidades.</li><li>Revisar y retirar accesos innecesarios de manera periódica.</li><li>Utilizar autenticación multifactor para sistemas críticos.</li></ul><div className="reader-document-continue"><DocumentIcon name="info" size={16} /> Continúa en la siguiente sección</div></article></section><footer className="reader-document-actions"><button type="button" onClick={() => onAction('Descargar PDF')}><DocumentIcon name="download" size={19} /> Descargar PDF</button><button type="button" onClick={() => onAction('Agregar a favoritos')}><DocumentIcon name="star" size={19} /> Agregar a favoritos</button><button type="button" onClick={() => onAction('Compartir enlace')}><DocumentIcon name="link" size={19} /> Compartir enlace</button><button type="button" onClick={() => onAction('Imprimir')}><DocumentIcon name="print" size={19} /> Imprimir</button></footer></main><aside className="reader-document-aside"><section><h2>Datos del documento</h2><dl><dt>Código:</dt><dd>POL-002</dd><dt>Área:</dt><dd>Seguridad de la Información</dd><dt>Tipo:</dt><dd>Política</dd><dt>Versión:</dt><dd>1.2</dd><dt>Estado:</dt><dd><em>En revisión</em></dd><dt>Autor:</dt><dd>Carlos Méndez</dd><dt>Fecha de emisión:</dt><dd><DocumentIcon name="calendar" size={14} />22/05/2024</dd><dt>Fecha límite de revisión:</dt><dd><DocumentIcon name="calendar" size={14} />28/05/2024</dd></dl></section><section><h2>Índice de secciones</h2><ol><li>Objetivo</li><li>Alcance</li><li>Lineamientos<ul><li>Gestión de activos de información</li><li>Control de accesos</li><li>Clasificación de la información</li></ul></li><li>Responsabilidades</li><li>Cumplimiento</li><li>Disposiciones finales</li></ol></section><section><h2>Documentos relacionados</h2><button type="button" onClick={() => onAction('POL-001 Política de Calidad')}><DocumentIcon size={17} /> POL-001 Política de Calidad <b>›</b></button><button type="button" onClick={() => onAction('INS-007 Instructivo de Auditoría Interna')}><DocumentIcon size={17} /> INS-007 Instructivo de Auditoría Interna <b>›</b></button></section><section className="reader-document-download"><h2>Descargas</h2><button type="button" onClick={() => onAction('Descargar PDF')}><DocumentIcon name="download" size={18} /> PDF del documento <span>PDF (842 KB) <DocumentIcon name="download" size={16} /></span></button></section></aside></section></div>
+function ReaderDocumentView({ documentId, onBack, onAction }) {
+  const [document, setDocument] = useState(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    async function load() {
+      try {
+        let id = documentId
+        if (!id) {
+          const list = await apiRequest('/api/reader/documents/?limit=1')
+          id = list.results?.[0]?.id
+        }
+        if (!id) throw new Error('No hay documentos publicados disponibles.')
+        const data = await apiRequest(readerDocumentPath(id))
+        if (!active) return
+        setDocument(data.document)
+        apiRequest(`/api/reader/documents/${id}/read/`, { method: 'POST', body: {} }).catch(() => {})
+      } catch (requestError) { if (active) setError(requestError.message) }
+      finally { if (active) setLoading(false) }
+    }
+    load()
+    return () => { active = false }
+  }, [documentId])
+
+  async function toggleFavorite() {
+    if (!document) return
+    try {
+      await apiRequest(`/api/reader/documents/${document.id}/favorite/`, { method: document.favorite ? 'DELETE' : 'POST' })
+      setDocument((current) => ({ ...current, favorite: !current.favorite }))
+      onAction(document.favorite ? 'Documento retirado de favoritos.' : 'Documento agregado a favoritos.')
+    } catch (requestError) { setError(requestError.message) }
+  }
+
+  if (loading) return <div className="reader-document-view"><p>Cargando documento...</p></div>
+  if (error) return <div className="reader-document-view"><button className="reader-document-back" type="button" onClick={onBack}>← Volver</button><p className="editor-error" role="alert">{error}</p></div>
+  const version = document.version
+  const metadata = Object.entries(document.metadata || {})
+
+  return <div className="reader-document-view"><button className="reader-document-back" type="button" onClick={onBack}>← &nbsp;Volver a documentos disponibles</button><section className="reader-document-layout"><main><header className="reader-document-header"><span className="reader-document-file"><DocumentIcon size={34} /></span><div className="reader-document-title"><h1>{document.code} {document.title}</h1><div className="reader-document-meta"><span><b>Código</b>{document.code}</span><span><b>Área</b>{document.area?.name}</span><span><b>Tipo</b>{document.type?.name}</span><span><b>Versión</b>{version?.version || '—'}</span><span><b>Estado</b><em>{document.status?.name || 'Publicado'}</em></span><span><b>Actualizado</b>{formatDate(document.updated_at)}</span></div></div></header><nav className="reader-document-tabs" aria-label="Secciones del documento"><button className="is-active" type="button"><DocumentIcon size={18} /> Contenido</button><button type="button" onClick={() => version?.download_url && downloadFile(version.download_url)}><DocumentIcon name="download" size={18} /> Descargar</button><button type="button" onClick={toggleFavorite}><DocumentIcon name="star" size={18} /> {document.favorite ? 'Quitar favorito' : 'Favorito'}</button></nav><article className="reader-document-body"><h2>{document.title}</h2><p>{document.description || 'Este documento no tiene una descripción registrada.'}</p>{metadata.length > 0 && <><h3>Metadatos</h3><dl>{metadata.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}</dl></>}<p className="reader-document-muted">Última actualización: {formatDate(document.updated_at)}</p></article></main><aside className="reader-document-aside"><section><h2>Acciones</h2><button type="button" onClick={() => version?.download_url && downloadFile(version.download_url)}><DocumentIcon name="download" size={17} /> Descargar versión publicada</button><button type="button" onClick={toggleFavorite}><DocumentIcon name="star" size={17} /> {document.favorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}</button></section><section><h2>Información</h2><p>Versión publicada: {version?.version || '—'}</p><p>Publicada: {formatDate(version?.published_at)}</p></section></aside></section></div>
 }
 
 export default ReaderDocumentView

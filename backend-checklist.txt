@@ -186,9 +186,9 @@ ORDEN RECOMENDADO
 15. INTEGRACION FINAL
 [x] Crear cliente API compartido en el frontend.
 [x] Conectar el panel del administrador.
-[ ] Conectar el panel del editor.
-[ ] Conectar el panel del revisor.
-[ ] Conectar el panel del lector.
-[ ] Reemplazar todos los datos mock por datos reales.
+[x] Conectar el panel del editor.
+[x] Conectar el panel del revisor.
+[x] Conectar el panel del lector.
+[x] Reemplazar todos los datos mock por datos reales.
 [ ] Validar permisos y flujos en Render.
 [ ] Ejecutar pruebas completas de aceptacion.

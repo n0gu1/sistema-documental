@@ -1,38 +1,7 @@
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useEffect, useState } from 'react'
+import { apiRequest, formatDate, normalizeDocument } from './documentApi'
 import './EditorDashboard.css'
 import './ReaderDashboard.css'
-
-const activity = [
-  ['Leíste Política de Seguridad de la Información', 'POL-002', 'Versión 1.2', 'Hoy, 10:15', 'read', 'blue'],
-  ['Marcaste como favorito Proceso de Compras', 'PRO-005', 'Versión 2.0', 'Hoy, 09:40', 'favorite', 'orange'],
-  ['Descargaste Formato de Solicitud', 'FOR-012', 'Versión 1.1', 'Ayer, 16:30', 'download', 'green'],
-  ['Consultaste Instructivo de Auditoría Interna', 'INS-007', 'Versión 1.0', 'Ayer, 15:45', 'eye', 'violet'],
-  ['Leíste Control de Registros', 'PRO-008', 'Versión 1.3', '21/05/2024, 11:20', 'read', 'green'],
-]
-
-const recommended = [
-  ['Política de Calidad', 'POL-001', 'Versión 1.2', 'Política', 'blue'],
-  ['Código de Ética', 'ETI-001', 'Versión 1.0', 'Política', 'blue'],
-  ['Guía de Usuario del Sistema', 'GUI-001', 'Versión 2.1', 'Guía', 'green'],
-  ['Procedimiento de Incidencias', 'PRO-010', 'Versión 1.0', 'Procedimiento', 'orange'],
-  ['Plan de Continuidad del Negocio', 'PLAN-001', 'Versión 1.0', 'Plan', 'red'],
-]
-
-const publications = [
-  ['Política de Seguridad de la Información', 'POL-002', 'Versión 1.2', '23/05/2024'],
-  ['Instructivo para Gestión de No Conformidades', 'INS-010', 'Versión 1.1', '22/05/2024'],
-  ['Formato de Evaluación de Proveedores', 'FOR-015', 'Versión 0.1', '21/05/2024'],
-  ['Control de Accesos', 'PRO-009', 'Versión 1.0', '20/05/2024'],
-  ['Manual de Identidad Corporativa', 'MAN-001', 'Versión 2.0', '17/05/2024'],
-]
-
-const mostRead = [
-  ['Política de Seguridad de la Información', 'POL-002', 'Versión 1.2', '156'],
-  ['Proceso de Compras', 'PRO-005', 'Versión 2.0', '132'],
-  ['Instructivo de Auditoría Interna', 'INS-007', 'Versión 1.0', '98'],
-  ['Política de Calidad', 'POL-001', 'Versión 1.2', '85'],
-  ['Control de Registros', 'PRO-008', 'Versión 1.3', '72'],
-]
 
 function ReaderIcon({ name, size = 20 }) {
   let content
@@ -72,8 +41,30 @@ function ReaderDashboard({ user, onLogout, logoutPending, error }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
+  const [documents, setDocuments] = useState([])
+  const [history, setHistory] = useState([])
+  useEffect(() => {
+    let active = true
+    Promise.all([
+      apiRequest('/api/reader/documents/?limit=100'),
+      apiRequest('/api/reader/history/?limit=100'),
+    ]).then(([documentData, historyData]) => {
+      if (!active) return
+      setDocuments((documentData.results || []).map(normalizeDocument))
+      setHistory(historyData.results || [])
+    }).catch(() => {})
+    return () => { active = false }
+  }, [])
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const initials = `${user.first_name?.[0] || 'M'}${user.last_name?.[0] || 'L'}`
+  const activity = history.map((event) => [event.type === 'DESCARGA' ? 'Descargaste' : 'Consultaste', `${event.document.code} ${event.document.title}`, `Versión ${event.version}`, formatDate(event.registered_at), event.type === 'DESCARGA' ? 'download' : 'read', event.type === 'DESCARGA' ? 'green' : 'blue'])
+  const recommended = documents.slice(0, 5).map((item) => [item.title, item.code, `Versión ${item.version}`, item.type, 'blue'])
+  const publications = documents.slice(0, 5).map((item) => [item.title, item.code, `Versión ${item.version}`, item.updated])
+  const mostRead = Object.values(history.reduce((items, event) => {
+    const current = items[event.document.id] || { event, count: 0 }
+    items[event.document.id] = { event, count: current.count + 1 }
+    return items
+  }, {})).sort((left, right) => right.count - left.count).slice(0, 5).map(({ event, count }) => [event.document.title, event.document.code, `Versión ${event.version}`, String(count)])
   const visibleActivity = activity.filter((item) => !deferredQuery || item.join(' ').toLowerCase().includes(deferredQuery))
   const visiblePublications = publications.filter((item) => !deferredQuery || item.join(' ').toLowerCase().includes(deferredQuery))
   const role = user.roles?.find((item) => item.code === 'LECTOR')?.name || 'Lector'

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { apiRequest, formatDate } from './documentApi'
 import './EditorDocumentEditView.css'
 
 const initialChecklist = [
@@ -38,6 +39,8 @@ function EditIcon({ name, size = 18 }) {
 }
 
 function EditorDocumentEditView({ document, onBack, onAction }) {
+  const [loadedDocument, setLoadedDocument] = useState(document)
+  const [loadError, setLoadError] = useState('')
   const [tab, setTab] = useState('Información general')
   const [title, setTitle] = useState(document.title)
   const [description, setDescription] = useState('Establece los principios y compromisos de la organización con la calidad, alcance del sistema y mejora continua.')
@@ -50,6 +53,27 @@ function EditorDocumentEditView({ document, onBack, onAction }) {
   const [comments, setComments] = useState([{ author: 'María González', text: 'Buen trabajo, por favor revisar el alcance del apartado 4.2 y ajustar la redacción final.', date: '24/05/2024 09:47', initials: 'MG' }])
   const [comment, setComment] = useState('')
   const completed = checklist.filter((item) => item[1]).length
+  const currentVersion = loadedDocument.files?.find((file) => file.is_current) || loadedDocument.version
+  const currentVersionLabel = typeof currentVersion === 'string' ? currentVersion : currentVersion?.version || '—'
+
+  useEffect(() => {
+    if (!document?.id) return undefined
+    let active = true
+    apiRequest(`/api/documents/${document.id}/`)
+      .then((data) => {
+        if (!active) return
+        const value = data.document
+        setLoadedDocument(value)
+        setTitle(value.title || '')
+        setDescription(value.description || '')
+        setArea(value.area?.name || '')
+        setClassification(value.metadata?.classification || 'Interna')
+        setKeywords(value.metadata?.keywords || '')
+        setScope(value.metadata?.scope || '')
+      })
+      .catch((requestError) => setLoadError(requestError.message))
+    return () => { active = false }
+  }, [document?.id])
 
   function updateChecklist(index) {
     setChecklist((current) => current.map((item, itemIndex) => itemIndex === index ? [item[0], !item[1]] : item))
@@ -63,13 +87,18 @@ function EditorDocumentEditView({ document, onBack, onAction }) {
     onAction('Comentario agregado correctamente.')
   }
 
-  function saveDraft() {
-    onAction('El borrador se guardó correctamente.')
+  async function saveDraft() {
+    if (!document?.id) return onAction('No se encontró el documento seleccionado.')
+    try {
+      const data = await apiRequest(`/api/documents/${document.id}/`, { method: 'PATCH', body: { title, description, metadata: { ...(loadedDocument.metadata || {}), classification, keywords, scope } } })
+      setLoadedDocument(data.document)
+      onAction('El borrador se guardó correctamente.')
+    } catch (requestError) { onAction(requestError.message) }
   }
 
   return <div className="editor-edit-view">
-    <header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>
-    <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title}</h2><span>Versión 3.0</span></div><dl><div><dt>Código</dt><dd>{document.code}</dd></div><div><dt>Área</dt><dd>{area}</dd></div><div><dt>Tipo</dt><dd>{document.type}</dd></div><div><dt>Versión</dt><dd>3.0</dd></div><div><dt>Estado</dt><dd><b>En revisión</b></dd></div><div><dt>Última actualización</dt><dd>23/05/2024 10:32<br />por Carlos Méndez</dd></div><div><dt>Revisor asignado</dt><dd><i>MG</i> María González</dd></div></dl></section>
+     <header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>{loadError && <p className="editor-error" role="alert">{loadError}</p>}
+     <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title}</h2><span>Versión {currentVersionLabel}</span></div><dl><div><dt>Código</dt><dd>{loadedDocument.code || document.code}</dd></div><div><dt>Área</dt><dd>{area}</dd></div><div><dt>Tipo</dt><dd>{loadedDocument.type?.name || document.type}</dd></div><div><dt>Versión</dt><dd>{currentVersionLabel}</dd></div><div><dt>Estado</dt><dd><b>{loadedDocument.status?.name || document.status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}<br />por {loadedDocument.responsible?.name || 'el editor'}</dd></div><div><dt>Revisor asignado</dt><dd>—</dd></div></dl></section>
     <div className="editor-edit-layout"><main className="editor-edit-main"><nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map((item) => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'content' : item === 'Anexos' ? 'clip' : 'comment'} size={17} /> {item}</button>)}</nav>{tab === 'Información general' ? <section className="editor-edit-form"><div className="editor-edit-fields"><div><label>Título del documento <em>*</em><input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} /><small>{description.length}/500</small></label><label>Área responsable <em>*</em><select value={area} onChange={(event) => setArea(event.target.value)}><option>Dirección de Calidad</option><option>Dirección General</option><option>Administración</option><option>Auditoría</option></select></label><label>Responsable del documento <em>*</em><span className="editor-responsible"><i>CM</i><b>Carlos Méndez<small>Editor</small></b><EditIcon name="chevron" size={15} /></span></label></div><div><label>Código <em>*</em><input value={document.code} readOnly /></label><label>Clasificación<select value={classification} onChange={(event) => setClassification(event.target.value)}><option>Interna</option><option>Pública</option><option>Confidencial</option></select></label><label>Tipo de documento<select value={document.type} readOnly><option>{document.type}</option></select></label><label>Palabras clave<input value={keywords} onChange={(event) => setKeywords(event.target.value)} /></label><label>Alcance<textarea value={scope} onChange={(event) => setScope(event.target.value)} maxLength={300} /><small>{scope.length}/300</small></label></div></div><label className="editor-content-label">Resumen / contenido principal <em>*</em><div className="editor-rich-toolbar">{['bold', 'italic', 'underline', 'list'].map((item) => <button type="button" key={item} onClick={() => onAction(`Formato ${item} seleccionado.`)}><EditIcon name={item} size={16} /></button>)}<span /><button type="button" onClick={() => setContent('')}><EditIcon name="undo" size={16} /></button></div><textarea className="editor-content-area" value={content} onChange={(event) => setContent(event.target.value)} /><small className="editor-word-count">{content.trim().split(/\s+/).filter(Boolean).length} palabras</small></label></section> : <section className="editor-edit-placeholder"><span>{tab === 'Contenido' ? 'C' : tab === 'Anexos' ? 'A' : 'O'}</span><h2>{tab}</h2><p>Esta sección queda lista para completar el contenido del documento desde el frontend.</p><button type="button" onClick={() => setTab('Información general')}>Volver a información general</button></section>}</main>
       <aside className="editor-edit-sidebar"><section className="editor-edit-side-card"><h2>Estado del documento</h2><dl><div><dt>Estado actual</dt><dd><b>En revisión</b></dd></div><div><dt>Etapa</dt><dd>Revisión interna</dd></div><div><dt>Desde</dt><dd>24/05/2024 09:15</dd></div><div><dt>Próximo paso</dt><dd>Revisión de Calidad</dd></div></dl><button type="button" onClick={() => onAction('El flujo del documento está disponible.')}> <EditIcon name="flow" size={16} /> Ver flujo del documento</button></section><section className="editor-edit-side-card"><header><h2>Checklist de revisión interna</h2><span>{completed} de {checklist.length} completados</span></header><div className="editor-check-progress"><i style={{ width: `${(completed / checklist.length) * 100}%` }} /></div><ul>{checklist.map((item, index) => <li key={item[0]}><button className={item[1] ? 'is-done' : 'is-pending'} type="button" aria-label={`${item[1] ? 'Marcar pendiente' : 'Completar'} ${item[0]}`} onClick={() => updateChecklist(index)}><EditIcon name="check" size={13} /></button><span>{item[0]}</span><b>{item[1] ? 'Cumple' : 'Pendiente'}</b></li>)}</ul></section><section className="editor-edit-side-card editor-edit-comments"><h2>Comentarios del revisor</h2>{comments.map((item, index) => <article key={`${item.author}-${index}`}><i>{item.initials}</i><div><strong>{item.author}</strong><time>{item.date}</time><p>{item.text}</p>{index === 0 && <button type="button" onClick={() => onAction('Respuesta lista para enviar.')}>Responder</button>}</div></article>)}<form onSubmit={addComment}><input aria-label="Escribe un comentario" value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Escribe un comentario..." /><button type="submit" aria-label="Enviar comentario"><EditIcon name="paper" size={17} /></button></form></section></aside></div>
     <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Borrador guardado<small>Hoy, 10:32</small></b></span><div><button type="button" onClick={() => onAction('La vista previa está disponible.')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><button type="button" onClick={() => onAction('Se inició la carga de una nueva versión.')}><EditIcon name="upload" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={() => onAction('El documento fue enviado a revisión.')}><EditIcon name="send" size={17} /> Enviar a revisión <EditIcon name="chevron" size={15} /></button></div></footer>

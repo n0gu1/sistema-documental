@@ -156,13 +156,14 @@ function Login() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [readingOpen, setReadingOpen] = useState(false)
   const [favoritesOpen, setFavoritesOpen] = useState(false)
+  const [readerDocumentId, setReaderDocumentId] = useState(null)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
   useEffect(() => {
     const openLibrary = () => setLibraryOpen(true)
-    const openDocument = () => setDocumentOpen(true)
+    const openDocument = (event) => { setReaderDocumentId(event.detail?.documentId || null); setDocumentOpen(true) }
     const openHistory = () => setHistoryOpen(true)
     const openReading = () => setReadingOpen(true)
     const openFavorites = () => setFavoritesOpen(true)
@@ -178,11 +179,8 @@ function Login() {
 
   useEffect(() => {
     let active = true
-    fetch('/api/auth/me/', { credentials: 'include' })
-      .then(async (response) => {
-        if (!response.ok) return null
-        return response.json()
-      })
+    apiRequest('/api/auth/me/')
+      .catch(() => null)
       .then((data) => {
         if (active && data?.user) setUser(data.user)
       })
@@ -244,6 +242,7 @@ function Login() {
       setHistoryOpen(false)
       setReadingOpen(false)
       setFavoritesOpen(false)
+      setReaderDocumentId(null)
       setIdentity('')
     } catch (requestError) {
       setError(requestError.message)
@@ -270,7 +269,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} onClose={() => setDocumentOpen(false)} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} onClose={() => setHistoryOpen(false)} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => setReadingOpen(false)} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => setFavoritesOpen(false)} /></div>}</>
+    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => setLibraryOpen(false)} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => setDocumentOpen(false)} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => setHistoryOpen(false)} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => setReadingOpen(false)} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => setFavoritesOpen(false)} /></div>}</>
   }
 
   return (
