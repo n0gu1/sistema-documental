@@ -6,7 +6,7 @@ Leyenda:
 [x] Completo
 [~] Parcial
 
-VERIFICACION REALIZADA EL 2026-08-26
+VERIFICACION REALIZADA EL 2026-08-27
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
 - `python manage.py test`: 31 pruebas exitosas.
@@ -22,6 +22,8 @@ VERIFICACION REALIZADA EL 2026-08-26
 - Render limpieza posterior: los tres documentos temporales del flujo fueron eliminados y la consulta de verificacion devolvio cero registros.
 - Render funciones del lector: deploy del commit `f26e6f6` en estado `live`, migracion 0007 aplicada, biblioteca, historial y favoritos autenticados HTTP 200; la consulta de verificacion devolvio cero registros posteriores a la limpieza.
 - Render proteccion del lector: las rutas de biblioteca, historial y favoritos requieren autenticacion; los endpoints documentales existentes limitan al lector a versiones PUBLICADO autorizadas y bloquean la exportacion administrativa.
+- Render notificaciones: deploy del commit `4894976` en estado `live`, migracion 0008 aplicada, bandeja autenticada HTTP 200 con `count=0` y `unread_count=0`, marcado global de lectura HTTP 200 y rutas sin autenticacion HTTP 401.
+- Pruebas de notificaciones: persistencia y envio SMTP cubiertos por prueba unitaria; el envio por correo queda desactivado por defecto en Render hasta configurar credenciales SMTP mediante variables privadas.
 - Las migraciones se ejecutaron correctamente durante el deploy de Render.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
 
@@ -102,11 +104,11 @@ ORDEN RECOMENDADO
 [x] Registrar consultas y descargas.
 
 8. NOTIFICACIONES
-[ ] Crear notificaciones internas.
-[ ] Notificar asignaciones de revision.
-[ ] Notificar comentarios y observaciones.
-[ ] Notificar aprobaciones, devoluciones y rechazos.
-[ ] Configurar envio de notificaciones por correo.
+[x] Crear notificaciones internas.
+[x] Notificar asignaciones de revision.
+[x] Notificar comentarios y observaciones.
+[x] Notificar aprobaciones, devoluciones y rechazos.
+[x] Configurar envio de notificaciones por correo. SMTP configurable por variables de entorno y desactivado por defecto en produccion hasta registrar credenciales.
 
 9. AUDITORIA Y TRAZABILIDAD
 [~] Registrar eventos de autenticacion.
