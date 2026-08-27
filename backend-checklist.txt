@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-27
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 37 pruebas exitosas.
+- `python manage.py test`: 43 pruebas exitosas.
 - Render: deploy del commit `a0ef8c7` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -31,6 +31,11 @@ VERIFICACION REALIZADA EL 2026-08-27
 - Pruebas locales de administracion: `python manage.py check` correcto y 37 pruebas exitosas; las acciones mutantes de administracion no se ejecutaron sobre datos de produccion.
 - Las migraciones se ejecutaron correctamente durante el deploy de Render.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
+- Render respaldos: deploy del commit `b59ea44` en estado `live`; migracion 0012 aplicada y configuracion de respaldos autenticada HTTP 200.
+- Render respaldos manuales: creacion HTTP 201, archivo `.sdbk` cifrado con AES-256-GCM en S3/B2, tamano 14 KB, 276 registros incluidos y descarga HTTP 200.
+- Render recuperacion: verificacion de integridad HTTP 200, restauracion segura de archivos faltantes HTTP 200 y prueba del plan de recuperacion HTTP 200; no quedaron programaciones temporales activas.
+- Playwright produccion: pantalla real de respaldos, politica automatica, historial, puntos de restauracion, restauracion y alertas visibles; consola sin errores.
+- Render: comando `generar_respaldos_programados` y servicio cron diario declarados en `render.yaml`; falta sincronizar el recurso cron Blueprint en la cuenta para ejecutar automaticamente.
 
 ORDEN RECOMENDADO
 
@@ -145,16 +150,16 @@ ORDEN RECOMENDADO
 [x] Programar reportes automaticos.
 
 12. RESPALDOS Y RECUPERACION
-[ ] Configurar respaldos automaticos.
-[ ] Permitir respaldos manuales.
-[ ] Respaldar base de datos y archivos documentales.
-[ ] Configurar destinos de respaldo.
-[ ] Configurar retencion de respaldos.
-[ ] Cifrar respaldos.
-[ ] Crear puntos de restauracion.
-[ ] Implementar restauracion.
-[ ] Probar el plan de recuperacion.
-[ ] Configurar alertas de respaldos fallidos.
+[~] Configurar respaldos automaticos. Politica activa y cron diario declarado en `render.yaml`; falta sincronizar el recurso cron Blueprint en Render.
+[x] Permitir respaldos manuales.
+[x] Respaldar base de datos y archivos documentales.
+[x] Configurar destinos de respaldo.
+[x] Configurar retencion de respaldos.
+[x] Cifrar respaldos.
+[x] Crear puntos de restauracion.
+[x] Implementar restauracion.
+[x] Probar el plan de recuperacion.
+[x] Configurar alertas de respaldos fallidos.
 
 13. CONFIGURACION E INTEGRACIONES
 [ ] Guardar configuracion de la organizacion.
