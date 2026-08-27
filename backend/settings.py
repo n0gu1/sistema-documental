@@ -210,6 +210,8 @@ ALLOWED_UPLOAD_EXTENSIONS = env_list(
 MEDIA_URL = '/media/'
 MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', BASE_DIR / 'media'))
 storage_backend = os.environ.get('STORAGE_BACKEND', 'filesystem').strip().lower()
+STORAGE_BACKEND = storage_backend
+BACKUP_ENCRYPTION_KEY = os.environ.get('BACKUP_ENCRYPTION_KEY', '').strip()
 if storage_backend == 's3':
     required_storage_variables = ['AWS_STORAGE_BUCKET_NAME', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY']
     missing_storage_variables = [name for name in required_storage_variables if not os.environ.get(name)]

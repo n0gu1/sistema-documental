@@ -716,6 +716,51 @@ class ProgramacionReporte(models.Model):
         ]
 
 
+class Respaldo(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion_id = models.UUIDField()
+    creado_por_id = models.UUIDField(null=True, blank=True)
+    tipo = models.CharField(max_length=20)
+    destino = models.CharField(max_length=20)
+    nombre = models.CharField(max_length=200)
+    clave_almacenamiento = models.TextField(null=True, blank=True)
+    tamano_bytes = models.BigIntegerField(default=0)
+    sha256 = models.CharField(max_length=64, blank=True)
+    archivos = models.PositiveIntegerField(default=0)
+    registros_db = models.PositiveIntegerField(default=0)
+    cifrado = models.BooleanField(default=True)
+    estado = models.CharField(max_length=20)
+    error = models.TextField(null=True, blank=True)
+    iniciado_en = models.DateTimeField()
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    retencion_hasta = models.DateTimeField(null=True, blank=True)
+    restaurado_en = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."respaldos_v2"'
+        ordering = ['-iniciado_en']
+
+
+class ConfiguracionRespaldo(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organizacion_id = models.UUIDField(unique=True)
+    activa = models.BooleanField(default=True)
+    frecuencia = models.CharField(max_length=20, default='daily')
+    retencion_dias = models.PositiveIntegerField(default=30)
+    destino = models.CharField(max_length=20, default='s3')
+    incluir_archivos = models.BooleanField(default=True)
+    cifrar = models.BooleanField(default=True)
+    proxima_ejecucion_en = models.DateTimeField(null=True, blank=True)
+    ultima_ejecucion_en = models.DateTimeField(null=True, blank=True)
+    ultima_prueba_en = models.DateTimeField(null=True, blank=True)
+    actualizada_en = models.DateTimeField()
+
+    class Meta:
+        managed = False
+        db_table = '"gestion_documental"."configuraciones_respaldo_v2"'
+
+
 class ComentarioRevision(models.Model):
     TIPOS = (
         ('OBSERVACION', 'Observacion'),

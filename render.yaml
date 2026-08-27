@@ -36,6 +36,8 @@ services:
         value: https://s3.us-east-005.backblazeb2.com
       - key: AWS_LOCATION
         value: documentos
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
       - key: NOTIFICATIONS_EMAIL_ENABLED
         value: "false"
       - key: EMAIL_HOST
@@ -52,6 +54,59 @@ services:
         sync: false
       - key: DEFAULT_FROM_EMAIL
         sync: false
+    plan: free
+    region: oregon
+
+  - type: cron
+    name: sistema-documental-respaldos
+    runtime: python
+    schedule: "0 2 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py generar_respaldos_programados
+    envVars:
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: sistema-documental
+          envVarKey: SECRET_KEY
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: sistema-documental.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sistema-documental-db
+          property: connectionString
+      - key: STORAGE_BACKEND
+        value: s3
+      - key: AWS_STORAGE_BUCKET_NAME
+        fromService:
+          type: web
+          name: sistema-documental
+          envVarKey: AWS_STORAGE_BUCKET_NAME
+      - key: AWS_ACCESS_KEY_ID
+        fromService:
+          type: web
+          name: sistema-documental
+          envVarKey: AWS_ACCESS_KEY_ID
+      - key: AWS_SECRET_ACCESS_KEY
+        fromService:
+          type: web
+          name: sistema-documental
+          envVarKey: AWS_SECRET_ACCESS_KEY
+      - key: AWS_S3_REGION_NAME
+        value: us-east-005
+      - key: AWS_S3_ENDPOINT_URL
+        value: https://s3.us-east-005.backblazeb2.com
+      - key: AWS_LOCATION
+        value: documentos
+      - key: BACKUP_ENCRYPTION_KEY
+        fromService:
+          type: web
+          name: sistema-documental
+          envVarKey: BACKUP_ENCRYPTION_KEY
     plan: free
     region: oregon
 

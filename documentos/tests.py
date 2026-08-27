@@ -14,6 +14,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .audit_views import audit_query_parts
 from .auth_utils import record_auth_event, user_has_permission
+from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .management_views import serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import compare_versions
@@ -161,6 +162,24 @@ class ReportFormatTests(SimpleTestCase):
         data = {'scope': 'executive', 'summary': summarize_report(self.rows, 'executive'), 'rows': self.rows}
 
         self.assertTrue(build_pdf(data).startswith(b'%PDF-'))
+
+
+class BackupSecurityTests(SimpleTestCase):
+    @override_settings(SECRET_KEY='backup-test-secret')
+    def test_backup_archive_is_encrypted_and_round_trips(self):
+        payload = encrypt_archive(b'datos documentales')
+
+        self.assertTrue(payload.startswith(b'SDBK1'))
+        self.assertNotIn(b'datos documentales', payload)
+        self.assertEqual(decrypt_archive(payload), b'datos documentales')
+
+    @override_settings(SECRET_KEY='backup-test-secret')
+    def test_backup_archive_rejects_tampering(self):
+        payload = bytearray(encrypt_archive(b'datos documentales'))
+        payload[-1] ^= 1
+
+        with self.assertRaises(BackupExecutionError):
+            decrypt_archive(bytes(payload))
 
 
 class VersioningTests(SimpleTestCase):
