@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { apiRequest, formatDate } from './documentApi'
+import DocumentPermissionsPanel from './DocumentPermissionsPanel'
 import './EditorDocumentEditView.css'
 
 function EditIcon({ name, size = 18 }) {
@@ -7,7 +8,7 @@ function EditIcon({ name, size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function EditorDocumentEditView({ document, onBack, onAction }) {
+function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   const [loadedDocument, setLoadedDocument] = useState(document || {})
   const [loadError, setLoadError] = useState('')
   const [saveError, setSaveError] = useState('')
@@ -58,6 +59,11 @@ function EditorDocumentEditView({ document, onBack, onAction }) {
       <aside className="editor-edit-sidebar"><section className="editor-edit-side-card"><h2>Estado del documento</h2><dl><div><dt>Estado actual</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}</dd></div><div><dt>Responsable</dt><dd>{responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl><button type="button" onClick={() => onAction('El flujo del documento no está disponible en el backend actual.')}><EditIcon name="flow" size={16} /> Ver flujo del documento</button></section><section className="editor-edit-side-card"><header><h2>Checklist de revisión interna</h2><span>Sin datos registrados</span></header><div className="editor-check-progress"><i style={{ width: '0%' }} /></div><p className="editor-empty">No hay checklist asociado a este documento.</p></section><section className="editor-edit-side-card editor-edit-comments"><h2>Comentarios del revisor</h2><p className="editor-empty">No hay comentarios registrados.</p></section></aside></div>
     <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><button type="button" onClick={() => onAction('La carga de una nueva versión requiere seleccionar un archivo.')}><EditIcon name="document" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={() => onAction('El envío a revisión requiere el flujo documental del backend.')}><EditIcon name="flow" size={17} /> Enviar a revisión</button></div></footer>
   </div>
+}
+
+function EditorDocumentEditView(props) {
+  if (!props.document?.id) return <LegacyEditorDocumentEditView {...props} />
+  return <><LegacyEditorDocumentEditView {...props} /><section className="editor-permissions-shell"><DocumentPermissionsPanel documentId={props.document.id} onAction={props.onAction} /></section></>
 }
 
 export default EditorDocumentEditView

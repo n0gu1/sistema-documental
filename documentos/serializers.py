@@ -123,6 +123,21 @@ class PermissionAssignmentSerializer(serializers.Serializer):
     )
 
 
+class DocumentRolePermissionSerializer(serializers.Serializer):
+    role_id = serializers.UUIDField()
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=True,
+    )
+
+
+class DocumentPermissionsSerializer(serializers.Serializer):
+    assignments = serializers.ListField(
+        child=DocumentRolePermissionSerializer(),
+        allow_empty=True,
+    )
+
+
 class PermissionCreateSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=80, trim_whitespace=True)
     name = serializers.CharField(max_length=120, trim_whitespace=True)

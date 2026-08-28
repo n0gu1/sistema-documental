@@ -5,7 +5,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from django.core.files.storage import default_storage
-from django.db import transaction
+from django.db import connection, transaction
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -25,7 +25,9 @@ from .models import (
     EstadoVersionCatalogo,
     HistorialEstadoVersion,
     MetadatoDocumento,
+    PermisoDocumental,
     ProveedorAlmacenamiento,
+    RolDocumental,
     TipoDocumentoCatalogo,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
@@ -37,6 +39,7 @@ from .reader_access import (
     published_document_queryset,
 )
 from .security_utils import sanitize_text
+from .serializers import DocumentPermissionsSerializer
 
 
 READ_PERMISSION = 'documentos.consultar'
@@ -233,6 +236,86 @@ def get_document_or_404(request, document_id, include_archived=False):
     ):
         raise Http404
     return document
+
+
+def document_permissions_payload(document):
+    roles = list(RolDocumental.objects.filter(
+        organizacion_id=document.organizacion_id,
+        activo=True,
+    ).values('id', 'codigo', 'nombre').order_by('codigo'))
+    permissions = list(PermisoDocumental.objects.filter(activo=True).values(
+        'id', 'codigo', 'nombre', 'modulo', 'descripcion',
+    ).order_by('modulo', 'codigo'))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''
+            SELECT drp.rol_id, drp.permiso_id
+            FROM gestion_documental.documentos_roles_permisos drp
+            JOIN gestion_documental.roles r ON r.id = drp.rol_id
+            JOIN gestion_documental.permisos p ON p.id = drp.permiso_id
+            WHERE drp.documento_id = %s
+              AND r.organizacion_id = %s
+              AND r.activo
+              AND p.activo
+            ORDER BY drp.rol_id, drp.permiso_id
+            ''',
+            [document.id, document.organizacion_id],
+        )
+        assignment_rows = cursor.fetchall()
+    assignments = {}
+    for role_id, permission_id in assignment_rows:
+        assignments.setdefault(str(role_id), []).append(str(permission_id))
+    return {
+        'document': {
+            'id': str(document.id),
+            'code': document.codigo,
+            'title': document.nombre,
+        },
+        'roles': [
+            {'id': str(role['id']), 'code': role['codigo'], 'name': role['nombre']}
+            for role in roles
+        ],
+        'permissions': [
+            {
+                'id': str(permission['id']),
+                'code': permission['codigo'],
+                'name': permission['nombre'],
+                'module': permission['modulo'],
+                'description': permission['descripcion'],
+            }
+            for permission in permissions
+        ],
+        'assignments': [
+            {'role_id': role_id, 'permission_ids': permission_ids}
+            for role_id, permission_ids in assignments.items()
+        ],
+    }
+
+
+def validate_document_permission_assignments(assignments, organization_id):
+    role_ids = [item['role_id'] for item in assignments]
+    if len(role_ids) != len(set(role_ids)):
+        raise ValidationError({'assignments': 'No puede repetir un rol en las asignaciones.'})
+    if any(len(item['permission_ids']) != len(set(item['permission_ids'])) for item in assignments):
+        raise ValidationError({'assignments': 'No puede repetir un permiso dentro de un rol.'})
+    permission_ids = {
+        permission_id
+        for item in assignments
+        for permission_id in item['permission_ids']
+    }
+    roles = set(RolDocumental.objects.filter(
+        organizacion_id=organization_id,
+        activo=True,
+        id__in=role_ids,
+    ).values_list('id', flat=True))
+    if roles != set(role_ids):
+        raise ValidationError({'assignments': 'Todos los roles deben estar activos y pertenecer a la organizacion.'})
+    permissions = set(PermisoDocumental.objects.filter(
+        activo=True,
+        id__in=permission_ids,
+    ).values_list('id', flat=True))
+    if permissions != permission_ids:
+        raise ValidationError({'assignments': 'Todos los permisos deben estar activos y pertenecer al catalogo.'})
 
 
 def get_read_document_or_404(request, document_id):
@@ -490,6 +573,55 @@ class DocumentDetailView(APIView):
                 default_storage.delete(document_file.clave_almacenamiento)
             document.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DocumentPermissionsView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get_document(self, request, document_id):
+        document = document_queryset(request.user.organizacion_id).filter(pk=document_id).first()
+        if not document:
+            raise Http404
+        return document
+
+    def get(self, request, document_id):
+        require_permission(request, WRITE_PERMISSION)
+        return Response(document_permissions_payload(self.get_document(request, document_id)))
+
+    def put(self, request, document_id):
+        require_permission(request, WRITE_PERMISSION)
+        document = self.get_document(request, document_id)
+        serializer = DocumentPermissionsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        assignments = serializer.validated_data['assignments']
+        validate_document_permission_assignments(assignments, document.organizacion_id)
+        rows = [
+            (document.id, item['role_id'], permission_id, request.user.id)
+            for item in assignments
+            for permission_id in item['permission_ids']
+        ]
+
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'DELETE FROM gestion_documental.documentos_roles_permisos WHERE documento_id = %s',
+                    [document.id],
+                )
+                cursor.executemany(
+                    '''
+                    INSERT INTO gestion_documental.documentos_roles_permisos (
+                        documento_id, rol_id, permiso_id, asignado_por_id, asignado_en
+                    ) VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+                    ''',
+                    rows,
+                )
+        record_document_event(
+            request,
+            document,
+            'DOCUMENTO_MODIFICADO',
+            details={'operation': 'document_permissions_updated', 'assignment_count': len(rows)},
+        )
+        return Response(document_permissions_payload(document))
 
 
 class DocumentArchiveView(APIView):

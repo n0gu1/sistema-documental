@@ -30,6 +30,7 @@ VERIFICACION REALIZADA EL 2026-08-27
 - Render administracion autenticada: listado y detalle de usuarios HTTP 200, roles de usuario HTTP 200, sesiones HTTP 200, catalogo de permisos HTTP 200 y listado de roles HTTP 200; la interfaz muestra 4 usuarios, 4 roles y 21 permisos reales.
 - Pruebas locales de administracion: `python manage.py check` correcto y 37 pruebas exitosas; las acciones mutantes de administracion no se ejecutaron sobre datos de produccion.
 - Las migraciones se ejecutaron correctamente durante el deploy de Render.
+- Implementación local de permisos explícitos por documento: endpoint GET/PUT transaccional, validación de roles y permisos activos, interfaz del Editor y pruebas unitarias.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
 - Render respaldos: deploy del commit `b59ea44` en estado `live`; migracion 0012 aplicada y configuracion de respaldos autenticada HTTP 200.
 - Render respaldos manuales: creacion HTTP 201, archivo `.sdbk` cifrado con AES-256-GCM en S3/B2, tamano 14 KB, 276 registros incluidos y descarga HTTP 200.
@@ -66,7 +67,7 @@ ORDEN RECOMENDADO
 [x] Asignar multiples roles a usuarios.
 [x] Aplicar permisos por rol, area y documento. El listado general, las exportaciones y los reportes respetan la ACL de area/documento, y el rol Administrador prevalece ante una ACL explicita.
 [x] Validar que los roles asignados durante la creacion de un usuario pertenezcan a la misma organizacion y esten activos.
-[ ] Crear endpoints e interfaz para administrar permisos explicitos por documento.
+[x] Crear endpoints e interfaz para administrar permisos explicitos por documento. El endpoint reemplaza la ACL del documento dentro de una transaccion, valida roles activos de la organizacion y permisos activos, y la interfaz permite consultar y guardar asignaciones por rol.
 [ ] Validar que el area asignada a un usuario pertenezca a su organizacion.
 
 4. DOCUMENTOS Y ARCHIVOS

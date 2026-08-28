@@ -28,7 +28,7 @@ from .management_views import (
     serialize_dashboard_document,
 )
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
-from .document_views import DocumentFileDownloadView, compare_versions, validate_metadata
+from .document_views import DocumentFileDownloadView, DocumentPermissionsView, compare_versions, validate_metadata
 from .file_validation import validate_uploaded_file
 from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
@@ -37,7 +37,7 @@ from .reader_views import ReaderAccessSerializer
 from .reports_views import build_pdf, build_xlsx, summarize_report
 from .notifications import create_notification
 from .security_utils import sanitize_text
-from .serializers import ChangePasswordSerializer, LoginSerializer, UserCreateSerializer
+from .serializers import ChangePasswordSerializer, DocumentPermissionsSerializer, LoginSerializer, UserCreateSerializer
 from .workflow_views import (
     ChecklistSerializer,
     ReviewCommentSerializer,
@@ -1117,6 +1117,68 @@ class AuthApiTests(SimpleTestCase):
         check_password.assert_called_once_with('Actual123!', 'old-encoded-password')
         make_password.assert_called_once_with('StrongDifferent987!')
         record_auth_event.assert_called_once()
+
+
+class DocumentPermissionsTests(SimpleTestCase):
+    def test_document_permissions_serializer_accepts_role_assignments(self):
+        role_id = uuid4()
+        permission_id = uuid4()
+        serializer = DocumentPermissionsSerializer(data={
+            'assignments': [{'role_id': str(role_id), 'permission_ids': [str(permission_id)]}],
+        })
+
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data['assignments'][0]['role_id'], role_id)
+
+    def test_document_permissions_serializer_rejects_invalid_permission_id(self):
+        serializer = DocumentPermissionsSerializer(data={
+            'assignments': [{'role_id': str(uuid4()), 'permission_ids': ['not-a-uuid']}],
+        })
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('assignments', serializer.errors)
+
+    @patch('documentos.document_views.document_permissions_payload', return_value={'assignments': []})
+    @patch('documentos.document_views.record_document_event')
+    @patch('documentos.document_views.validate_document_permission_assignments')
+    @patch('documentos.document_views.require_permission')
+    @patch('documentos.document_views.connection')
+    @patch('documentos.document_views.transaction.atomic', return_value=nullcontext())
+    def test_put_replaces_document_permissions_in_one_transaction(
+        self,
+        atomic_mock,
+        connection_mock,
+        require_permission_mock,
+        validate_mock,
+        record_event_mock,
+        payload_mock,
+    ):
+        document_id = uuid4()
+        user_id = uuid4()
+        role_id = uuid4()
+        permission_id = uuid4()
+        document = SimpleNamespace(id=document_id, organizacion_id=uuid4())
+        request = SimpleNamespace(
+            data={'assignments': [{'role_id': str(role_id), 'permission_ids': [str(permission_id)]}]},
+            user=SimpleNamespace(id=user_id),
+        )
+        cursor = connection_mock.cursor.return_value.__enter__.return_value
+
+        with patch.object(DocumentPermissionsView, 'get_document', return_value=document):
+            response = DocumentPermissionsView().put(request, document_id)
+
+        self.assertEqual(response.status_code, 200)
+        require_permission_mock.assert_called_once_with(request, 'documentos.gestionar')
+        validate_mock.assert_called_once()
+        cursor.execute.assert_called_once_with(
+            'DELETE FROM gestion_documental.documentos_roles_permisos WHERE documento_id = %s',
+            [document_id],
+        )
+        cursor.executemany.assert_called_once()
+        self.assertEqual(cursor.executemany.call_args.args[1], [(document_id, role_id, permission_id, user_id)])
+        atomic_mock.assert_called_once()
+        record_event_mock.assert_called_once()
+        payload_mock.assert_called_once_with(document)
 
 
 class ReaderAccessTests(SimpleTestCase):
