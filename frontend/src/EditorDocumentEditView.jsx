@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiRequest, formatDate } from './documentApi'
 import DocumentPermissionsPanel from './DocumentPermissionsPanel'
 import './EditorDocumentEditView.css'
@@ -29,6 +29,12 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   const [reviewError, setReviewError] = useState('')
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewSubmitting, setReviewSubmitting] = useState(false)
+  const versionFileInput = useRef(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [uploadFile, setUploadFile] = useState(null)
+  const [uploadForm, setUploadForm] = useState({ comment: '', versionType: 'minor' })
+  const [uploadError, setUploadError] = useState('')
+  const [uploadSubmitting, setUploadSubmitting] = useState(false)
 
   useEffect(() => {
     if (!document?.id) return undefined
@@ -98,6 +104,35 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
     } catch (requestError) { setReviewError(requestError.message) } finally { setReviewSubmitting(false) }
   }
 
+  function selectVersionFile(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setUploadFile(file)
+    setUploadError('')
+    setUploadOpen(true)
+  }
+
+  async function uploadNewVersion(event) {
+    event.preventDefault()
+    if (!uploadFile || !document?.id) return setUploadError('Seleccione un archivo para cargar.')
+    setUploadError('')
+    setUploadSubmitting(true)
+    try {
+      const body = new FormData()
+      body.append('file', uploadFile)
+      body.append('comment', uploadForm.comment)
+      body.append('version_type', uploadForm.versionType)
+      await apiRequest(`/api/documents/${document.id}/versions/`, { method: 'POST', body })
+      const refreshed = await apiRequest(`/api/documents/${document.id}/`)
+      setLoadedDocument(refreshed.document || loadedDocument)
+      setUploadOpen(false)
+      setUploadFile(null)
+      setUploadForm({ comment: '', versionType: 'minor' })
+      onAction(`La nueva versión ${uploadForm.versionType === 'major' ? 'mayor' : 'menor'} se cargó correctamente.`)
+    } catch (requestError) { setUploadError(requestError.message) } finally { setUploadSubmitting(false) }
+  }
+
   if (!document?.id) return <div className="editor-edit-view"><p className="editor-empty">Selecciona un documento para editarlo.</p></div>
   const currentVersion = loadedDocument.files?.find((file) => file.is_current) || loadedDocument.version
   const currentVersionLabel = typeof currentVersion === 'string' ? currentVersion : currentVersion?.version || '—'
@@ -108,7 +143,8 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
     <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title || 'Sin título'}</h2><span>Versión {currentVersionLabel}</span></div><dl><div><dt>Código</dt><dd>{loadedDocument.code || '—'}</dd></div><div><dt>Área</dt><dd>{loadedDocument.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{loadedDocument.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{currentVersionLabel}</dd></div><div><dt>Estado</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}<br />por {responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl></section>
     <div className="editor-edit-layout"><main className="editor-edit-main"><nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map((item) => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'document' : item === 'Anexos' ? 'document' : 'flow'} size={17} /> {item}</button>)}</nav>{tab === 'Información general' ? <section className="editor-edit-form"><div className="editor-edit-fields"><div><label>Título del documento <em>*</em><input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} /><small>{description.length}/500</small></label><label>Área responsable<span className="editor-responsible"><i>{(loadedDocument.area?.name || '—').slice(0, 2).toUpperCase()}</i><b>{loadedDocument.area?.name || '—'}</b></span></label><label>Responsable del documento<span className="editor-responsible"><i>{responsible.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'}</i><b>{responsible}</b></span></label></div><div><label>Código <input value={loadedDocument.code || ''} readOnly /></label><label>Clasificación<input value={classification} onChange={(event) => setClassification(event.target.value)} placeholder="Sin clasificación registrada" /></label><label>Tipo de documento<input value={loadedDocument.type?.name || ''} readOnly /></label><label>Palabras clave<input value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Sin palabras clave registradas" /></label><label>Alcance<textarea value={scope} onChange={(event) => setScope(event.target.value)} maxLength={300} placeholder="Sin alcance registrado" /><small>{scope.length}/300</small></label></div></div></section> : <section className="editor-edit-form"><p className="editor-empty">Esta sección no tiene datos disponibles en el backend.</p></section>}</main>
       <aside className="editor-edit-sidebar"><section className="editor-edit-side-card"><h2>Estado del documento</h2><dl><div><dt>Estado actual</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}</dd></div><div><dt>Responsable</dt><dd>{responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl><button type="button" onClick={() => onAction('El flujo del documento no está disponible en el backend actual.')}><EditIcon name="flow" size={16} /> Ver flujo del documento</button></section><section className="editor-edit-side-card"><header><h2>Checklist de revisión interna</h2><span>Sin datos registrados</span></header><div className="editor-check-progress"><i style={{ width: '0%' }} /></div><p className="editor-empty">No hay checklist asociado a este documento.</p></section><section className="editor-edit-side-card editor-edit-comments"><h2>Comentarios del revisor</h2><p className="editor-empty">No hay comentarios registrados.</p></section></aside></div>
-    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><button type="button" onClick={() => onAction('La carga de una nueva versión requiere seleccionar un archivo.')}><EditIcon name="document" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={openReviewForm} disabled={reviewSubmitting}><EditIcon name="flow" size={17} /> Enviar a revisión</button></div></footer>
+    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><input ref={versionFileInput} className="editor-version-file-input" type="file" onChange={selectVersionFile} /><button type="button" onClick={() => versionFileInput.current?.click()} disabled={uploadSubmitting}><EditIcon name="document" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={openReviewForm} disabled={reviewSubmitting}><EditIcon name="flow" size={17} /> Enviar a revisión</button></div></footer>
+    {uploadOpen && <section className="editor-review-form editor-version-upload-form" aria-labelledby="editor-version-upload-title"><header><div><h2 id="editor-version-upload-title">Cargar nueva versión</h2><p>{uploadFile?.name || 'Seleccione un archivo documental.'}</p></div><button type="button" onClick={() => setUploadOpen(false)} aria-label="Cerrar formulario">×</button></header><form onSubmit={uploadNewVersion}><label>Comentario de cambio<textarea value={uploadForm.comment} onChange={(event) => setUploadForm((current) => ({ ...current, comment: event.target.value }))} maxLength={1000} placeholder="Describa los cambios de esta versión." disabled={uploadSubmitting} /></label><label>Tipo de versión<select value={uploadForm.versionType} onChange={(event) => setUploadForm((current) => ({ ...current, versionType: event.target.value }))} disabled={uploadSubmitting}><option value="minor">Versión menor</option><option value="major">Versión mayor</option></select></label>{uploadError && <p className="editor-error" role="alert">{uploadError}</p>}<footer><button type="button" onClick={() => setUploadOpen(false)} disabled={uploadSubmitting}>Cancelar</button><button className="is-primary" type="submit" disabled={uploadSubmitting}>{uploadSubmitting ? 'Cargando...' : 'Cargar versión'}</button></footer></form></section>}
     {reviewOpen && <section className="editor-review-form" aria-labelledby="editor-review-form-title"><header><div><h2 id="editor-review-form-title">Enviar a revisión</h2><p>Asigne revisores y deje las instrucciones para esta versión.</p></div><button type="button" onClick={() => setReviewOpen(false)} aria-label="Cerrar formulario">×</button></header><form onSubmit={submitReview}><label>Revisores<select multiple value={reviewForm.reviewerIds} onChange={(event) => setReviewForm((current) => ({ ...current, reviewerIds: Array.from(event.target.selectedOptions, (option) => option.value) }))} disabled={reviewLoading || reviewSubmitting}>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.name} · {reviewer.username}</option>)}</select><small>{reviewLoading ? 'Cargando revisores...' : 'Puede seleccionar uno o varios revisores.'}</small></label><div className="editor-review-form-grid"><label>Fecha límite<input type="datetime-local" value={reviewForm.deadline} onChange={(event) => setReviewForm((current) => ({ ...current, deadline: event.target.value }))} disabled={reviewSubmitting} /></label><label>Prioridad<select value={reviewForm.priority} onChange={(event) => setReviewForm((current) => ({ ...current, priority: event.target.value }))} disabled={reviewSubmitting}><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option></select></label></div><label>Instrucciones<textarea value={reviewForm.comment} onChange={(event) => setReviewForm((current) => ({ ...current, comment: event.target.value }))} maxLength={2000} placeholder="Indique qué debe revisar el equipo." disabled={reviewSubmitting} /></label><label>Checklist inicial<textarea value={reviewForm.checklist} onChange={(event) => setReviewForm((current) => ({ ...current, checklist: event.target.value }))} placeholder="Un punto por línea" disabled={reviewSubmitting} /></label><footer><button type="button" onClick={() => setReviewOpen(false)} disabled={reviewSubmitting}>Cancelar</button><button className="is-primary" type="submit" disabled={reviewLoading || reviewSubmitting}>{reviewSubmitting ? 'Enviando...' : 'Enviar a revisión'}</button></footer></form></section>}
    </div>
 }
