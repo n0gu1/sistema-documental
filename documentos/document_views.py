@@ -35,6 +35,7 @@ from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import (
     filter_accessible_documents,
     get_accessible_published_document,
+    has_area_permission,
     has_document_permission,
     is_reader_user,
     published_document_queryset,
@@ -362,10 +363,20 @@ def get_reference_or_error(model, object_id, organization_id, field_name):
     filters = {'pk': object_id}
     if model is not TipoDocumentoCatalogo:
         filters['organizacion_id'] = organization_id
+    if model is AreaCatalogo:
+        filters['activa'] = True
     reference = model.objects.filter(**filters).first()
     if not reference:
         raise ValidationError({field_name: 'La referencia no existe o no pertenece a la organizacion.'})
     return reference
+
+
+def ensure_area_authorized(user, area_id):
+    if not has_area_permission(user, area_id):
+        raise PermissionDenied({
+            'code': 'AREA_NOT_AUTHORIZED',
+            'detail': 'El area no esta autorizada para este usuario.',
+        })
 
 
 def validate_metadata(metadata):
@@ -509,6 +520,7 @@ class DocumentListCreateView(APIView):
         data = serializer.validated_data
         organization_id = request.user.organizacion_id
         area = get_reference_or_error(AreaCatalogo, data['area_id'], organization_id, 'area_id')
+        ensure_area_authorized(request.user, area.id)
         document_type = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], organization_id, 'type_id')
         if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code'], eliminado_en__isnull=True).exists():
             return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
@@ -602,7 +614,9 @@ class DocumentDetailView(APIView):
         if 'date' in data:
             updates['fecha_documento'] = data['date']
         if 'area_id' in data:
-            updates['area'] = get_reference_or_error(AreaCatalogo, data['area_id'], document.organizacion_id, 'area_id')
+            area = get_reference_or_error(AreaCatalogo, data['area_id'], document.organizacion_id, 'area_id')
+            ensure_area_authorized(request.user, area.id)
+            updates['area'] = area
         if 'type_id' in data:
             updates['tipo_documento'] = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], document.organizacion_id, 'type_id')
         for field, value in updates.items():

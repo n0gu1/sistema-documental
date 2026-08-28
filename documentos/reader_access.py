@@ -21,6 +21,14 @@ def is_reader_user(user):
     return not any(user_has_permission(user, permission) for permission in MANAGEMENT_PERMISSIONS)
 
 
+def has_area_permission(user, area_id):
+    if not getattr(user, 'area_id', None):
+        return True
+    if any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id)):
+        return True
+    return str(user.area_id) == str(area_id)
+
+
 def has_document_permission(user, document_id, permission_code):
     global_permission = user_has_permission(user, permission_code)
     with connection.cursor() as cursor:

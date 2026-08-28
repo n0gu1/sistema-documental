@@ -89,7 +89,7 @@ ORDEN RECOMENDADO
 [x] Implementar filtros avanzados. Las pantallas documentales envían búsqueda, tipo, área, estado, responsable y rango de actualización al backend; la paginación remota completa permanece pendiente.
 [x] Implementar ordenamiento y paginacion. Las vistas documentales solicitan páginas remotas y criterios de orden al backend, con navegación para acceder a registros posteriores.
 [x] Implementar exportacion del listado documental. El endpoint aplica permisos por area/documento, exporta el conjunto filtrado completo y registra la accion en auditoria.
-[ ] Asegurar que la creacion y el cambio de area de un documento respeten el area autorizada del usuario.
+[x] Asegurar que la creacion y el cambio de area de un documento respeten el area autorizada del usuario, con excepcion para administradores y usuarios sin area asignada.
 [x] Hacer transaccionalmente segura la eliminacion fisica de archivos, o sustituirla por eliminacion logica obligatoria. La aplicación ya no elimina físicamente documentos ni sus archivos.
 
 5. VERSIONAMIENTO

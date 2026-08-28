@@ -36,13 +36,14 @@ from .document_views import (
     DocumentUnarchiveView,
     compare_versions,
     ensure_document_directly_editable,
+    ensure_area_authorized,
     unarchive_document,
     validate_metadata,
 )
 from .file_validation import validate_uploaded_file
 from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
-from .reader_access import has_document_permission
+from .reader_access import has_area_permission, has_document_permission
 from .reader_views import ReaderAccessSerializer
 from .reports_views import build_pdf, build_xlsx, summarize_report
 from .notifications import create_notification
@@ -540,6 +541,35 @@ class PermissionManagementTests(SimpleTestCase):
             activo=False,
         )
         record_event.assert_called_once()
+
+
+class DocumentAreaPermissionTests(SimpleTestCase):
+    @patch('documentos.reader_access.get_user_roles', return_value=[{'code': 'EDITOR'}])
+    def test_user_can_use_only_assigned_area(self, get_user_roles):
+        area_id = uuid4()
+        user = SimpleNamespace(id=uuid4(), area_id=area_id)
+
+        self.assertTrue(has_area_permission(user, area_id))
+        self.assertFalse(has_area_permission(user, uuid4()))
+        self.assertEqual(get_user_roles.call_count, 2)
+
+    @patch('documentos.reader_access.get_user_roles', return_value=[{'code': 'ADMINISTRADOR'}])
+    def test_administrator_can_use_any_area(self, get_user_roles):
+        user = SimpleNamespace(id=uuid4(), area_id=uuid4())
+
+        self.assertTrue(has_area_permission(user, uuid4()))
+        get_user_roles.assert_called_once_with(user.id)
+
+    @patch('documentos.document_views.has_area_permission', return_value=False)
+    def test_unauthorized_area_is_rejected(self, has_area_permission_mock):
+        user = SimpleNamespace(id=uuid4())
+        area_id = uuid4()
+
+        with self.assertRaises(PermissionDenied) as context:
+            ensure_area_authorized(user, area_id)
+
+        self.assertEqual(context.exception.detail['code'], 'AREA_NOT_AUTHORIZED')
+        has_area_permission_mock.assert_called_once_with(user, area_id)
 
 
 class DocumentExportTests(SimpleTestCase):
