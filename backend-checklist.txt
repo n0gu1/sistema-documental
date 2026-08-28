@@ -98,7 +98,7 @@ ORDEN RECOMENDADO
 [x] Mantener historial completo de versiones. El archivado y DELETE conservan el historial y permiten recuperar el documento mediante desarchivado.
 [x] Implementar comparacion entre versiones mediante SHA-256 y metadatos de archivo.
 [x] Implementar descarga de versiones.
-[~] Implementar linea de tiempo documental. Actualmente solo incluye la creacion de versiones; faltan envios, asignaciones, comentarios, devoluciones, rechazos, aprobaciones, publicaciones, descargas y restauraciones.
+[x] Implementar linea de tiempo documental. Combina las versiones con los eventos de auditoria de envios, asignaciones, comentarios, devoluciones, rechazos, aprobaciones, publicaciones, descargas y restauraciones.
 [ ] Implementar restauracion de una version anterior creando una nueva version y conservando todo el historial.
 [ ] Definir e implementar la regla de numeracion de versiones menores y mayores. El recorrido esperado 1.0, 1.1 y 1.2 no coincide con el incremento actual 1.0, 2.0 y siguientes.
 [ ] Registrar de forma explicita en la nueva version cuando su origen sea una restauracion.

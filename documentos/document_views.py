@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 from datetime import datetime, time
 from pathlib import Path
@@ -15,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .auth_utils import record_auth_event, user_has_permission
+from .audit_views import audit_timestamp_column
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer
 from .file_validation import validate_uploaded_file
 from .management_views import require_permission
@@ -455,7 +457,7 @@ def save_document_file(document, uploaded_file, user, comment=''):
         raise ValidationError({'file': 'No se pudo guardar el archivo documental.'}) from error
 
 
-def record_document_event(request, document, action_code, resource_code='DOCUMENTO', resource_id=None):
+def record_document_event(request, document, action_code, resource_code='DOCUMENTO', resource_id=None, details=None):
     record_auth_event(
         action_code=action_code,
         resource_code=resource_code,
@@ -466,6 +468,7 @@ def record_document_event(request, document, action_code, resource_code='DOCUMEN
         request=request,
         successful=True,
         result='Operacion documental correcta',
+        details=details,
     )
 
 
@@ -634,7 +637,7 @@ class DocumentDetailView(APIView):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
         archive_document(document, request.user, request.data.get('reason'))
-        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO')
+        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -694,7 +697,7 @@ class DocumentArchiveView(APIView):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
         archive_document(document, request.user, request.data.get('reason'))
-        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO')
+        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
         return Response({'document': serialize_document(document, request)})
 
 
@@ -710,7 +713,7 @@ class DocumentUnarchiveView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
         unarchive_document(document)
-        record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
+        record_document_event(request, document, 'DOCUMENTO_RESTAURADO')
         return Response({'document': serialize_document(document, request)})
 
 
@@ -737,7 +740,14 @@ class DocumentFileListCreateView(APIView):
             request.user,
             serializer.validated_data.get('comment', ''),
         )
-        record_document_event(request, document, 'ARCHIVO_CARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
+        record_document_event(
+            request,
+            document,
+            'ARCHIVO_CARGADO',
+            resource_code='ARCHIVO',
+            resource_id=document_file.id,
+            details={'comment': serializer.validated_data.get('comment', '')},
+        )
         return Response({'file': serialize_file(document_file, request)}, status=status.HTTP_201_CREATED)
 
 
@@ -767,7 +777,14 @@ class DocumentVersionListView(APIView):
             request.user,
             serializer.validated_data.get('comment', ''),
         )
-        record_document_event(request, document, 'ARCHIVO_CARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
+        record_document_event(
+            request,
+            document,
+            'ARCHIVO_CARGADO',
+            resource_code='ARCHIVO',
+            resource_id=document_file.id,
+            details={'comment': serializer.validated_data.get('comment', '')},
+        )
         return Response({'version': serialize_version(document_file, request)}, status=status.HTTP_201_CREATED)
 
 
@@ -796,35 +813,160 @@ class DocumentVersionCompareView(APIView):
         return Response(compare_versions(by_id[first_id], by_id[second_id], request))
 
 
+TIMELINE_ACTIONS = {
+    'DOCUMENTO_CREADO': ('document_created', 'Documento creado'),
+    'DOCUMENTO_MODIFICADO': ('document_updated', 'Documento modificado'),
+    'DOCUMENTO_ARCHIVADO': ('document_archived', 'Documento archivado'),
+    'DOCUMENTO_RESTAURADO': ('document_restored', 'Documento restaurado'),
+    'REVISION_SOLICITADA': ('review_submitted', 'Revision enviada'),
+    'REVISION_ASIGNADA': ('review_assigned', 'Revision asignada'),
+    'REVISION_COMENTADA': ('review_commented', 'Comentario agregado'),
+    'REVISION_DEVUELTA': ('review_returned', 'Revision devuelta'),
+    'DOCUMENTO_RECHAZADO': ('document_rejected', 'Documento rechazado'),
+    'DOCUMENTO_APROBADO': ('document_approved', 'Documento aprobado'),
+    'DOCUMENTO_PUBLICADO': ('document_published', 'Documento publicado'),
+    'ARCHIVO_DESCARGADO': ('version_downloaded', 'Version descargada'),
+}
+PUBLIC_TIMELINE_ACTIONS = {'ARCHIVO_DESCARGADO', 'DOCUMENTO_PUBLICADO'}
+
+
+def timeline_user(user_id, username, name):
+    return {
+        'id': str(user_id) if user_id else None,
+        'username': username or '',
+        'name': name or username or 'Usuario desconocido',
+    }
+
+
+def normalize_timeline_details(details):
+    if isinstance(details, str):
+        try:
+            details = json.loads(details)
+        except (TypeError, ValueError):
+            return {}
+    return details if isinstance(details, dict) else {}
+
+
+def timeline_comment(details, fallback=''):
+    details = normalize_timeline_details(details)
+    return details.get('comment') or details.get('content') or details.get('reason') or fallback or ''
+
+
+def serialize_version_timeline_event(version):
+    return {
+        'id': f'version:{version.id}',
+        'type': 'version_created',
+        'action': {'code': 'ARCHIVO_CARGADO', 'name': 'Version creada'},
+        'version_id': str(version.id),
+        'version': f'{version.numero_mayor}.{version.numero_menor}',
+        'at': version.creada_en,
+        'author': timeline_user(
+            version.creada_por_id,
+            version.creada_por.nombre_usuario,
+            f'{version.creada_por.nombres} {version.creada_por.apellidos}'.strip(),
+        ),
+        'comment': version.comentario_cambio or '',
+        'status': {
+            'id': version.estado_version_id,
+            'code': version.estado_version.codigo,
+            'name': version.estado_version.nombre,
+        },
+        'is_current': version.es_vigente,
+        'successful': True,
+        'result': 'Version creada',
+        'details': {},
+    }
+
+
+def serialize_audit_timeline_event(row):
+    action_code = row['action_code']
+    event_type, fallback_name = TIMELINE_ACTIONS[action_code]
+    details = normalize_timeline_details(row.get('details'))
+    version_id = row.get('version_id')
+    return {
+        'id': f"audit:{row['id']}",
+        'type': event_type,
+        'action': {'code': action_code, 'name': row.get('action') or fallback_name},
+        'version_id': str(version_id) if version_id else None,
+        'version': f"{row['numero_mayor']}.{row['numero_menor']}" if version_id else None,
+        'at': row['event_at'],
+        'author': timeline_user(row.get('user_id'), row.get('username'), row.get('user_name')),
+        'comment': timeline_comment(details),
+        'status': {
+            'id': row.get('status_id'),
+            'code': row.get('status_code'),
+            'name': row.get('status_name'),
+        } if version_id else None,
+        'is_current': bool(row.get('is_current')) if version_id else False,
+        'successful': row.get('successful'),
+        'result': row.get('result') or '',
+        'details': details,
+    }
+
+
+def fetch_document_timeline_events(document, reader_only=False):
+    timestamp_column = audit_timestamp_column()
+    action_codes = tuple(TIMELINE_ACTIONS)
+    placeholders = ', '.join(['%s'] * len(action_codes))
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'''
+                SELECT
+                    ba.id,
+                    ba.{timestamp_column} AS event_at,
+                    ba.usuario_id AS user_id,
+                    u.nombre_usuario AS username,
+                    TRIM(COALESCE(u.nombres, '') || ' ' || COALESCE(u.apellidos, '')) AS user_name,
+                    a.codigo AS action_code,
+                    a.nombre AS action,
+                    tr.codigo AS resource_code,
+                    ba.recurso_id AS resource_id,
+                    ba.exitoso AS successful,
+                    ba.resultado AS result,
+                    ba.detalles AS details,
+                    v.id AS version_id,
+                    v.numero_mayor,
+                    v.numero_menor,
+                    v.es_vigente AS is_current,
+                    ev.id AS status_id,
+                    ev.codigo AS status_code,
+                    ev.nombre AS status_name
+                FROM gestion_documental.bitacora_auditoria ba
+                JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
+                JOIN gestion_documental.tipos_recurso_auditoria tr ON tr.id = ba.tipo_recurso_id
+                LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
+                LEFT JOIN gestion_documental.versiones_documento v
+                    ON tr.codigo = 'ARCHIVO' AND v.id = ba.recurso_id
+                LEFT JOIN gestion_documental.estados_version ev ON ev.id = v.estado_version_id
+                WHERE ba.organizacion_id = %s
+                  AND ba.exitoso
+                  AND a.codigo IN ({placeholders})
+                  AND (
+                      (tr.codigo = 'DOCUMENTO' AND ba.recurso_id = %s)
+                      OR (tr.codigo = 'ARCHIVO' AND v.documento_id = %s)
+                  )
+                  AND a.codigo <> 'ARCHIVO_CARGADO'
+                ORDER BY ba.{timestamp_column} DESC, ba.id DESC
+            ''',
+            [document.organizacion_id, *action_codes, document.id, document.id],
+        )
+        columns = [item[0] for item in cursor.description]
+        rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    if reader_only:
+        rows = [row for row in rows if row['action_code'] in PUBLIC_TIMELINE_ACTIONS and row.get('status_code') == 'PUBLICADO']
+    return [serialize_audit_timeline_event(row) for row in rows]
+
+
 class DocumentVersionTimelineView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id):
         require_permission(request, READ_PERMISSION)
         document = get_read_document_or_404(request, document_id)
-        events = []
-        for version in version_queryset(document):
-            if is_reader_user(request.user) and version.estado_version.codigo != 'PUBLICADO':
-                continue
-            events.append({
-                'id': str(version.id),
-                'type': 'version_created',
-                'version_id': str(version.id),
-                'version': f'{version.numero_mayor}.{version.numero_menor}',
-                'at': version.creada_en,
-                'author': {
-                    'id': str(version.creada_por_id),
-                    'username': version.creada_por.nombre_usuario,
-                    'name': f'{version.creada_por.nombres} {version.creada_por.apellidos}'.strip(),
-                },
-                'comment': version.comentario_cambio,
-                'status': {
-                    'id': version.estado_version_id,
-                    'code': version.estado_version.codigo,
-                    'name': version.estado_version.nombre,
-                },
-                'is_current': version.es_vigente,
-            })
+        events = [serialize_version_timeline_event(version) for version in version_queryset(document)
+                  if not is_reader_user(request.user) or version.estado_version.codigo == 'PUBLICADO']
+        events.extend(fetch_document_timeline_events(document, is_reader_user(request.user)))
+        events.sort(key=lambda item: (item['at'], item['id']), reverse=True)
         return Response({'events': events})
 
 

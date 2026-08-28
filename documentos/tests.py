@@ -37,6 +37,7 @@ from .document_views import (
     compare_versions,
     ensure_document_directly_editable,
     ensure_area_authorized,
+    serialize_audit_timeline_event,
     unarchive_document,
     validate_metadata,
 )
@@ -747,6 +748,64 @@ class VersioningTests(SimpleTestCase):
         )
 
 
+class TimelineTests(SimpleTestCase):
+    def test_serializes_documental_audit_event_with_version_and_comment(self):
+        version_id = uuid4()
+        event = serialize_audit_timeline_event({
+            'id': 17,
+            'event_at': timezone.now(),
+            'user_id': uuid4(),
+            'username': 'ana.revisor',
+            'user_name': 'Ana Revisora',
+            'action_code': 'REVISION_DEVUELTA',
+            'action': 'Revision devuelta',
+            'resource_code': 'ARCHIVO',
+            'resource_id': version_id,
+            'successful': True,
+            'result': 'Operacion documental correcta',
+            'details': {'comment': 'Falta actualizar el anexo.'},
+            'version_id': version_id,
+            'numero_mayor': 2,
+            'numero_menor': 1,
+            'is_current': False,
+            'status_id': 3,
+            'status_code': 'BORRADOR',
+            'status_name': 'Borrador',
+        })
+
+        self.assertEqual(event['type'], 'review_returned')
+        self.assertEqual(event['version'], '2.1')
+        self.assertEqual(event['comment'], 'Falta actualizar el anexo.')
+        self.assertEqual(event['action']['code'], 'REVISION_DEVUELTA')
+
+    def test_serializes_restoration_event_without_version(self):
+        event = serialize_audit_timeline_event({
+            'id': 18,
+            'event_at': timezone.now(),
+            'user_id': uuid4(),
+            'username': 'admin',
+            'user_name': 'Administrador',
+            'action_code': 'DOCUMENTO_RESTAURADO',
+            'action': 'Documento restaurado',
+            'resource_code': 'DOCUMENTO',
+            'resource_id': uuid4(),
+            'successful': True,
+            'result': 'Operacion documental correcta',
+            'details': {'reason': 'Reincorporacion solicitada'},
+            'version_id': None,
+            'numero_mayor': None,
+            'numero_menor': None,
+            'is_current': None,
+            'status_id': None,
+            'status_code': None,
+            'status_name': None,
+        })
+
+        self.assertEqual(event['type'], 'document_restored')
+        self.assertIsNone(event['version'])
+        self.assertEqual(event['comment'], 'Reincorporacion solicitada')
+
+
 class WorkflowTests(SimpleTestCase):
     def test_version_transitions_allow_review_and_publication_only_in_order(self):
         self.assertEqual(VERSION_TRANSITIONS['BORRADOR'], {'EN_REVISION'})
@@ -1323,7 +1382,12 @@ class DocumentLifecycleTests(SimpleTestCase):
         document.save.assert_called_once_with(
             update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'],
         )
-        record_event.assert_called_once_with(request, document, 'DOCUMENTO_ARCHIVADO')
+        record_event.assert_called_once_with(
+            request,
+            document,
+            'DOCUMENTO_ARCHIVADO',
+            details={'reason': 'Retiro controlado'},
+        )
 
     @patch('documentos.document_views.serialize_document', return_value={'id': 'documento-restaurado'})
     @patch('documentos.document_views.record_document_event')
@@ -1362,7 +1426,7 @@ class DocumentLifecycleTests(SimpleTestCase):
             update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'],
         )
         get_document.assert_called_once_with(request, document_id, include_archived=True)
-        record_event.assert_called_once_with(request, document, 'DOCUMENTO_MODIFICADO')
+        record_event.assert_called_once_with(request, document, 'DOCUMENTO_RESTAURADO')
         serialize_document.assert_called_once_with(document, request)
 
     def test_unarchive_document_clears_only_logical_deletion_fields(self):
