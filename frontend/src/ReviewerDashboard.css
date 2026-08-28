@@ -22,3 +22,76 @@
 .reviewer-shell .editor-profile-menu button { padding: 8px; color: #d23a40; background: #fff; border: 0; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: left; }
 .reviewer-shell .editor-profile-menu button:hover { background: #fff1f1; }
 .reviewer-shell .editor-brand::before { width: 36px; height: 42px; flex: 0 0 36px; display: block; content: ''; background: linear-gradient(#fff 0 0) 50% 4px / 31px 4px no-repeat, linear-gradient(#fff 0 0) 50% 11px / 24px 4px no-repeat, linear-gradient(90deg, transparent 0 5px, #fff 5px 9px, transparent 9px 15px, #fff 15px 19px, transparent 19px 25px, #fff 25px 29px, transparent 29px) 50% 15px / 31px 22px no-repeat, linear-gradient(#fff 0 0) 50% 38px / 31px 4px no-repeat; opacity: .95; }
+
+/* Reviewer dashboard proportions follow the reference without changing its API-driven content. */
+.reviewer-shell { grid-template-columns: 263px minmax(0, 1fr); background: #f8fafd; }
+.reviewer-shell .editor-sidebar { padding-inline: 15px; }
+.reviewer-shell .editor-brand { min-height: 60px; padding: 0 10px 10px; gap: 10px; }
+.reviewer-shell .editor-brand::before { width: 36px; height: 42px; }
+.reviewer-shell .editor-brand div { line-height: .88; }
+.reviewer-shell .editor-brand span { font-size: 20px; }
+.reviewer-shell .editor-brand strong { font-size: 29px; }
+.reviewer-shell .editor-nav { margin-top: 20px; gap: 7px; }
+.reviewer-shell .editor-nav button { min-height: 52px; padding-inline: 15px; gap: 14px; font-size: 14px; }
+.reviewer-shell .editor-topbar { height: 70px; padding-inline: 28px; }
+.reviewer-shell .editor-search { width: min(530px, 50vw); }
+.reviewer-shell .reviewer-page-content { min-width: 0; padding: 0 28px; }
+.reviewer-metrics { gap: 18px; }
+.reviewer-metric { min-height: 114px; padding: 17px; gap: 17px; }
+.reviewer-metric p { font-size: 13px; }
+.reviewer-metric strong { font-size: 29px; }
+.reviewer-metric small { font-size: 10px; }
+.reviewer-upper-grid { margin-top: 17px; grid-template-columns: .9fr 1fr 1.04fr; gap: 18px; }
+.reviewer-card-heading { min-height: 51px; padding-inline: 17px; }
+.reviewer-card-heading h2 { font-size: 15px; }
+.reviewer-card-heading button { font-size: 10px; }
+.reviewer-activity-list { padding-inline: 17px 16px; }
+.reviewer-activity-list article { min-height: 51px; }
+.reviewer-activity-list strong { font-size: 10px; }
+.reviewer-activity-list article > div span { font-size: 9px; }
+.reviewer-task-list { padding-inline: 17px; }
+.reviewer-task-list article { min-height: 48px; grid-template-columns: 26px minmax(0, 1fr) auto 68px; }
+.reviewer-task-list article > div strong { font-size: 10px; }
+.reviewer-task-list article > div span { font-size: 9px; }
+.reviewer-comments > div:last-child { padding-inline: 17px; }
+.reviewer-comments article { min-height: 88px; }
+.reviewer-comments strong { font-size: 10px; }
+.reviewer-comments article > div > span, .reviewer-comments p { font-size: 9px; }
+.reviewer-lower-grid { margin-top: 17px; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+.reviewer-documents table { font-size: 10px; }
+.reviewer-documents th { height: 34px; }
+.reviewer-documents td { height: 35px; }
+.reviewer-documents td:first-child strong { font-size: 10px; }
+.reviewer-quick-grid { padding: 15px; gap: 10px; }
+.reviewer-shell .editor-footer { margin-inline: 28px; }
+
+/* The previous chess-rook placeholder is kept out of the document data model. */
+.reviewer-shell .editor-sidebar__illustration { position: absolute; left: 0; right: 0; bottom: 34px; width: 100%; height: 310px; margin: 0; color: rgba(63, 143, 224, .32); background: radial-gradient(ellipse at center, transparent 0 42%, currentColor 43% 44%, transparent 45%) 50% 257px / 235px 58px no-repeat, radial-gradient(ellipse at center, transparent 0 43%, currentColor 44% 45%, transparent 46%) 50% 282px / 260px 54px no-repeat; font-size: 0; line-height: 1; transform: none; }
+.reviewer-shell .editor-sidebar__illustration::before { position: absolute; left: 96px; top: 66px; width: 58px; height: 184px; display: block; content: ''; background: repeating-linear-gradient(to bottom, transparent 0 36px, currentColor 37px 39px, transparent 40px 43px), linear-gradient(90deg, transparent 0 8px, currentColor 9px 13px, transparent 14px 44px, currentColor 45px 49px, transparent 50px); clip-path: polygon(23% 0, 77% 0, 100% 100%, 0 100%); opacity: .85; }
+.reviewer-shell .editor-sidebar__illustration::after { position: absolute; left: 63px; top: 18px; width: 124px; height: 76px; display: block; content: ''; background: radial-gradient(circle at center, currentColor 0 8px, transparent 9px) 50% 0 / 22px 22px no-repeat, linear-gradient(currentColor) 50% 23px / 95px 7px no-repeat, linear-gradient(currentColor) 50% 35px / 60px 25px no-repeat, linear-gradient(currentColor) 50% 66px / 124px 7px no-repeat; opacity: .85; }
+
+@media (max-width: 1250px) {
+  .reviewer-shell { grid-template-columns: 235px minmax(0, 1fr); }
+  .reviewer-shell .reviewer-page-content { padding-inline: 25px; }
+  .reviewer-metrics { gap: 11px; }
+  .reviewer-upper-grid { grid-template-columns: 1fr 1fr; }
+  .reviewer-comments { grid-column: 1 / -1; }
+  .reviewer-lower-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 850px) {
+  .reviewer-shell .editor-topbar { height: 70px; }
+  .reviewer-shell .editor-search { width: auto; flex: 1; }
+  .reviewer-shell .editor-profile { width: 40px; min-width: 40px; justify-content: center; }
+  .reviewer-shell .editor-profile > div, .reviewer-shell .editor-profile > b { display: none; }
+  .reviewer-shell .reviewer-page-content { padding: 0 18px; }
+  .reviewer-shell .editor-footer { margin-inline: 18px; }
+}
+
+@media (max-width: 600px) {
+  .reviewer-upper-grid { grid-template-columns: 1fr; }
+  .reviewer-comments { grid-column: auto; }
+  .reviewer-shell .reviewer-page-content { padding: 0 14px; }
+  .reviewer-shell .editor-topbar { padding-inline: 10px; }
+  .reviewer-shell .editor-footer { margin-inline: 14px; }
+}
