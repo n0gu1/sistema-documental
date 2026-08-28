@@ -53,8 +53,13 @@ def has_document_permission(user, document_id, permission_code):
         )
         has_document_roles, role_allowed = cursor.fetchone()
     if has_document_roles:
+        is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+        if is_admin:
+            return True
         return role_allowed
-    if not global_permission or not getattr(user, 'area_id', None):
+    if not global_permission:
+        return False
+    if not getattr(user, 'area_id', None):
         return global_permission
     is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
     if is_admin:
@@ -64,6 +69,13 @@ def has_document_permission(user, document_id, permission_code):
         return False
     # An assigned area scopes broad permissions; explicit document grants above take precedence.
     return not user.area_id or document.area_id == user.area_id or document.creado_por_id == user.id
+
+
+def filter_accessible_documents(user, documents, permission_code='documentos.consultar'):
+    return [
+        document for document in documents
+        if has_document_permission(user, document.id, permission_code)
+    ]
 
 
 def published_document_queryset(organization_id):

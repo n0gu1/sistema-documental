@@ -1105,14 +1105,26 @@ class ReaderAccessTests(SimpleTestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn('duration_seconds', serializer.errors)
 
+    @patch('documentos.reader_access.get_user_roles', return_value=[{'code': 'EDITOR', 'name': 'Editor'}])
     @patch('documentos.reader_access.user_has_permission', return_value=True)
     @patch('documentos.reader_access.connection')
-    def test_document_acl_overrides_global_permission_when_document_is_restricted(self, cursor, user_has_permission_mock):
+    def test_document_acl_overrides_global_permission_when_document_is_restricted(self, cursor, user_has_permission_mock, roles_mock):
         cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (True, False)
         user = SimpleNamespace(id=uuid4())
 
         self.assertFalse(has_document_permission(user, uuid4(), 'documentos.consultar'))
         user_has_permission_mock.assert_called_once_with(user, 'documentos.consultar')
+        roles_mock.assert_called_once_with(user.id)
+
+    @patch('documentos.reader_access.get_user_roles', return_value=[{'code': 'ADMINISTRADOR', 'name': 'Administrador'}])
+    @patch('documentos.reader_access.user_has_permission', return_value=True)
+    @patch('documentos.reader_access.connection')
+    def test_administrator_bypasses_explicit_document_acl_denial(self, cursor, user_has_permission_mock, roles_mock):
+        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (True, False)
+        user = SimpleNamespace(id=uuid4())
+
+        self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
+        roles_mock.assert_called_once_with(user.id)
 
     @patch('documentos.reader_access.user_has_permission', return_value=True)
     @patch('documentos.reader_access.connection')

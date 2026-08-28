@@ -12,8 +12,8 @@ from rest_framework.views import APIView
 from .models import FavoritoDocumento, RegistroAccesoDocumento
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import (
+    filter_accessible_documents,
     get_accessible_published_document,
-    has_document_permission,
     published_document_queryset,
     published_version,
     record_reader_access,
@@ -94,8 +94,7 @@ def reader_page(queryset, request):
 
 
 def accessible_reader_documents(user):
-    documents = list(published_document_queryset(user.organizacion_id))
-    return [document for document in documents if has_document_permission(user, document.id, 'documentos.consultar')]
+    return filter_accessible_documents(user, published_document_queryset(user.organizacion_id))
 
 
 class ReaderDocumentListView(APIView):

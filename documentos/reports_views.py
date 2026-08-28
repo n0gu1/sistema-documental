@@ -26,11 +26,17 @@ from .models import (
     SolicitudRevision,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .reader_access import filter_accessible_documents
 
 
 SCOPES = {'executive', 'editor', 'reviewer'}
 FORMATS = {'PDF', 'XLSX'}
 FREQUENCIES = {'daily', 'weekly', 'monthly'}
+REPORT_DOCUMENT_PERMISSIONS = {
+    'executive': 'reportes.generar',
+    'editor': 'documentos.consultar',
+    'reviewer': 'revisiones.consultar',
+}
 
 
 def parse_report_datetime(value, field_name, end=False):
@@ -98,6 +104,11 @@ def document_report_rows(request, scope, filters):
     if filters.get('responsible_id'):
         queryset = queryset.filter(creado_por_id=filters['responsible_id'])
 
+    queryset = filter_accessible_documents(
+        request.user,
+        queryset,
+        REPORT_DOCUMENT_PERMISSIONS[scope],
+    )
     rows = []
     for document in queryset.order_by('-actualizado_en', 'codigo'):
         version = current_report_version(document)
@@ -142,6 +153,12 @@ def reviewer_report_rows(request, filters):
     now = timezone.now()
     for review in queryset:
         document = review.version_documento.documento
+        if not filter_accessible_documents(
+            request.user,
+            [document],
+            REPORT_DOCUMENT_PERMISSIONS['reviewer'],
+        ):
+            continue
         detail = getattr(review, 'detalle', None)
         status_code = review.estado_revision.codigo
         if filters.get('area_id') and str(document.area_id) != filters['area_id']:

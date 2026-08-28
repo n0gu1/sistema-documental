@@ -29,7 +29,13 @@ from .models import (
     TipoDocumentoCatalogo,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
-from .reader_access import get_accessible_published_document, has_document_permission, is_reader_user, published_document_queryset
+from .reader_access import (
+    filter_accessible_documents,
+    get_accessible_published_document,
+    has_document_permission,
+    is_reader_user,
+    published_document_queryset,
+)
 from .security_utils import sanitize_text
 
 
@@ -361,11 +367,18 @@ class DocumentListCreateView(APIView):
                 'results': [serialize_reader_document(document, request) for document in page],
             })
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
-        total, offset, limit, documents = page_queryset(queryset, request.query_params)
+        documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
+        total = len(documents)
+        try:
+            limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
+            offset = max(int(request.query_params.get('offset', 0)), 0)
+        except (TypeError, ValueError) as error:
+            raise ValidationError({'code': 'INVALID_PAGINATION', 'detail': 'La paginacion no es valida.'}) from error
+        page = documents[offset:offset + limit]
         return Response({
             'count': total,
             'next_offset': offset + limit if offset + limit < total else None,
-            'results': [serialize_document(document, request) for document in documents],
+            'results': [serialize_document(document, request) for document in page],
         })
 
     def post(self, request):
@@ -688,6 +701,7 @@ class DocumentExportView(APIView):
         if is_reader_user(request.user):
             raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
+        queryset = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="documentos.csv"'
         writer = csv.writer(response)
