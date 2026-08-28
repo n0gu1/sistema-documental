@@ -52,7 +52,16 @@ from .models import ConfiguracionSistema, Documento, Organizacion, SesionDocumen
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_area_permission, has_document_permission
 from .reader_views import ReaderAccessSerializer
-from .reports_views import ReportDownloadView, ReportGenerateView, build_pdf, build_xlsx, report_history, summarize_report
+from .reports_views import (
+    ReportDownloadView,
+    ReportGenerateView,
+    ReportScheduleDetailView,
+    ReportScheduleListView,
+    build_pdf,
+    build_xlsx,
+    report_history,
+    summarize_report,
+)
 from .notifications import create_notification
 from .security_utils import sanitize_text
 from .serializers import ChangePasswordSerializer, DocumentPermissionsSerializer, LoginSerializer, UserCreateSerializer
@@ -890,6 +899,113 @@ class ScheduledReportTests(SimpleTestCase):
         schedule.save.assert_called_once_with(update_fields=['proxima_ejecucion_en', 'actualizada_en'])
         self.assertEqual(build_data.call_args.args[1:], ('executive', schedule.filtros))
         self.assertEqual(build_data.call_args.args[0].user, user)
+
+
+class ReportScheduleAuthorizationTests(SimpleTestCase):
+    def setUp(self):
+        self.organization_id = uuid4()
+        self.user = SimpleNamespace(id=uuid4(), organizacion_id=self.organization_id)
+        self.schedule = SimpleNamespace(
+            id=uuid4(),
+            organizacion_id=self.organization_id,
+            creado_por_id=self.user.id,
+            nombre='Reporte ejecutivo',
+            alcance='executive',
+            formato='PDF',
+            frecuencia='monthly',
+            filtros={},
+            proxima_ejecucion_en=timezone.now(),
+            activa=True,
+            save=MagicMock(),
+        )
+
+    def request(self, data=None, scope='executive'):
+        return SimpleNamespace(
+            user=self.user,
+            auth=SimpleNamespace(id=uuid4()),
+            data=data or {},
+            query_params={'scope': scope},
+        )
+
+    def test_creator_list_is_limited_to_own_schedules(self):
+        with (
+            patch('documentos.reports_views.require_report_access'),
+            patch('documentos.reports_views.get_user_roles', return_value=[]),
+            patch('documentos.reports_views.ProgramacionReporte.objects.filter', return_value=[]) as filter_schedules,
+            patch('documentos.reports_views.record_report_event'),
+        ):
+            response = ReportScheduleListView().get(self.request(scope='editor'))
+
+        self.assertEqual(response.status_code, 200)
+        filter_schedules.assert_called_once_with(
+            organizacion_id=self.organization_id,
+            alcance='editor',
+            activa=True,
+            creado_por_id=self.user.id,
+        )
+
+    def test_administrator_can_list_all_organization_schedules(self):
+        with (
+            patch('documentos.reports_views.require_report_access'),
+            patch('documentos.reports_views.get_user_roles', return_value=[{'code': 'ADMINISTRADOR'}]),
+            patch('documentos.reports_views.ProgramacionReporte.objects.filter', return_value=[]) as filter_schedules,
+            patch('documentos.reports_views.record_report_event'),
+        ):
+            response = ReportScheduleListView().get(self.request())
+
+        self.assertEqual(response.status_code, 200)
+        filter_schedules.assert_called_once_with(
+            organizacion_id=self.organization_id,
+            alcance='executive',
+            activa=True,
+        )
+
+    def test_creator_can_modify_own_schedule(self):
+        with (
+            patch('documentos.reports_views.require_report_access'),
+            patch('documentos.reports_views.get_user_roles', return_value=[]),
+            patch('documentos.reports_views.ProgramacionReporte.objects.filter', return_value=MagicMock(first=MagicMock(return_value=self.schedule))),
+            patch('documentos.reports_views.record_report_event'),
+        ):
+            response = ReportScheduleDetailView().patch(self.request({'active': False}), self.schedule.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.schedule.activa)
+        self.schedule.save.assert_called_once_with(update_fields=['activa', 'proxima_ejecucion_en', 'actualizada_en'])
+
+    def test_non_creator_cannot_modify_or_cancel_schedule(self):
+        self.schedule.creado_por_id = uuid4()
+        filter_result = MagicMock(first=MagicMock(return_value=self.schedule))
+        with (
+            patch('documentos.reports_views.get_user_roles', return_value=[]),
+            patch('documentos.reports_views.ProgramacionReporte.objects.filter', return_value=filter_result),
+            patch('documentos.reports_views.require_report_access') as require_access,
+            patch('documentos.reports_views.record_report_event') as record_event,
+        ):
+            patch_response = ReportScheduleDetailView().patch(self.request({'active': False}), self.schedule.id)
+            delete_response = ReportScheduleDetailView().delete(self.request(), self.schedule.id)
+
+        self.assertEqual(patch_response.status_code, 404)
+        self.assertEqual(delete_response.status_code, 404)
+        self.assertTrue(self.schedule.activa)
+        self.schedule.save.assert_not_called()
+        require_access.assert_not_called()
+        record_event.assert_not_called()
+
+    def test_administrator_can_modify_another_users_schedule(self):
+        self.schedule.creado_por_id = uuid4()
+        filter_result = MagicMock(first=MagicMock(return_value=self.schedule))
+        with (
+            patch('documentos.reports_views.get_user_roles', return_value=[{'code': 'ADMINISTRADOR'}]),
+            patch('documentos.reports_views.ProgramacionReporte.objects.filter', return_value=filter_result),
+            patch('documentos.reports_views.require_report_access'),
+            patch('documentos.reports_views.record_report_event'),
+        ):
+            response = ReportScheduleDetailView().patch(self.request({'active': False}), self.schedule.id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(self.schedule.activa)
+        self.schedule.save.assert_called_once_with(update_fields=['activa', 'proxima_ejecucion_en', 'actualizada_en'])
 
 
 class BackupSecurityTests(SimpleTestCase):

@@ -168,7 +168,7 @@ ORDEN RECOMENDADO
 [x] Descargar reportes generados. La descarga sirve la instantánea persistida y verifica su integridad.
 [~] Programar reportes automaticos. El comando persiste la instantánea inmutable, el servicio cron diario ya esta declarado en `render.yaml` y falta sincronizar el recurso cron Blueprint en la cuenta.
 [x] Persistir el archivo o una instantanea inmutable de cada reporte generado. El archivo se almacena en S3/B2 y se registra su hash SHA-256.
-[ ] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado.
+[x] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado. El listado se limita al creador y la modificacion/cancelacion admite al creador o al rol Administrador.
 
 12. RESPALDOS Y RECUPERACION
 [~] Configurar respaldos automaticos. Politica activa y cron diario declarado en `render.yaml`; falta sincronizar el recurso cron Blueprint en Render.

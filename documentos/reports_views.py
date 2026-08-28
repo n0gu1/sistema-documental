@@ -21,7 +21,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .management_views import require_permission
-from .auth_utils import record_auth_event
+from .auth_utils import get_user_roles, record_auth_event
 from .models import (
     ArchivoDocumento,
     DetalleSolicitudRevision,
@@ -81,6 +81,25 @@ def require_report_access(request, scope, generate=False):
     if not permission:
         raise ValidationError({'scope': 'El alcance del reporte no es valido.'})
     require_permission(request, permission)
+
+
+def is_report_administrator(user):
+    return any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+
+
+def report_schedule_queryset(request, scope=None, active_only=False):
+    filters = {'organizacion_id': request.user.organizacion_id}
+    if scope:
+        filters['alcance'] = scope
+    if active_only:
+        filters['activa'] = True
+    if not is_report_administrator(request.user):
+        filters['creado_por_id'] = request.user.id
+    return ProgramacionReporte.objects.filter(**filters)
+
+
+def can_manage_report_schedule(request, schedule):
+    return str(schedule.creado_por_id) == str(request.user.id) or is_report_administrator(request.user)
 
 
 def record_report_event(request, action_code, resource_id=None, details=None):
@@ -502,7 +521,7 @@ class ReportScheduleListView(APIView):
     def get(self, request):
         scope = request.query_params.get('scope', 'executive')
         require_report_access(request, scope)
-        schedules = ProgramacionReporte.objects.filter(organizacion_id=request.user.organizacion_id, alcance=scope, activa=True)
+        schedules = report_schedule_queryset(request, scope, active_only=True)
         response = Response({'schedules': [serialize_schedule(item) for item in schedules]})
         record_report_event(request, 'REPORTE_CONSULTADO', details={'scope': scope, 'scheduled': True})
         return response
@@ -542,7 +561,7 @@ class ReportScheduleDetailView(APIView):
 
     def patch(self, request, schedule_id):
         schedule = ProgramacionReporte.objects.filter(pk=schedule_id, organizacion_id=request.user.organizacion_id).first()
-        if not schedule:
+        if not schedule or not can_manage_report_schedule(request, schedule):
             return Response({'detail': 'Programacion no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         require_report_access(request, schedule.alcance, generate=True)
         if 'active' in request.data:
@@ -555,7 +574,7 @@ class ReportScheduleDetailView(APIView):
 
     def delete(self, request, schedule_id):
         schedule = ProgramacionReporte.objects.filter(pk=schedule_id, organizacion_id=request.user.organizacion_id).first()
-        if not schedule:
+        if not schedule or not can_manage_report_schedule(request, schedule):
             return Response({'detail': 'Programacion no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         require_report_access(request, schedule.alcance, generate=True)
         schedule.activa = False
