@@ -60,7 +60,7 @@ ORDEN RECOMENDADO
 [x] Activar, suspender y bloquear usuarios.
 [x] Implementar restablecimiento de contrasenas.
 [ ] Implementar autenticacion multifactor (MFA).
-[~] Implementar gestion de sesiones y dispositivos. El backend lista y revoca sesiones; falta inventario real de dispositivos y completar su administracion desde la interfaz.
+[x] Implementar gestion de sesiones y dispositivos. El inventario se deriva de las sesiones reales, con datos del dispositivo, consulta desde la ficha y revocacion individual o por dispositivo.
 [x] Crear roles administrables.
 [~] Crear permisos administrables. Actualmente solo se listan permisos existentes y se asignan a roles; falta crear, modificar, activar y desactivar permisos.
 [x] Asignar multiples roles a usuarios.

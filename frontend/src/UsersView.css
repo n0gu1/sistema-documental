@@ -107,6 +107,31 @@
 .users-activity article > svg { color: #0869e8; }
 .users-activity time,
 .users-activity small { color: #697b92; font-size: 6px; white-space: nowrap; }
+.users-session-content { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(250px, .85fr) minmax(330px, 1.15fr); gap: 12px; }
+.users-devices,
+.users-sessions { padding: 11px; border: 1px solid #dfe6ee; border-radius: 7px; }
+.users-section-heading { min-height: 35px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.users-section-heading h3 { margin: 0; color: #1b304c; font-size: 10px; }
+.users-section-heading span { margin-top: 4px; display: block; color: #7a899d; font-size: 7px; }
+.users-section-heading > strong { min-width: 22px; padding: 4px 6px; color: #0868df; background: #eaf3ff; border-radius: 10px; font-size: 8px; text-align: center; }
+.users-device,
+.users-session { min-height: 50px; padding: 8px 0; display: flex; align-items: center; gap: 8px; border-top: 1px solid #edf0f4; }
+.users-device__icon { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; color: #0868df; background: #eaf3ff; border-radius: 50%; }
+.users-device > div,
+.users-session > div { min-width: 0; flex: 1; }
+.users-device strong,
+.users-session strong { display: block; color: #314962; font-size: 8px; }
+.users-device small,
+.users-session small { margin-top: 3px; display: block; overflow: hidden; color: #7a899d; font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+.users-device button,
+.users-session button { padding: 4px 7px; color: #0868df; background: #fff; border: 1px solid #b8d1ee; border-radius: 4px; font-size: 7px; cursor: pointer; }
+.users-device button:hover,
+.users-session button:hover { background: #f1f7ff; }
+.users-device button:disabled { color: #8795a8; background: #f5f7fa; border-color: #e0e5eb; cursor: default; }
+.users-session__active,
+.users-session__revoked { flex: 0 0 auto; padding: 4px 6px; border-radius: 10px; font-size: 6px; }
+.users-session__active { color: #078449; background: #def3e6; }
+.users-session__revoked { color: #7d8998; background: #eef1f4; }
 .users-error,
 .users-notice { margin: 10px 0 0; padding: 10px 12px; border-radius: 6px; font-size: 9px; }
 .users-error { color: #a51e2a; background: #fff0f1; border: 1px solid #f2c4c8; }
@@ -142,6 +167,7 @@
   .users-profile-card { border-right: 0; border-bottom: 1px solid #e5eaf0; }
   .users-detail-content { grid-template-columns: 1fr; }
   .users-activity { grid-column: auto; }
+  .users-session-content { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 470px) {

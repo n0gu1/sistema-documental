@@ -25,6 +25,7 @@ urlpatterns = [
     path('admin/users/<uuid:user_id>/reset-password/', management_views.UserResetPasswordView.as_view(), name='admin-user-reset-password'),
     path('admin/users/<uuid:user_id>/roles/', management_views.UserRolesView.as_view(), name='admin-user-roles'),
     path('admin/users/<uuid:user_id>/sessions/', management_views.UserSessionsView.as_view(), name='admin-user-sessions'),
+    path('admin/users/<uuid:user_id>/devices/<str:device_id>/revoke/', management_views.UserDeviceRevokeView.as_view(), name='admin-user-device-revoke'),
     path('admin/sessions/<uuid:session_id>/revoke/', management_views.SessionRevokeView.as_view(), name='admin-session-revoke'),
     path('admin/roles/', management_views.RoleListCreateView.as_view(), name='admin-roles'),
     path('admin/roles/<uuid:role_id>/', management_views.RoleDetailView.as_view(), name='admin-role-detail'),

@@ -17,7 +17,13 @@ from .audit_views import audit_query_parts, require_audit_access
 from .auth_utils import record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .config_service import decrypt_secret, encrypt_secret, validate_section
-from .management_views import UserDetailView, serialize_dashboard_document
+from .management_views import (
+    UserDetailView,
+    UserDeviceRevokeView,
+    build_device_inventory,
+    device_fingerprint,
+    serialize_dashboard_document,
+)
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import DocumentFileDownloadView, compare_versions, validate_metadata
 from .file_validation import validate_uploaded_file
@@ -249,6 +255,93 @@ class UserDeletionTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['code'], 'USER_SELF_DEACTIVATION_NOT_ALLOWED')
+
+
+class DeviceInventoryTests(SimpleTestCase):
+    def test_inventory_groups_sessions_by_user_agent_and_ip(self):
+        now = timezone.now()
+        user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit Chrome/120.0'
+        rows = [
+            {
+                'id': uuid4(),
+                'direccion_ip': '192.0.2.10',
+                'agente_usuario': user_agent,
+                'iniciada_en': now - timedelta(days=2),
+                'ultima_actividad_en': now - timedelta(hours=1),
+                'expira_en': now + timedelta(hours=2),
+                'revocada_en': None,
+                'motivo_revocacion': None,
+            },
+            {
+                'id': uuid4(),
+                'direccion_ip': '192.0.2.10',
+                'agente_usuario': user_agent,
+                'iniciada_en': now - timedelta(days=4),
+                'ultima_actividad_en': now - timedelta(days=3),
+                'expira_en': now - timedelta(days=2),
+                'revocada_en': now - timedelta(days=3),
+                'motivo_revocacion': 'Cierre de sesion',
+            },
+        ]
+
+        sessions, devices = build_device_inventory(rows, now=now)
+
+        self.assertEqual(len(sessions), 2)
+        self.assertEqual(len(devices), 1)
+        self.assertEqual(devices[0]['id'], device_fingerprint(user_agent, '192.0.2.10'))
+        self.assertEqual(devices[0]['session_count'], 2)
+        self.assertEqual(devices[0]['active_session_count'], 1)
+        self.assertEqual(devices[0]['name'], 'Chrome en Windows')
+        self.assertTrue(sessions[0]['active'])
+        self.assertFalse(sessions[1]['active'])
+
+    @patch('documentos.management_views.record_management_event')
+    @patch('documentos.management_views.timezone.now')
+    @patch('documentos.management_views.SesionDocumental.objects.filter')
+    @patch('documentos.management_views.get_user_for_organization')
+    @patch('documentos.management_views.require_permission')
+    def test_device_revoke_revokes_all_sessions_for_fingerprint(
+        self,
+        require_permission,
+        get_user,
+        session_filter,
+        now,
+        record_event,
+    ):
+        user_id = uuid4()
+        organization_id = uuid4()
+        administrator_id = uuid4()
+        session_id = uuid4()
+        user_agent = 'Mozilla/5.0 (X11; Linux x86_64) Firefox/120.0'
+        ip_address = '192.0.2.20'
+        user = SimpleNamespace(id=user_id, pk=user_id, organizacion_id=organization_id)
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=administrator_id, organizacion_id=organization_id),
+            auth=SimpleNamespace(id=uuid4()),
+        )
+        session_query = MagicMock()
+        session_query.values.return_value = [{
+            'id': session_id,
+            'direccion_ip': ip_address,
+            'agente_usuario': user_agent,
+        }]
+        session_query.update.return_value = 1
+        session_filter.return_value = session_query
+        get_user.return_value = user
+        revoked_at = timezone.now()
+        now.return_value = revoked_at
+        device_id = device_fingerprint(user_agent, ip_address)
+
+        response = UserDeviceRevokeView().post(request, user_id, device_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['revoked_sessions'], 1)
+        self.assertEqual(session_filter.call_count, 2)
+        session_query.update.assert_called_once_with(
+            revocada_en=revoked_at,
+            motivo_revocacion='Dispositivo revocado desde administracion',
+        )
+        record_event.assert_called_once_with(request, user, 'SESION_REVOCADA', 'Dispositivo revocado')
 
 
 class ReportFormatTests(SimpleTestCase):

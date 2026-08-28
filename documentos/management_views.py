@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 import uuid
 from datetime import timedelta
@@ -61,6 +62,108 @@ def serialize_management_user(user, area_name=None):
         'updated_at': user.actualizado_en,
         'disabled_at': user.deshabilitado_en,
     }
+
+
+def device_fingerprint(user_agent, ip_address):
+    value = f'{user_agent or ""}|{ip_address or ""}'
+    return hashlib.sha256(value.encode('utf-8')).hexdigest()[:16]
+
+
+def describe_device(user_agent):
+    value = (user_agent or '').lower()
+    if 'mobile' in value or 'android' in value or 'iphone' in value or 'ipad' in value:
+        device_type = 'Movil'
+    else:
+        device_type = 'Escritorio'
+
+    if 'windows' in value:
+        operating_system = 'Windows'
+    elif 'mac os' in value or 'macintosh' in value:
+        operating_system = 'macOS'
+    elif 'android' in value:
+        operating_system = 'Android'
+    elif 'iphone' in value or 'ipad' in value or 'ios' in value:
+        operating_system = 'iOS'
+    elif 'linux' in value:
+        operating_system = 'Linux'
+    else:
+        operating_system = 'Desconocido'
+
+    if 'edg/' in value:
+        browser = 'Edge'
+    elif 'firefox/' in value:
+        browser = 'Firefox'
+    elif 'chrome/' in value or 'crios/' in value:
+        browser = 'Chrome'
+    elif 'safari/' in value:
+        browser = 'Safari'
+    else:
+        browser = 'Desconocido'
+
+    return {
+        'device_type': device_type,
+        'operating_system': operating_system,
+        'browser': browser,
+        'name': f'{browser} en {operating_system}',
+    }
+
+
+def build_device_inventory(session_rows, now=None):
+    now = now or timezone.now()
+    devices = {}
+    serialized_sessions = []
+    for session in session_rows:
+        user_agent = session.get('agente_usuario') or ''
+        ip_address = session.get('direccion_ip')
+        device_id = device_fingerprint(user_agent, ip_address)
+        device = describe_device(user_agent)
+        is_active = bool(
+            not session.get('revocada_en')
+            and session.get('expira_en')
+            and session['expira_en'] > now
+        )
+        serialized_sessions.append({
+            'id': str(session['id']),
+            'device_id': device_id,
+            'device_name': device['name'],
+            'device_type': device['device_type'],
+            'browser': device['browser'],
+            'operating_system': device['operating_system'],
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'started_at': session['iniciada_en'],
+            'last_activity_at': session['ultima_actividad_en'],
+            'expires_at': session['expira_en'],
+            'revoked_at': session['revocada_en'],
+            'revocation_reason': session['motivo_revocacion'],
+            'active': is_active,
+        })
+
+        current = devices.setdefault(device_id, {
+            'id': device_id,
+            **device,
+            'ip_address': ip_address,
+            'user_agent': user_agent,
+            'first_seen_at': session['iniciada_en'],
+            'last_activity_at': session['ultima_actividad_en'],
+            'session_count': 0,
+            'active_session_count': 0,
+        })
+        current['session_count'] += 1
+        current['active_session_count'] += int(is_active)
+        if session['iniciada_en'] and session['iniciada_en'] < current['first_seen_at']:
+            current['first_seen_at'] = session['iniciada_en']
+        if session['ultima_actividad_en'] and (
+            not current['last_activity_at'] or session['ultima_actividad_en'] > current['last_activity_at']
+        ):
+            current['last_activity_at'] = session['ultima_actividad_en']
+        current['active'] = current['active_session_count'] > 0
+
+    return serialized_sessions, sorted(
+        devices.values(),
+        key=lambda item: item['last_activity_at'] or now,
+        reverse=True,
+    )
 
 
 def get_user_for_organization(user_id, organization_id):
@@ -483,7 +586,41 @@ class UserSessionsView(APIView):
             'id', 'direccion_ip', 'agente_usuario', 'iniciada_en', 'ultima_actividad_en',
             'expira_en', 'revocada_en', 'motivo_revocacion',
         )
-        return Response({'sessions': list(sessions)})
+        serialized_sessions, devices = build_device_inventory(list(sessions))
+        return Response({'sessions': serialized_sessions, 'devices': devices})
+
+
+class UserDeviceRevokeView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def post(self, request, user_id, device_id):
+        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        if not user:
+            return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if user.pk != request.user.id:
+            require_permission(request, 'usuarios.gestionar')
+
+        sessions = list(SesionDocumental.objects.filter(usuario_id=user.pk).values(
+            'id', 'direccion_ip', 'agente_usuario',
+        ))
+        session_ids = [
+            session['id'] for session in sessions
+            if device_fingerprint(session['agente_usuario'], session['direccion_ip']) == device_id
+        ]
+        if not session_ids:
+            return Response({'detail': 'Dispositivo no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        now = timezone.now()
+        revoked_count = SesionDocumental.objects.filter(
+            usuario_id=user.pk,
+            id__in=session_ids,
+            revocada_en__isnull=True,
+        ).update(
+            revocada_en=now,
+            motivo_revocacion='Dispositivo revocado desde administracion',
+        )
+        record_management_event(request, user, 'SESION_REVOCADA', 'Dispositivo revocado')
+        return Response({'device_id': device_id, 'revoked_sessions': revoked_count})
 
 
 class SessionRevokeView(APIView):
