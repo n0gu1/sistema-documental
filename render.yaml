@@ -107,7 +107,7 @@ services:
           type: web
           name: sistema-documental
           envVarKey: BACKUP_ENCRYPTION_KEY
-    plan: free
+    plan: starter
     region: oregon
 
   - type: cron
@@ -155,7 +155,7 @@ services:
         value: https://s3.us-east-005.backblazeb2.com
       - key: AWS_LOCATION
         value: documentos
-    plan: free
+    plan: starter
     region: oregon
 
 databases:
