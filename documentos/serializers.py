@@ -123,6 +123,41 @@ class PermissionAssignmentSerializer(serializers.Serializer):
     )
 
 
+class PermissionCreateSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=80, trim_whitespace=True)
+    name = serializers.CharField(max_length=120, trim_whitespace=True)
+    module = serializers.CharField(max_length=50, trim_whitespace=True)
+    description = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_code(self, value):
+        return sanitize_text(value)
+
+    def validate_name(self, value):
+        return sanitize_text(value)
+
+    def validate_module(self, value):
+        return sanitize_text(value)
+
+    def validate_description(self, value):
+        return sanitize_text(value)
+
+
+class PermissionUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120, trim_whitespace=True, required=False)
+    module = serializers.CharField(max_length=50, trim_whitespace=True, required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    active = serializers.BooleanField(required=False)
+
+    def validate_name(self, value):
+        return sanitize_text(value)
+
+    def validate_module(self, value):
+        return sanitize_text(value)
+
+    def validate_description(self, value):
+        return sanitize_text(value)
+
+
 class RoleCreateSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=50, trim_whitespace=True)
     name = serializers.CharField(max_length=120, trim_whitespace=True)

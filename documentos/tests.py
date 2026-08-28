@@ -18,6 +18,8 @@ from .auth_utils import record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import (
+    PermissionDetailView,
+    PermissionListView,
     UserDetailView,
     UserDeviceRevokeView,
     build_device_inventory,
@@ -342,6 +344,102 @@ class DeviceInventoryTests(SimpleTestCase):
             motivo_revocacion='Dispositivo revocado desde administracion',
         )
         record_event.assert_called_once_with(request, user, 'SESION_REVOCADA', 'Dispositivo revocado')
+
+
+class PermissionManagementTests(SimpleTestCase):
+    @patch('documentos.management_views.record_management_event')
+    @patch('documentos.management_views.PermisoDocumental.objects.create')
+    @patch('documentos.management_views.PermisoDocumental.objects.filter')
+    @patch('documentos.management_views.require_permission')
+    def test_create_permission_persists_active_catalog_entry(
+        self,
+        require_permission,
+        permission_filter,
+        create_permission,
+        record_event,
+    ):
+        organization_id = uuid4()
+        administrator = SimpleNamespace(id=uuid4(), organizacion_id=organization_id)
+        request = SimpleNamespace(
+            user=administrator,
+            auth=SimpleNamespace(id=uuid4()),
+            data={
+                'code': 'documentos.revisar',
+                'name': 'Revisar documentos',
+                'module': 'documentos',
+                'description': 'Permite revisar documentos.',
+            },
+        )
+        permission = SimpleNamespace(
+            id=uuid4(),
+            codigo='documentos.revisar',
+            nombre='Revisar documentos',
+            modulo='documentos',
+            descripcion='Permite revisar documentos.',
+            activo=True,
+        )
+        permission_filter.return_value.exists.return_value = False
+        create_permission.return_value = permission
+
+        response = PermissionListView().post(request)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['permission']['codigo'], 'documentos.revisar')
+        self.assertTrue(response.data['permission']['activo'])
+        permission_filter.assert_called_once_with(codigo__iexact='documentos.revisar')
+        create_permission.assert_called_once()
+        created_data = create_permission.call_args.kwargs
+        self.assertIsInstance(created_data['id'], type(permission.id))
+        self.assertEqual(created_data['codigo'], 'documentos.revisar')
+        self.assertEqual(created_data['nombre'], 'Revisar documentos')
+        self.assertEqual(created_data['modulo'], 'documentos')
+        self.assertEqual(created_data['descripcion'], 'Permite revisar documentos.')
+        self.assertTrue(created_data['activo'])
+        record_event.assert_called_once()
+
+    @patch('documentos.management_views.record_management_event')
+    @patch('documentos.management_views.PermisoDocumental.objects.filter')
+    @patch('documentos.management_views.require_permission')
+    def test_update_permission_changes_metadata_and_status(
+        self,
+        require_permission,
+        permission_filter,
+        record_event,
+    ):
+        permission_id = uuid4()
+        permission = SimpleNamespace(
+            id=permission_id,
+            pk=permission_id,
+            codigo='documentos.revisar',
+            nombre='Revisar documentos',
+            modulo='documentos',
+            descripcion='Descripción anterior',
+            activo=True,
+        )
+        permission_filter.return_value.first.return_value = permission
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=uuid4(), organizacion_id=uuid4()),
+            auth=SimpleNamespace(id=uuid4()),
+            data={
+                'name': 'Revisar documentos publicados',
+                'module': 'revision',
+                'description': 'Descripción actualizada',
+                'active': False,
+            },
+        )
+
+        response = PermissionDetailView().patch(request, permission_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data['permission']['activo'])
+        self.assertEqual(response.data['permission']['nombre'], 'Revisar documentos publicados')
+        permission_filter.return_value.update.assert_called_once_with(
+            nombre='Revisar documentos publicados',
+            modulo='revision',
+            descripcion='Descripción actualizada',
+            activo=False,
+        )
+        record_event.assert_called_once()
 
 
 class ReportFormatTests(SimpleTestCase):

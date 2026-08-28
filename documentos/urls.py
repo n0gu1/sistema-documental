@@ -31,6 +31,7 @@ urlpatterns = [
     path('admin/roles/<uuid:role_id>/', management_views.RoleDetailView.as_view(), name='admin-role-detail'),
     path('admin/roles/<uuid:role_id>/permissions/', management_views.RolePermissionsView.as_view(), name='admin-role-permissions'),
     path('admin/permissions/', management_views.PermissionListView.as_view(), name='admin-permissions'),
+    path('admin/permissions/<uuid:permission_id>/', management_views.PermissionDetailView.as_view(), name='admin-permission-detail'),
     path('documents/', document_views.DocumentListCreateView.as_view(), name='documents'),
     path('documents/catalogs/', document_views.DocumentCatalogView.as_view(), name='document-catalogs'),
     path('documents/export/', document_views.DocumentExportView.as_view(), name='document-export'),

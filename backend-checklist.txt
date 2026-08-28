@@ -62,7 +62,7 @@ ORDEN RECOMENDADO
 [ ] Implementar autenticacion multifactor (MFA).
 [x] Implementar gestion de sesiones y dispositivos. El inventario se deriva de las sesiones reales, con datos del dispositivo, consulta desde la ficha y revocacion individual o por dispositivo.
 [x] Crear roles administrables.
-[~] Crear permisos administrables. Actualmente solo se listan permisos existentes y se asignan a roles; falta crear, modificar, activar y desactivar permisos.
+[x] Crear permisos administrables. El catalogo permite crear, modificar, activar y desactivar permisos, y conserva las asignaciones existentes de los roles.
 [x] Asignar multiples roles a usuarios.
 [~] Aplicar permisos por rol, area y documento. Falta aplicar la ACL de area/documento en el listado general, exportaciones y reportes; tambien debe verificarse el rol Administrador antes de que una ACL explicita pueda denegarle acceso.
 [ ] Validar que los roles asignados durante la creacion de un usuario pertenezcan a la misma organizacion.

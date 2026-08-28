@@ -35,6 +35,8 @@ from .serializers import (
     UserCreateSerializer,
     UserStatusSerializer,
     UserUpdateSerializer,
+    PermissionCreateSerializer,
+    PermissionUpdateSerializer,
 )
 
 
@@ -757,10 +759,96 @@ class PermissionListView(APIView):
 
     def get(self, request):
         require_permission(request, 'roles.gestionar')
-        permissions = PermisoDocumental.objects.filter(activo=True).values(
+        permissions = PermisoDocumental.objects.all()
+        active = request.query_params.get('active')
+        if active in {'true', 'false'}:
+            permissions = permissions.filter(activo=active == 'true')
+        search = request.query_params.get('search', '').strip()
+        if search:
+            permissions = permissions.filter(
+                codigo__icontains=search,
+            ) | permissions.filter(
+                nombre__icontains=search,
+            ) | permissions.filter(
+                modulo__icontains=search,
+            )
+        permissions = permissions.order_by('modulo', 'codigo').values(
             'id', 'codigo', 'nombre', 'modulo', 'descripcion', 'activo',
         )
         return Response({'permissions': [permission_to_dict(permission) for permission in permissions]})
+
+    def post(self, request):
+        require_permission(request, 'roles.gestionar')
+        serializer = PermissionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        if PermisoDocumental.objects.filter(codigo__iexact=data['code']).exists():
+            return Response(
+                {'code': 'PERMISSION_ALREADY_EXISTS', 'detail': 'El codigo del permiso ya existe.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        permission = PermisoDocumental.objects.create(
+            id=uuid.uuid4(),
+            codigo=data['code'],
+            nombre=data['name'],
+            modulo=data['module'],
+            descripcion=data.get('description', ''),
+            activo=True,
+        )
+        record_management_event(
+            request,
+            request.user,
+            'PERMISO_MODIFICADO',
+            'Permiso creado',
+            resource_code='PERMISO',
+            resource_id=permission.id,
+        )
+        return Response({'permission': permission_to_dict({
+            'id': permission.id,
+            'codigo': permission.codigo,
+            'nombre': permission.nombre,
+            'modulo': permission.modulo,
+            'descripcion': permission.descripcion,
+            'activo': permission.activo,
+        })}, status=status.HTTP_201_CREATED)
+
+
+class PermissionDetailView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def patch(self, request, permission_id):
+        require_permission(request, 'roles.gestionar')
+        permission = PermisoDocumental.objects.filter(pk=permission_id).first()
+        if not permission:
+            return Response({'detail': 'Permiso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = PermissionUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        updates = {}
+        field_mapping = {'name': 'nombre', 'module': 'modulo', 'description': 'descripcion', 'active': 'activo'}
+        for key, field in field_mapping.items():
+            if key in data:
+                updates[field] = data[key]
+        if updates:
+            PermisoDocumental.objects.filter(pk=permission.pk).update(**updates)
+            for field, value in updates.items():
+                setattr(permission, field, value)
+        record_management_event(
+            request,
+            request.user,
+            'PERMISO_MODIFICADO',
+            'Permiso actualizado',
+            resource_code='PERMISO',
+            resource_id=permission.id,
+        )
+        return Response({'permission': permission_to_dict({
+            'id': permission.id,
+            'codigo': permission.codigo,
+            'nombre': permission.nombre,
+            'modulo': permission.modulo,
+            'descripcion': permission.descripcion,
+            'activo': permission.activo,
+        })})
 
 
 class RolePermissionsView(APIView):
