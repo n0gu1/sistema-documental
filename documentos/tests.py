@@ -14,7 +14,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .audit_views import audit_query_parts, require_audit_access
-from .auth_utils import record_auth_event, user_has_permission
+from .auth_utils import record_access_denied, record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import (
@@ -1070,7 +1070,8 @@ class WorkflowTests(SimpleTestCase):
         is_admin_mock.assert_called_once_with(editor)
         serialize_review.assert_called_once_with(review)
 
-    def test_checklist_requires_assigned_reviewer(self):
+    @patch('documentos.workflow_views.record_access_denied')
+    def test_checklist_requires_assigned_reviewer(self, record_access_denied_mock):
         reviewer = SimpleNamespace(id=uuid4())
         review = SimpleNamespace(
             revisor_id=uuid4(),
@@ -1081,6 +1082,7 @@ class WorkflowTests(SimpleTestCase):
             ensure_checklist_editable(SimpleNamespace(user=reviewer), review)
 
         self.assertEqual(context.exception.detail['code'], 'REVIEWER_NOT_ASSIGNED')
+        record_access_denied_mock.assert_called_once()
 
     def test_checklist_is_locked_after_review_resolution(self):
         reviewer = SimpleNamespace(id=uuid4())
@@ -1933,8 +1935,20 @@ class NotificationTests(SimpleTestCase):
 
 
 class AuditTests(SimpleTestCase):
+    @patch('documentos.auth_utils.record_auth_event')
+    def test_access_denied_records_reason_without_request_metadata(self, record_event):
+        request = SimpleNamespace(user=SimpleNamespace(id=uuid4(), organizacion_id=uuid4()))
+
+        record_access_denied(request, 'INSUFFICIENT_PERMISSIONS', resource_code='REPORTE')
+
+        record_event.assert_called_once()
+        self.assertEqual(record_event.call_args.kwargs['action_code'], 'ACCESO_DENEGADO')
+        self.assertEqual(record_event.call_args.kwargs['resource_code'], 'REPORTE')
+        self.assertFalse(record_event.call_args.kwargs['successful'])
+
+    @patch('documentos.audit_views.record_access_denied')
     @patch('documentos.audit_views.get_user_roles', return_value=[{'code': 'EDITOR', 'name': 'Editor'}])
-    def test_editor_can_request_only_own_audit_events(self, get_user_roles):
+    def test_editor_can_request_only_own_audit_events(self, get_user_roles, record_access_denied_mock):
         user_id = uuid4()
         request = SimpleNamespace(user=SimpleNamespace(id=user_id), query_params={'user_id': str(user_id)})
 
@@ -1943,6 +1957,7 @@ class AuditTests(SimpleTestCase):
         request.query_params = {'user_id': str(uuid4())}
         with self.assertRaises(PermissionDenied):
             require_audit_access(request, allow_own_events=True)
+        record_access_denied_mock.assert_called_once()
 
     def test_audit_query_builds_parameterized_filters(self):
         where, values = audit_query_parts({

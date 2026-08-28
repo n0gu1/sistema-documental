@@ -6,10 +6,10 @@ Leyenda:
 [x] Completo
 [~] Parcial
 
-VERIFICACION REALIZADA EL 2026-08-27
+VERIFICACION REALIZADA EL 2026-08-28
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 61 pruebas exitosas en la verificacion local del 2026-08-27.
+- `python manage.py test documentos`: 103 pruebas exitosas en la verificacion local del 2026-08-28.
 - Render: deploy del commit `a6c57ac` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -140,12 +140,12 @@ ORDEN RECOMENDADO
 
 9. AUDITORIA Y TRAZABILIDAD
 [x] Registrar eventos de autenticacion.
-[~] Registrar todas las operaciones documentales. Faltan denegaciones, exportacion documental, cambios de checklist, resolucion de observaciones, reportes, respaldos, restauraciones y cambios de configuracion.
+[x] Registrar todas las operaciones documentales. Se registran denegaciones, exportacion documental, checklist, resolucion de observaciones, reportes, respaldos, restauraciones y cambios de configuracion.
 [x] Registrar cambios de usuarios, roles y permisos.
-[~] Registrar descargas, publicaciones y exportaciones. La exportacion de bitacora se audita, pero la exportacion documental y la generacion/descarga de reportes no.
+[x] Registrar descargas, publicaciones y exportaciones. La bitacora, los documentos, los reportes y los respaldos registran sus consultas, descargas y exportaciones autorizadas.
 [x] Consultar bitacora con filtros y paginacion.
 [x] Exportar bitacora.
-[~] Implementar alertas de seguridad. Actualmente se detectan principalmente intentos fallidos de inicio de sesion; faltan denegaciones RBAC/ACL, sesiones invalidas y accesos a recursos no autorizados.
+[~] Implementar alertas de seguridad. Las denegaciones RBAC, el acceso restringido a la bitacora y el acceso de lectores a exportaciones se registran; las alertas visibles y las sesiones invalidas aun requieren cobertura adicional.
 [x] Evitar perdida silenciosa de eventos de auditoria.
 
 10. ADMINISTRACION Y DASHBOARD

@@ -16,7 +16,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import record_auth_event, user_has_permission
+from .auth_utils import record_access_denied, record_auth_event, user_has_permission
 from .audit_views import audit_timestamp_column
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer, VersionRestoreSerializer
 from .file_validation import validate_uploaded_file
@@ -267,11 +267,15 @@ def get_document_or_404(request, document_id, include_archived=False):
     if not include_archived:
         queryset = queryset.filter(eliminado_en__isnull=True)
     document = queryset.select_related('area', 'tipo_documento', 'creado_por').filter(pk=document_id).first()
-    if not document or not has_document_permission(
+    if not document:
+        record_access_denied(request, 'DOCUMENT_NOT_FOUND_OR_UNAUTHORIZED', resource_code='DOCUMENTO', resource_id=document_id)
+        raise Http404
+    if not has_document_permission(
         request.user,
         document.id,
         WRITE_PERMISSION if user_has_permission(request.user, WRITE_PERMISSION) else READ_PERMISSION,
     ):
+        record_access_denied(request, 'DOCUMENT_ACCESS_REQUIRED', resource_code='DOCUMENTO', resource_id=document.id)
         raise Http404
     return document
 
@@ -358,7 +362,7 @@ def validate_document_permission_assignments(assignments, organization_id):
 
 def get_read_document_or_404(request, document_id):
     if is_reader_user(request.user):
-        return get_accessible_published_document(request.user, document_id, READ_PERMISSION)
+        return get_accessible_published_document(request.user, document_id, READ_PERMISSION, request=request)
     return get_document_or_404(request, document_id)
 
 
@@ -374,8 +378,10 @@ def get_reference_or_error(model, object_id, organization_id, field_name):
     return reference
 
 
-def ensure_area_authorized(user, area_id):
+def ensure_area_authorized(user, area_id, request=None):
     if not has_area_permission(user, area_id):
+        if request is not None:
+            record_access_denied(request, 'AREA_NOT_AUTHORIZED', resource_code='DOCUMENTO', resource_id=area_id)
         raise PermissionDenied({
             'code': 'AREA_NOT_AUTHORIZED',
             'detail': 'El area no esta autorizada para este usuario.',
@@ -533,7 +539,7 @@ class DocumentListCreateView(APIView):
         data = serializer.validated_data
         organization_id = request.user.organizacion_id
         area = get_reference_or_error(AreaCatalogo, data['area_id'], organization_id, 'area_id')
-        ensure_area_authorized(request.user, area.id)
+        ensure_area_authorized(request.user, area.id, request=request)
         document_type = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], organization_id, 'type_id')
         if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code'], eliminado_en__isnull=True).exists():
             return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
@@ -634,7 +640,7 @@ class DocumentDetailView(APIView):
             updates['fecha_documento'] = data['date']
         if 'area_id' in data:
             area = get_reference_or_error(AreaCatalogo, data['area_id'], document.organizacion_id, 'area_id')
-            ensure_area_authorized(request.user, area.id)
+            ensure_area_authorized(request.user, area.id, request=request)
             updates['area'] = area
         if 'type_id' in data:
             updates['tipo_documento'] = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], document.organizacion_id, 'type_id')
@@ -1102,7 +1108,7 @@ class DocumentFileDownloadView(APIView):
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
         if is_reader_user(request.user):
-            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar')
+            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
             document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
             if not document_file:
                 raise Http404
@@ -1119,7 +1125,7 @@ class DocumentVersionDownloadView(DocumentFileDownloadView):
     def get(self, request, document_id, version_id):
         require_permission(request, READ_PERMISSION)
         if is_reader_user(request.user):
-            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar')
+            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
             document_file = document.archivos.filter(pk=version_id, estado_version__codigo='PUBLICADO').first()
             if not document_file:
                 raise Http404
@@ -1138,7 +1144,7 @@ class DocumentFilePreviewView(APIView):
     def get(self, request, document_id, file_id):
         require_permission(request, READ_PERMISSION)
         if is_reader_user(request.user):
-            document = get_accessible_published_document(request.user, document_id, READ_PERMISSION)
+            document = get_accessible_published_document(request.user, document_id, READ_PERMISSION, request=request)
             document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
             if not document_file:
                 raise Http404
@@ -1159,6 +1165,7 @@ class DocumentExportView(APIView):
     def get(self, request):
         require_permission(request, READ_PERMISSION)
         if is_reader_user(request.user):
+            record_access_denied(request, 'READER_ENDPOINT_REQUIRED', resource_code='DOCUMENTO')
             raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
         documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)

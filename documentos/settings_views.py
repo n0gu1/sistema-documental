@@ -8,6 +8,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .auth_utils import record_auth_event
 from .config_service import get_system_config, merge_defaults, serialize_system_config, smtp_connection_for, update_system_config
 from .management_views import require_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
@@ -15,6 +16,21 @@ from .permissions import IsAuthenticatedAndPasswordCurrent
 
 READ_PERMISSION = 'usuarios.consultar'
 WRITE_PERMISSION = 'usuarios.gestionar'
+
+
+def record_config_event(request, action_code, config, details=None, successful=True, result=None):
+    record_auth_event(
+        action_code=action_code,
+        resource_code='CONFIGURACION',
+        organization_id=request.user.organizacion_id,
+        user_id=request.user.id,
+        session_id=getattr(request.auth, 'id', None),
+        resource_id=config.id,
+        request=request,
+        successful=successful,
+        result=result or ('Configuracion procesada correctamente' if successful else 'Configuracion procesada con error'),
+        details=details,
+    )
 
 
 def serialize_changes(config):
@@ -35,7 +51,9 @@ class SystemSettingsView(APIView):
         require_permission(request, READ_PERMISSION)
         config = get_system_config(request.user.organizacion_id)
         values = serialize_system_config(config)
-        return Response({'settings': values, 'changes': serialize_changes(config)})
+        response = Response({'settings': values, 'changes': serialize_changes(config)})
+        record_config_event(request, 'CONFIGURACION_CONSULTADA', config)
+        return response
 
     def post(self, request):
         require_permission(request, WRITE_PERMISSION)
@@ -49,6 +67,7 @@ class SystemSettingsView(APIView):
             config = update_system_config(request.user.organizacion_id, sections)
         except (TypeError, ValueError, DjangoValidationError) as error:
             raise ValidationError({'detail': str(error)}) from error
+        record_config_event(request, 'CONFIGURACION_MODIFICADA', config, details={'sections': sorted(sections)})
         return Response({'settings': serialize_system_config(config), 'changes': serialize_changes(config)})
 
 
@@ -60,6 +79,7 @@ class SmtpTestView(APIView):
         config = get_system_config(request.user.organizacion_id)
         smtp = merge_defaults(config)['smtp']
         if not smtp['host']:
+            record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': 'smtp', 'valid': False}, successful=False, result='SMTP sin servidor configurado')
             return Response({'valid': False, 'detail': 'Configure el servidor SMTP antes de probarlo.'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         recipient = str(request.data.get('recipient', '')).strip()
         if recipient:
@@ -68,9 +88,11 @@ class SmtpTestView(APIView):
             except DjangoValidationError as error:
                 raise ValidationError({'recipient': 'El correo de prueba no es valido.'}) from error
         if not recipient or request.data.get('dry_run', True):
+            record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': 'smtp', 'mode': 'validate', 'valid': True})
             return Response({'valid': True, 'mode': 'validate', 'host': smtp['host'], 'port': smtp['port'], 'security': smtp['security']})
         connection = smtp_connection_for(request.user.organizacion_id, fail_silently=False)
         if not connection:
+            record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': 'smtp', 'mode': 'send', 'valid': False}, successful=False, result='SMTP sin credenciales configuradas')
             return Response({'valid': False, 'detail': 'El SMTP no tiene credenciales configuradas.'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         message = EmailMessage(
             subject='Prueba de configuracion SMTP',
@@ -82,7 +104,9 @@ class SmtpTestView(APIView):
         try:
             sent = message.send(fail_silently=False)
         except Exception as error:
+            record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': 'smtp', 'mode': 'send', 'valid': False}, successful=False, result=str(error))
             return Response({'valid': False, 'detail': f'No fue posible enviar el correo de prueba: {error}'}, status=status.HTTP_502_BAD_GATEWAY)
+        record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': 'smtp', 'mode': 'send', 'valid': sent == 1})
         return Response({'valid': sent == 1, 'mode': 'send', 'recipient': recipient})
 
 
@@ -108,4 +132,5 @@ class IntegrationTestView(APIView):
         else:
             valid = bool(item.get('enabled') and item.get('client_id'))
             detail = 'La integracion tiene credenciales basicas configuradas.' if valid else 'La integracion aun no esta configurada.'
+        record_config_event(request, 'CONFIGURACION_PROBADA', config, details={'provider': provider, 'valid': valid})
         return Response({'provider': provider, 'valid': valid, 'status': 'configured' if valid else 'not_configured', 'detail': detail, 'tested_at': timezone.now()})

@@ -147,7 +147,7 @@ class ReaderDocumentDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id):
-        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar')
+        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar', request=request)
         version = published_version(document)
         record_reader_access(request, document, version, 'CONSULTA', 'Detalle documental consultado')
         return Response({'document': serialize_reader_document(document, request, include_details=True)})
@@ -157,7 +157,7 @@ class ReaderDocumentReadView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, document_id):
-        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar')
+        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar', request=request)
         serializer = ReaderAccessSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         version = published_version(document, serializer.validated_data.get('version_id'))
@@ -258,12 +258,12 @@ class ReaderFavoriteView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, document_id):
-        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar')
+        document = get_accessible_published_document(request.user, document_id, 'documentos.consultar', request=request)
         favorite, created = FavoritoDocumento.objects.get_or_create(documento=document, usuario=request.user)
         return Response({'favorite': {'id': str(favorite.id), 'document_id': str(document.id), 'created_at': favorite.creado_en}}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
 
     def delete(self, request, document_id):
-        get_accessible_published_document(request.user, document_id, 'documentos.consultar')
+        get_accessible_published_document(request.user, document_id, 'documentos.consultar', request=request)
         deleted, _ = FavoritoDocumento.objects.filter(documento_id=document_id, usuario_id=request.user.id).delete()
         if not deleted:
             return Response({'code': 'FAVORITE_NOT_FOUND', 'detail': 'El documento no estaba en favoritos.'}, status=status.HTTP_404_NOT_FOUND)
@@ -282,7 +282,7 @@ class ReaderVersionFileView(APIView):
     inline = False
 
     def get(self, request, document_id, version_id):
-        document = get_accessible_published_document(request.user, document_id, 'documentos.descargar' if not self.inline else 'documentos.consultar')
+        document = get_accessible_published_document(request.user, document_id, 'documentos.descargar' if not self.inline else 'documentos.consultar', request=request)
         version = published_version(document, version_id)
         if not version:
             raise Http404

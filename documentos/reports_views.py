@@ -17,6 +17,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .management_views import require_permission
+from .auth_utils import record_auth_event
 from .models import (
     ArchivoDocumento,
     DetalleSolicitudRevision,
@@ -71,6 +72,21 @@ def require_report_access(request, scope, generate=False):
     if not permission:
         raise ValidationError({'scope': 'El alcance del reporte no es valido.'})
     require_permission(request, permission)
+
+
+def record_report_event(request, action_code, resource_id=None, details=None):
+    record_auth_event(
+        action_code=action_code,
+        resource_code='REPORTE',
+        organization_id=request.user.organizacion_id,
+        user_id=request.user.id,
+        session_id=getattr(request.auth, 'id', None),
+        resource_id=resource_id,
+        request=request,
+        successful=True,
+        result='Operacion de reporte correcta',
+        details=details,
+    )
 
 
 def current_report_version(document):
@@ -341,6 +357,7 @@ class ReportListView(APIView):
         filters = clean_filters(request.query_params)
         data = build_report_data(request, scope, filters)
         data['history'] = report_history(request, scope)
+        record_report_event(request, 'REPORTE_CONSULTADO', details={'scope': scope, 'rows': len(data['rows'])})
         return Response(data)
 
 
@@ -364,6 +381,12 @@ class ReportGenerateView(APIView):
             filtros=filters,
             filas=len(data['rows']),
         )
+        record_report_event(
+            request,
+            'REPORTE_GENERADO',
+            resource_id=report.id,
+            details={'scope': scope, 'format': report_format, 'rows': len(data['rows'])},
+        )
         return Response({'report': serialize_report(report)}, status=status.HTTP_201_CREATED)
 
 
@@ -375,7 +398,9 @@ class ReportDownloadView(APIView):
         if not report:
             return Response({'detail': 'Reporte no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         require_report_access(request, report.alcance)
-        return report_response(build_report_data(request, report.alcance, report.filtros), report.formato)
+        response = report_response(build_report_data(request, report.alcance, report.filtros), report.formato)
+        record_report_event(request, 'REPORTE_DESCARGADO', resource_id=report.id, details={'format': report.formato})
+        return response
 
 
 def serialize_schedule(schedule):
@@ -398,7 +423,9 @@ class ReportScheduleListView(APIView):
         scope = request.query_params.get('scope', 'executive')
         require_report_access(request, scope)
         schedules = ProgramacionReporte.objects.filter(organizacion_id=request.user.organizacion_id, alcance=scope, activa=True)
-        return Response({'schedules': [serialize_schedule(item) for item in schedules]})
+        response = Response({'schedules': [serialize_schedule(item) for item in schedules]})
+        record_report_event(request, 'REPORTE_CONSULTADO', details={'scope': scope, 'scheduled': True})
+        return response
 
     def post(self, request):
         scope = request.data.get('scope', 'executive')
@@ -421,6 +448,12 @@ class ReportScheduleListView(APIView):
             filtros=filters,
             proxima_ejecucion_en=next_run,
         )
+        record_report_event(
+            request,
+            'REPORTE_PROGRAMADO',
+            resource_id=schedule.id,
+            details={'scope': scope, 'format': report_format, 'frequency': frequency},
+        )
         return Response({'schedule': serialize_schedule(schedule)}, status=status.HTTP_201_CREATED)
 
 
@@ -437,6 +470,7 @@ class ReportScheduleDetailView(APIView):
         if 'next_run_at' in request.data:
             schedule.proxima_ejecucion_en = parse_report_datetime(request.data['next_run_at'], 'next_run_at')
         schedule.save(update_fields=['activa', 'proxima_ejecucion_en', 'actualizada_en'])
+        record_report_event(request, 'REPORTE_PROGRAMACION_MODIFICADA', resource_id=schedule.id, details={'active': schedule.activa})
         return Response({'schedule': serialize_schedule(schedule)})
 
     def delete(self, request, schedule_id):
@@ -446,4 +480,5 @@ class ReportScheduleDetailView(APIView):
         require_report_access(request, schedule.alcance, generate=True)
         schedule.activa = False
         schedule.save(update_fields=['activa', 'actualizada_en'])
+        record_report_event(request, 'REPORTE_PROGRAMACION_CANCELADA', resource_id=schedule.id)
         return Response(status=status.HTTP_204_NO_CONTENT)

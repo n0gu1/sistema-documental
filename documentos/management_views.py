@@ -12,7 +12,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import get_client_ip, record_auth_event, serialize_user, user_has_permission
+from .auth_utils import get_client_ip, record_access_denied, record_auth_event, serialize_user, user_has_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .models import (
     PermisoDocumental,
@@ -43,6 +43,7 @@ from .serializers import (
 
 def require_permission(request, permission_code):
     if not user_has_permission(request.user, permission_code):
+        record_access_denied(request, 'INSUFFICIENT_PERMISSIONS', details={'permission': permission_code})
         raise PermissionDenied(
             {
                 'code': 'INSUFFICIENT_PERMISSIONS',

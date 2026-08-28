@@ -8,8 +8,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_client_ip(request):
-    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    value = forwarded_for.split(',', 1)[0].strip() if forwarded_for else request.META.get('REMOTE_ADDR')
+    meta = getattr(request, 'META', {})
+    forwarded_for = meta.get('HTTP_X_FORWARDED_FOR', '')
+    value = forwarded_for.split(',', 1)[0].strip() if forwarded_for else meta.get('REMOTE_ADDR')
     try:
         return str(ip_address(value)) if value else None
     except ValueError:
@@ -118,7 +119,7 @@ def record_auth_event(
                     result,
                     json.dumps(details or {}, default=str),
                     get_client_ip(request),
-                    request.META.get('HTTP_USER_AGENT', ''),
+                    getattr(request, 'META', {}).get('HTTP_USER_AGENT', ''),
                     action_code,
                     resource_code,
                 ],
@@ -140,3 +141,19 @@ def record_auth_event(
             resource_id,
             exc_info=True,
         )
+
+
+def record_access_denied(request, reason, resource_code='PERMISO', resource_id=None, details=None):
+    user = getattr(request, 'user', None)
+    record_auth_event(
+        action_code='ACCESO_DENEGADO',
+        resource_code=resource_code,
+        organization_id=getattr(user, 'organizacion_id', None),
+        user_id=getattr(user, 'id', None),
+        session_id=getattr(getattr(request, 'auth', None), 'id', None),
+        resource_id=resource_id,
+        request=request,
+        successful=False,
+        result='Operacion denegada',
+        details={'reason': reason, **(details or {})},
+    )

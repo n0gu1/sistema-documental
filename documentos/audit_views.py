@@ -9,7 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import get_user_roles, record_auth_event
+from .auth_utils import get_user_roles, record_access_denied, record_auth_event
 from .permissions import IsAuthenticatedAndPasswordCurrent
 
 
@@ -43,6 +43,7 @@ def require_audit_access(request, allow_own_events=False):
         return
     if allow_own_events and request.query_params.get('user_id') == str(request.user.id):
         return
+    record_access_denied(request, 'AUDIT_ACCESS_REQUIRED', resource_code='BITACORA')
     raise PermissionDenied({'code': 'AUDIT_ACCESS_REQUIRED', 'detail': 'Solo un administrador puede consultar la bitacora.'})
 
 

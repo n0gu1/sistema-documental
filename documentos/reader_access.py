@@ -1,7 +1,7 @@
 from django.db import connection
 from django.http import Http404
 
-from .auth_utils import get_client_ip, get_user_roles, record_auth_event, user_has_permission
+from .auth_utils import get_client_ip, get_user_roles, record_access_denied, record_auth_event, user_has_permission
 from .models import Documento, RegistroAccesoDocumento
 
 
@@ -103,11 +103,15 @@ def published_version(document, version_id=None):
     return versions.first()
 
 
-def get_accessible_published_document(user, document_id, permission_code='documentos.consultar'):
+def get_accessible_published_document(user, document_id, permission_code='documentos.consultar', request=None):
     document = published_document_queryset(user.organizacion_id).filter(pk=document_id).first()
     if not document or not has_document_permission(user, document.id, permission_code):
+        if request is not None:
+            record_access_denied(request, 'DOCUMENT_ACCESS_REQUIRED', resource_code='DOCUMENTO', resource_id=document.id if document else document_id)
         raise Http404
     if not published_version(document):
+        if request is not None:
+            record_access_denied(request, 'PUBLISHED_VERSION_REQUIRED', resource_code='DOCUMENTO', resource_id=document.id)
         raise Http404
     return document
 

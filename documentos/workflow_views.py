@@ -9,7 +9,7 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import get_user_roles
+from .auth_utils import get_user_roles, record_access_denied, record_auth_event
 from .document_views import get_document_or_404, get_document_version_or_404, record_document_event
 from .management_views import require_permission
 from .models import (
@@ -200,8 +200,10 @@ def get_review_or_404(request, review_id):
         version_documento__documento__organizacion_id=request.user.organizacion_id,
     ).first()
     if not review:
+        record_access_denied(request, 'REVIEW_NOT_FOUND_OR_UNAUTHORIZED', resource_code='REVISION', resource_id=review_id)
         raise Http404
     if not is_admin(request.user) and request.user.id not in {review.revisor_id, review.solicitada_por_id}:
+        record_access_denied(request, 'REVIEW_ACCESS_REQUIRED', resource_code='REVISION', resource_id=review.id)
         raise Http404
     return review
 
@@ -277,8 +279,24 @@ def add_resolution_comment(review, user, content, comment_type='RESOLUCION', par
     )
 
 
+def record_review_event(request, review, action_code, resource_id=None, details=None):
+    record_auth_event(
+        action_code=action_code,
+        resource_code='REVISION',
+        organization_id=review.version_documento.documento.organizacion_id,
+        user_id=request.user.id,
+        session_id=getattr(request.auth, 'id', None),
+        resource_id=resource_id or review.id,
+        request=request,
+        successful=True,
+        result='Operacion de revision correcta',
+        details=details,
+    )
+
+
 def ensure_checklist_editable(request, review):
     if review.revisor_id != request.user.id:
+        record_access_denied(request, 'REVIEWER_NOT_ASSIGNED', resource_code='REVISION', resource_id=getattr(review, 'id', None))
         raise PermissionDenied({
             'code': 'REVIEWER_NOT_ASSIGNED',
             'detail': 'Solo el revisor asignado puede modificar el checklist.',
@@ -503,6 +521,7 @@ class ReviewDecisionView(APIView):
         require_permission(request, self.permission)
         review = get_review_or_404(request, review_id)
         if not is_admin(request.user) and review.revisor_id != request.user.id:
+            record_access_denied(request, 'REVIEWER_NOT_ASSIGNED', resource_code='REVISION', resource_id=review.id)
             raise serializers.ValidationError({'code': 'REVIEWER_NOT_ASSIGNED', 'detail': 'Solo el revisor asignado puede resolver esta solicitud.'})
         decision = ReviewDecisionSerializer(data=request.data)
         decision.is_valid(raise_exception=True)
@@ -623,6 +642,7 @@ class ReviewCommentResolveView(APIView):
         if not comment:
             raise Http404
         if not is_admin(request.user) and comment.solicitud.revisor_id != request.user.id:
+            record_access_denied(request, 'REVIEWER_NOT_ASSIGNED', resource_code='REVISION', resource_id=comment.solicitud.id)
             raise Http404
         if comment.solicitud.estado_revision.codigo != 'PENDIENTE':
             return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'No se pueden agregar comentarios a una revision resuelta.'}, status=status.HTTP_409_CONFLICT)
@@ -637,6 +657,13 @@ class ReviewCommentResolveView(APIView):
         resolution = request.data.get('content', '').strip()
         if resolution:
             add_resolution_comment(comment.solicitud, request.user, resolution, 'RESOLUCION', comment)
+        record_review_event(
+            request,
+            comment.solicitud,
+            'OBSERVACION_RESUELTA',
+            resource_id=comment.id,
+            details={'resolution_added': bool(resolution)},
+        )
         return Response({'comment': serialize_comment(comment)})
 
 
@@ -654,6 +681,13 @@ class ReviewChecklistCreateView(APIView):
             solicitud=review,
             orden=review.checklist.count(),
             titulo=serializer.validated_data['title'],
+        )
+        record_review_event(
+            request,
+            review,
+            'CHECKLIST_MODIFICADO',
+            resource_id=item.id,
+            details={'operation': 'item_created', 'title': item.titulo},
         )
         return Response({'item': serialize_review(review)['checklist'][-1]}, status=status.HTTP_201_CREATED)
 
@@ -677,6 +711,13 @@ class ReviewChecklistUpdateView(APIView):
         item.completada_por = request.user if item.completada else None
         item.completada_en = timezone.now() if item.completada else None
         item.save(update_fields=['completada', 'completada_por', 'completada_en', 'actualizada_en'])
+        record_review_event(
+            request,
+            review,
+            'CHECKLIST_MODIFICADO',
+            resource_id=item.id,
+            details={'operation': 'item_updated', 'completed': item.completada},
+        )
         return Response({'review': serialize_review(review)})
 
 

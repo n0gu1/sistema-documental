@@ -19,12 +19,28 @@ from .backup_service import (
     next_execution,
     verify_backup,
 )
+from .auth_utils import record_auth_event
 from .management_views import require_permission
 from .models import ConfiguracionRespaldo, Respaldo
 from .permissions import IsAuthenticatedAndPasswordCurrent
 
 
 BACKUP_PERMISSION = 'usuarios.gestionar'
+
+
+def record_backup_event(request, action_code, resource_id=None, details=None, successful=True, result=None):
+    record_auth_event(
+        action_code=action_code,
+        resource_code='RESPALDO',
+        organization_id=request.user.organizacion_id,
+        user_id=request.user.id,
+        session_id=getattr(request.auth, 'id', None),
+        resource_id=resource_id,
+        request=request,
+        successful=successful,
+        result=result or ('Operacion de respaldo correcta' if successful else 'Operacion de respaldo fallida'),
+        details=details,
+    )
 
 
 def serialize_backup(backup, request):
@@ -93,7 +109,7 @@ class BackupListView(APIView):
         successful = Respaldo.objects.filter(organizacion_id=organization_id, estado='exitoso')
         failed = Respaldo.objects.filter(organizacion_id=organization_id, estado='fallido').order_by('-iniciado_en')[:10]
         latest = successful.order_by('-finalizado_en').first()
-        return Response({
+        response = Response({
             'backups': [serialize_backup(item, request) for item in backups],
             'restore_points': [serialize_backup(item, request) for item in successful.order_by('-finalizado_en')[:10]],
             'alerts': [serialize_alert(item) for item in failed],
@@ -114,6 +130,8 @@ class BackupListView(APIView):
                 'last_success_at': latest.finalizado_en if latest else None,
             },
         })
+        record_backup_event(request, 'RESPALDO_CONSULTADO', details={'count': backups.count()})
+        return response
 
     def post(self, request):
         require_permission(request, BACKUP_PERMISSION)
@@ -121,10 +139,18 @@ class BackupListView(APIView):
         try:
             backup, stats = create_backup(request.user.organizacion_id, request.user.id, 'manual', config)
         except BackupExecutionError as error:
+            record_backup_event(
+                request,
+                'RESPALDO_FALLIDO',
+                resource_id=error.backup.id if error.backup else None,
+                successful=False,
+                result=str(error),
+            )
             return Response(
                 {'detail': str(error), 'backup': serialize_backup(error.backup, request) if error.backup else None},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+        record_backup_event(request, 'RESPALDO_CREADO', resource_id=backup.id, details=stats)
         return Response({'backup': serialize_backup(backup, request), 'stats': stats}, status=status.HTTP_201_CREATED)
 
 
@@ -133,7 +159,20 @@ class BackupConfigurationView(APIView):
 
     def get(self, request):
         require_permission(request, BACKUP_PERMISSION)
-        return Response({'config': serialize_config(get_or_create_configuration(request.user.organizacion_id)), 'destinations': destination_options()})
+        config = get_or_create_configuration(request.user.organizacion_id)
+        response = Response({'config': serialize_config(config), 'destinations': destination_options()})
+        record_auth_event(
+            action_code='CONFIGURACION_CONSULTADA',
+            resource_code='CONFIGURACION',
+            organization_id=request.user.organizacion_id,
+            user_id=request.user.id,
+            session_id=getattr(request.auth, 'id', None),
+            resource_id=config.id,
+            request=request,
+            successful=True,
+            result='Configuracion de respaldos consultada',
+        )
+        return response
 
     def post(self, request):
         require_permission(request, BACKUP_PERMISSION)
@@ -172,6 +211,17 @@ class BackupConfigurationView(APIView):
         config.proxima_ejecucion_en = config.proxima_ejecucion_en or next_execution(frequency, now)
         config.actualizada_en = now
         config.save()
+        record_auth_event(
+            action_code='CONFIGURACION_MODIFICADA',
+            resource_code='CONFIGURACION',
+            organization_id=request.user.organizacion_id,
+            user_id=request.user.id,
+            session_id=getattr(request.auth, 'id', None),
+            resource_id=config.id,
+            request=request,
+            successful=True,
+            result='Configuracion de respaldos modificada',
+        )
         return Response({'config': serialize_config(config)})
 
 
@@ -189,6 +239,7 @@ class BackupDownloadView(APIView):
         source = default_storage.open(handle, 'rb')
         response = FileResponse(source, content_type='application/octet-stream')
         response['Content-Disposition'] = f'attachment; filename="{backup.id}.sdbk"'
+        record_backup_event(request, 'RESPALDO_DESCARGADO', resource_id=backup.id)
         return response
 
 
@@ -206,7 +257,14 @@ class BackupRestoreView(APIView):
         try:
             result = verify_backup(backup, restore_files=mode == 'restore_files')
         except BackupExecutionError as error:
+            record_backup_event(request, 'RESPALDO_VERIFICADO', resource_id=backup.id, successful=False, result=str(error), details={'mode': mode})
             return Response({'valid': False, 'detail': str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        record_backup_event(
+            request,
+            'RESPALDO_RESTAURADO' if mode == 'restore_files' else 'RESPALDO_VERIFICADO',
+            resource_id=backup.id,
+            details={'mode': mode, **result},
+        )
         return Response({'backup': serialize_backup(backup, request), 'result': result})
 
 
@@ -221,10 +279,12 @@ class RecoveryTestView(APIView):
         try:
             result = verify_backup(backup)
         except BackupExecutionError as error:
+            record_backup_event(request, 'RESPALDO_VERIFICADO', resource_id=backup.id, successful=False, result=str(error), details={'mode': 'recovery_test'})
             return Response({'valid': False, 'detail': str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         config = get_or_create_configuration(request.user.organizacion_id)
         if config.pk:
             config.ultima_prueba_en = timezone.now()
             config.actualizada_en = config.ultima_prueba_en
             config.save(update_fields=['ultima_prueba_en', 'actualizada_en'])
+        record_backup_event(request, 'RESPALDO_VERIFICADO', resource_id=backup.id, details={'mode': 'recovery_test', **result})
         return Response({'valid': True, 'backup_id': str(backup.id), 'result': result, 'tested_at': config.ultima_prueba_en})
