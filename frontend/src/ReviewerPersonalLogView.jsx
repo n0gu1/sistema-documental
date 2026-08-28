@@ -68,7 +68,6 @@ function ReviewerLogMetric({ icon, tone, label, value, detail }) {
 
 function ReviewerPersonalLogView({ user }) {
   const [events, setEvents] = useState([])
-  const [total, setTotal] = useState(0)
   const [filters, setFilters] = useState({ range: '7', action: '', result: '', search: '' })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -78,7 +77,6 @@ function ReviewerPersonalLogView({ user }) {
     apiRequest(`/api/audit/?user_id=${user.id}&limit=100`).then((data) => {
       if (!active) return
       setEvents(data.results || [])
-      setTotal(data.count || 0)
     }).catch((requestError) => { if (active) setError(requestError.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [user.id])
@@ -95,6 +93,7 @@ function ReviewerPersonalLogView({ user }) {
     const matchesSearch = !search || [event.action, event.action_code, event.result, details, event.ip, event.user_agent, event.resource_code, event.module].join(' ').toLowerCase().includes(search)
     return matchesRange && matchesAction && matchesResult && matchesSearch
   })
+  const displayEvents = visibleEvents.slice(0, 8)
   const today = dateKey(new Date())
   const eventsToday = events.filter((event) => dateKey(event.event_at) === today).length
   const completed = events.filter((event) => /APROB|CERRAR|DICTAMEN/.test(event.action_code || '')).length
@@ -122,7 +121,7 @@ function ReviewerPersonalLogView({ user }) {
     <div className="reviewer-log-layout">
       <main>
         <section className="reviewer-log-filters" aria-label="Filtros de bitácora"><label><span>Fecha</span><select value={filters.range} onChange={(event) => updateFilter('range', event.target.value)}><option value="7">Últimos 7 días</option><option value="30">Últimos 30 días</option><option value="all">Todo el historial</option></select></label><label><span>Acción</span><select value={filters.action} onChange={(event) => updateFilter('action', event.target.value)}><option value="">Todas</option>{actionOptions.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label><label><span>Resultado</span><select value={filters.result} onChange={(event) => updateFilter('result', event.target.value)}><option value="">Todos</option><option value="success">Exitoso</option><option value="failure">Fallido</option></select></label><label className="reviewer-log-search"><span>Búsqueda libre</span><div><LogIcon name="search" size={16} /><input type="search" value={filters.search} onChange={(event) => updateFilter('search', event.target.value)} placeholder="Buscar en detalle, acción..." /></div></label><button type="button" onClick={() => setFilters({ range: '7', action: '', result: '', search: '' })}><LogIcon name="filter" size={15} />Limpiar filtros</button></section>
-        <section className="reviewer-log-table-card"><div className="reviewer-log-table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Acción</th><th>Detalle</th><th>Resultado</th><th>IP / Dispositivo</th></tr></thead><tbody>{visibleEvents.map((event) => <tr key={event.id}><td>{formatDate(event.event_at)}</td><td><span className={`reviewer-log-action is-${actionTone(event)}`}><LogIcon name={actionIcon(event)} size={17} />{event.action || event.action_code || '—'}</span></td><td>{parseDetails(event.details) || '—'}</td><td><span className={`reviewer-log-result is-${event.successful ? 'success' : 'failure'}`}>{event.result || (event.successful ? 'Éxito' : 'Fallido')}</span></td><td><span className="reviewer-log-device"><strong>{event.ip || '—'}</strong><small>{browserLabel(event.user_agent)} / {operatingSystem(event.user_agent)}</small></span></td></tr>)}</tbody></table>{!loading && !visibleEvents.length && <p className="reviewer-log-empty">No hay eventos para los filtros seleccionados.</p>}</div><footer><span>{loading ? 'Cargando eventos...' : `Mostrando ${visibleEvents.length} de ${total} eventos`}</span><span>Los datos corresponden a la actividad de tu usuario.</span></footer></section>
+        <section className="reviewer-log-table-card"><div className="reviewer-log-table-wrap"><table><thead><tr><th>Fecha y hora</th><th>Acción</th><th>Detalle</th><th>Resultado</th><th>IP / Dispositivo</th></tr></thead><tbody>{displayEvents.map((event) => <tr key={event.id}><td>{formatDate(event.event_at)}</td><td><span className={`reviewer-log-action is-${actionTone(event)}`}><LogIcon name={actionIcon(event)} size={17} />{event.action || event.action_code || '—'}</span></td><td>{parseDetails(event.details) || '—'}</td><td><span className={`reviewer-log-result is-${event.successful ? 'success' : 'failure'}`}>{event.result || (event.successful ? 'Éxito' : 'Fallido')}</span></td><td><span className="reviewer-log-device"><strong>{event.ip || '—'}</strong><small>{browserLabel(event.user_agent)} / {operatingSystem(event.user_agent)}</small></span></td></tr>)}</tbody></table>{!loading && !visibleEvents.length && <p className="reviewer-log-empty">No hay eventos para los filtros seleccionados.</p>}</div><footer><span>{loading ? 'Cargando eventos...' : `Mostrando ${displayEvents.length} de ${visibleEvents.length} eventos`}</span><span>Los datos corresponden a la actividad de tu usuario.</span></footer></section>
       </main>
       <aside className="reviewer-log-sidebar"><section className="reviewer-log-chart-card"><header><h2>Distribución por tipo de acción</h2><span title="Calculada con los eventos cargados"><LogIcon name="calendar" size={16} /></span></header><div className="reviewer-log-chart-area"><div className="reviewer-log-donut" style={events.length ? { background: `conic-gradient(${chartSegments})` } : undefined}><div><strong>{events.length}</strong><span>Total</span></div></div><div className="reviewer-log-legend">{distributionEntries.map(([label, value], index) => <div key={label}><i style={{ background: chartColors[index % chartColors.length] }} /><span>{label}</span><strong>{value} ({Math.round((value / (events.length || 1)) * 100)}%)</strong></div>)}</div></div></section></aside>
     </div>
