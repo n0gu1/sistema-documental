@@ -33,15 +33,18 @@ class DocumentUpdateSerializer(DocumentCreateSerializer):
     title = serializers.CharField(max_length=200, trim_whitespace=True, required=False)
     area_id = serializers.UUIDField(required=False)
     type_id = serializers.IntegerField(min_value=1, required=False)
+    version_type = serializers.ChoiceField(choices=['minor', 'major'], default='minor', required=False)
 
 
 class DocumentFileSerializer(serializers.Serializer):
     file = serializers.FileField()
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    version_type = serializers.ChoiceField(choices=['minor', 'major'], default='minor', required=False)
 
 
 class VersionRestoreSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+    version_type = serializers.ChoiceField(choices=['minor', 'major'], default='minor', required=False)
 
     def validate_comment(self, value):
         return sanitize_text(value)

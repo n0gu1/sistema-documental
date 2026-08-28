@@ -405,7 +405,15 @@ def save_metadata(document, metadata):
         )
 
 
-def save_document_file(document, uploaded_file, user, comment=''):
+def next_version_numbers(latest, version_type='minor'):
+    if not latest:
+        return 1, 0
+    if version_type == 'major':
+        return latest.numero_mayor + 1, 0
+    return latest.numero_mayor, latest.numero_menor + 1
+
+
+def save_document_file(document, uploaded_file, user, comment='', version_type='minor'):
     file_data = validate_uploaded_file(uploaded_file, document.organizacion_id)
     provider = ProveedorAlmacenamiento.objects.filter(
         organizacion_id=document.organizacion_id,
@@ -421,7 +429,7 @@ def save_document_file(document, uploaded_file, user, comment=''):
     try:
         with transaction.atomic():
             latest = document.archivos.select_for_update().order_by('-orden_version').first()
-            major = latest.numero_mayor + 1 if latest else 1
+            major, minor = next_version_numbers(latest, version_type)
             order = latest.orden_version + 1 if latest else 1
             document.archivos.filter(es_vigente=True).update(es_vigente=False)
             storage_key = default_storage.save(storage_name, uploaded_file)
@@ -431,7 +439,7 @@ def save_document_file(document, uploaded_file, user, comment=''):
                 estado_version=state,
                 proveedor_almacenamiento=provider,
                 numero_mayor=major,
-                numero_menor=0,
+                numero_menor=minor,
                 orden_version=order,
                 es_vigente=True,
                 nombre_archivo_original=file_data['name'],
@@ -547,7 +555,13 @@ class DocumentListCreateView(APIView):
             )
             save_metadata(document, data.get('metadata'))
             if uploaded_file:
-                save_document_file(document, uploaded_file, request.user, data.get('file_comment', ''))
+                save_document_file(
+                    document,
+                    uploaded_file,
+                    request.user,
+                    data.get('file_comment', ''),
+                    data.get('version_type', 'minor'),
+                )
         record_document_event(request, document, 'DOCUMENTO_CREADO')
         return Response({'document': serialize_document(document, request, include_details=True)}, status=status.HTTP_201_CREATED)
 
@@ -630,7 +644,13 @@ class DocumentDetailView(APIView):
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
         if uploaded_file:
-            save_document_file(document, uploaded_file, request.user, data.get('file_comment', ''))
+            save_document_file(
+                document,
+                uploaded_file,
+                request.user,
+                data.get('file_comment', ''),
+                data.get('version_type', 'minor'),
+            )
         record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
         return Response({'document': serialize_document(document, request, include_details=True)})
 
@@ -740,6 +760,7 @@ class DocumentFileListCreateView(APIView):
             serializer.validated_data['file'],
             request.user,
             serializer.validated_data.get('comment', ''),
+            serializer.validated_data.get('version_type', 'minor'),
         )
         record_document_event(
             request,
@@ -777,6 +798,7 @@ class DocumentVersionListView(APIView):
             serializer.validated_data['file'],
             request.user,
             serializer.validated_data.get('comment', ''),
+            serializer.validated_data.get('version_type', 'minor'),
         )
         record_document_event(
             request,
@@ -802,6 +824,7 @@ class DocumentVersionRestoreView(APIView):
             )
         serializer = VersionRestoreSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        version_type = serializer.validated_data.get('version_type', 'minor')
         comment = serializer.validated_data.get('comment') or (
             f'Restaurada desde la version {source.numero_mayor}.{source.numero_menor}'
         )
@@ -812,6 +835,7 @@ class DocumentVersionRestoreView(APIView):
                 if not latest or latest.id == source.id:
                     raise ValidationError({'code': 'VERSION_NOT_RESTORABLE', 'detail': 'La version seleccionada no puede restaurarse.'})
                 document.archivos.filter(es_vigente=True).update(es_vigente=False)
+                major, minor = next_version_numbers(latest, version_type)
                 storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{Path(source.nombre_archivo_original).suffix.lower()}'
                 with open_stored_file(source) as source_file:
                     storage_key = default_storage.save(storage_name, File(source_file, name=storage_name))
@@ -820,8 +844,8 @@ class DocumentVersionRestoreView(APIView):
                     documento=document,
                     estado_version=EstadoVersionCatalogo.objects.get(codigo='BORRADOR'),
                     proveedor_almacenamiento=source.proveedor_almacenamiento,
-                    numero_mayor=latest.numero_mayor + 1,
-                    numero_menor=0,
+                    numero_mayor=major,
+                    numero_menor=minor,
                     orden_version=latest.orden_version + 1,
                     es_vigente=True,
                     nombre_archivo_original=source.nombre_archivo_original,
@@ -863,6 +887,8 @@ class DocumentVersionRestoreView(APIView):
                 'source_version_id': str(source.id),
                 'source_version': f'{source.numero_mayor}.{source.numero_menor}',
                 'comment': comment,
+                'version_type': version_type,
+                'new_version': f'{restored.numero_mayor}.{restored.numero_menor}',
             },
         )
         return Response({

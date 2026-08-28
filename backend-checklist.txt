@@ -100,7 +100,7 @@ ORDEN RECOMENDADO
 [x] Implementar descarga de versiones.
 [x] Implementar linea de tiempo documental. Combina las versiones con los eventos de auditoria de envios, asignaciones, comentarios, devoluciones, rechazos, aprobaciones, publicaciones, descargas y restauraciones.
 [x] Implementar restauracion de una version anterior creando una nueva version y conservando todo el historial.
-[ ] Definir e implementar la regla de numeracion de versiones menores y mayores. El recorrido esperado 1.0, 1.1 y 1.2 no coincide con el incremento actual 1.0, 2.0 y siguientes.
+[x] Definir e implementar la regla de numeracion de versiones menores y mayores. La primera version es 1.0, las cargas y restauraciones normales incrementan el menor (1.1, 1.2) y `version_type=major` incrementa el mayor y reinicia el menor (2.0).
 [x] Registrar de forma explicita en la nueva version cuando su origen sea una restauracion, mediante su comentario, historial y evento de auditoria.
 
 6. FLUJO DOCUMENTAL

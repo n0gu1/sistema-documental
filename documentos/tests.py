@@ -38,6 +38,7 @@ from .document_views import (
     compare_versions,
     ensure_document_directly_editable,
     ensure_area_authorized,
+    next_version_numbers,
     serialize_audit_timeline_event,
     unarchive_document,
     validate_metadata,
@@ -814,6 +815,23 @@ class VersionRestoreTests(SimpleTestCase):
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data['comment'], 'Volver a la version aprobada.')
 
+    def test_version_numbers_increment_minor_by_default(self):
+        latest = SimpleNamespace(numero_mayor=1, numero_menor=2)
+
+        self.assertEqual(next_version_numbers(None), (1, 0))
+        self.assertEqual(next_version_numbers(latest), (1, 3))
+
+    def test_version_numbers_increment_major_and_reset_minor(self):
+        latest = SimpleNamespace(numero_mayor=1, numero_menor=2)
+
+        self.assertEqual(next_version_numbers(latest, 'major'), (2, 0))
+
+    def test_version_restore_serializer_rejects_unknown_version_type(self):
+        serializer = VersionRestoreSerializer(data={'version_type': 'patch'})
+
+        self.assertFalse(serializer.is_valid())
+        self.assertIn('version_type', serializer.errors)
+
     @patch('documentos.document_views.transaction.atomic')
     @patch('documentos.document_views.record_document_event')
     @patch('documentos.document_views.serialize_version')
@@ -847,7 +865,7 @@ class VersionRestoreTests(SimpleTestCase):
             id=source_id,
             es_vigente=False,
             numero_mayor=1,
-            numero_menor=2,
+            numero_menor=1,
             orden_version=2,
             nombre_archivo_original='politica.pdf',
             proveedor_almacenamiento=provider,
@@ -856,12 +874,12 @@ class VersionRestoreTests(SimpleTestCase):
             sha256='a' * 64,
             estado_version=source_state,
         )
-        latest = SimpleNamespace(id=uuid4(), numero_mayor=3, orden_version=3)
+        latest = SimpleNamespace(id=uuid4(), numero_mayor=1, numero_menor=2, orden_version=3)
         restored = SimpleNamespace(
             id=uuid4(),
             estado_version=draft_state,
-            numero_mayor=4,
-            numero_menor=0,
+            numero_mayor=1,
+            numero_menor=3,
             orden_version=4,
         )
         document.archivos.select_for_update.return_value.order_by.return_value.first.return_value = latest
@@ -888,7 +906,8 @@ class VersionRestoreTests(SimpleTestCase):
         created = create_version.call_args.kwargs
         self.assertEqual(created['documento'], document)
         self.assertEqual(created['proveedor_almacenamiento'], provider)
-        self.assertEqual(created['numero_mayor'], 4)
+        self.assertEqual(created['numero_mayor'], 1)
+        self.assertEqual(created['numero_menor'], 3)
         self.assertEqual(created['orden_version'], 4)
         self.assertEqual(created['sha256'], source.sha256)
         self.assertEqual(created['comentario_cambio'], 'Version aprobada')
