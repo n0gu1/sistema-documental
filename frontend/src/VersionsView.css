@@ -204,3 +204,17 @@
   .versions-history > footer { align-items: flex-start; flex-direction: column; gap: 7px; }
   .versions-legend { width: 100%; justify-content: space-between; gap: 8px; }
 }
+
+.versions-publish-panel { margin: 13px 0 10px; padding: 14px; display: grid; grid-template-columns: 1.1fr 1fr 1.4fr auto; align-items: end; gap: 13px; background: #f5faff; border: 1px solid #b9d6f5; border-radius: 9px; }
+.versions-publish-panel p { margin: 0 0 3px; color: #0a68dd; font-size: 8px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+.versions-publish-panel h2 { margin: 0; color: #152a47; font-size: 13px; }
+.versions-publish-panel > div:first-child span { margin-top: 5px; display: block; color: #687991; font-size: 9px; line-height: 1.35; }
+.versions-publish-panel label { display: block; color: #536781; font-size: 8px; font-weight: 650; }
+.versions-publish-panel select, .versions-publish-panel textarea { width: 100%; margin-top: 5px; padding: 7px 9px; color: #334a66; background: #fff; border: 1px solid #d1dfed; border-radius: 5px; outline: 0; font: inherit; font-size: 9px; }
+.versions-publish-panel select { height: 30px; }
+.versions-publish-panel textarea { min-height: 30px; resize: vertical; }
+.versions-publish-actions button { height: 30px; padding: 0 13px; color: #fff; background: #0869e8; border: 1px solid #0869e8; border-radius: 5px; font-size: 9px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.versions-publish-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.versions-publish-notice { margin: 0 0 10px; padding: 8px 11px; color: #177443; background: #e4f6e9; border: 1px solid #b9e2c4; border-radius: 5px; font-size: 9px; }
+@media (max-width: 900px) { .versions-publish-panel { grid-template-columns: 1fr 1fr; }.versions-publish-panel > div:first-child { grid-column: 1 / -1; }.versions-publish-panel > label:nth-child(3) { grid-column: 1 / -1; }.versions-publish-actions { display: flex; justify-content: flex-end; grid-column: 1 / -1; } }
+@media (max-width: 470px) { .versions-publish-panel { display: block; }.versions-publish-panel label { margin-top: 11px; }.versions-publish-actions { margin-top: 11px; }.versions-publish-actions button { width: 100%; } }

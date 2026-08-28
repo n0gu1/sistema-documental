@@ -122,7 +122,7 @@ ORDEN RECOMENDADO
 [x] Completar la carga de una nueva version desde la pantalla de edicion del Editor; permite elegir archivo, comentario y tipo de version.
 [x] Incorporar en la interfaz la asignacion y reasignacion de revisores.
 [x] Incorporar en la interfaz del Revisor la accion de rechazo definitivo.
-[ ] Incorporar en la interfaz autorizada la publicacion de una version aprobada.
+[x] Incorporar en la interfaz autorizada la publicacion de una version aprobada.
 
 7. FUNCIONES DEL LECTOR
 [x] Mostrar solamente documentos publicados y autorizados.
