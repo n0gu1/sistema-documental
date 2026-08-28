@@ -33,6 +33,7 @@ VERIFICACION REALIZADA EL 2026-08-27
 - Implementación local de permisos explícitos por documento: endpoint GET/PUT transaccional, validación de roles y permisos activos, interfaz del Editor y pruebas unitarias.
 - Implementación local de validación de áreas de usuario: creación y actualización rechazan áreas inactivas o ajenas a la organización, con pruebas unitarias.
 - Implementación local del bloqueo de edición directa: documentos con versión en revisión, aprobada o publicada rechazan cambios de datos y metadatos; las pruebas cubren los tres estados.
+- Implementación local de filtros avanzados: administración documental, documentos del Editor y biblioteca del Lector envían búsqueda, tipo, área, estado, responsable y fechas al backend en lugar de filtrar el conjunto cargado en memoria.
 - No se pudo consultar el historial de migraciones local porque no hay PostgreSQL local disponible.
 - Render respaldos: deploy del commit `b59ea44` en estado `live`; migracion 0012 aplicada y configuracion de respaldos autenticada HTTP 200.
 - Render respaldos manuales: creacion HTTP 201, archivo `.sdbk` cifrado con AES-256-GCM en S3/B2, tamano 14 KB, 276 registros incluidos y descarga HTTP 200.
@@ -85,7 +86,7 @@ ORDEN RECOMENDADO
 [x] Implementar descarga autorizada. Verificada en Render.
 [x] Implementar vista previa autorizada. Verificada en Render.
 [x] Implementar busqueda documental. Adaptada a las columnas reales y verificada.
-[~] Implementar filtros avanzados. El backend admite filtros, pero varias pantallas cargan hasta 100 registros y filtran localmente.
+[x] Implementar filtros avanzados. Las pantallas documentales envían búsqueda, tipo, área, estado, responsable y rango de actualización al backend; la paginación remota completa permanece pendiente.
 [~] Implementar ordenamiento y paginacion. El backend pagina; falta paginacion remota completa en el frontend para acceder a registros posteriores a los primeros 100.
 [~] Implementar exportacion del listado documental. Falta aplicar permisos por area/documento y registrar la exportacion en auditoria.
 [ ] Asegurar que la creacion y el cambio de area de un documento respeten el area autorizada del usuario.

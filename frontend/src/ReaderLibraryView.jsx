@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { apiRequest, downloadFile, normalizeDocument } from './documentApi'
+import { apiRequest, buildDocumentQuery, downloadFile, normalizeDocument } from './documentApi'
 import './ReaderLibraryView.css'
 
 function LibraryIcon({ name, size = 18 }) {
@@ -21,6 +21,8 @@ function LibraryIcon({ name, size = 18 }) {
 
 function ReaderLibraryView({ onAction, onNavigate }) {
   const [documents, setDocuments] = useState([])
+  const [total, setTotal] = useState(0)
+  const [catalogs, setCatalogs] = useState({ areas: [], types: [], statuses: [] })
   const [query, setQuery] = useState('')
   const [area, setArea] = useState('Todas las áreas')
   const [type, setType] = useState('Todos los tipos')
@@ -31,22 +33,27 @@ function ReaderLibraryView({ onAction, onNavigate }) {
 
   useEffect(() => {
     let active = true
-    apiRequest('/api/reader/documents/?limit=100')
-      .then((data) => { if (active) setDocuments((data.results || []).map(normalizeDocument)) })
+    apiRequest('/api/documents/catalogs/')
+      .then((data) => { if (active) setCatalogs(data) })
       .catch((requestError) => { if (active) setError(requestError.message) })
-      .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [])
 
-  const visibleDocuments = documents.filter((document) => (
-    (!deferredQuery || [document.code, document.title, document.area, document.type].join(' ').toLowerCase().includes(deferredQuery))
-    && (area === 'Todas las áreas' || document.area === area)
-    && (type === 'Todos los tipos' || document.type === type)
-    && (status === 'Todos los estados' || document.status === status)
-  ))
-  const areas = [...new Set(documents.map((document) => document.area).filter(Boolean))]
-  const types = [...new Set(documents.map((document) => document.type).filter(Boolean))]
-  const statuses = [...new Set(documents.map((document) => document.status).filter(Boolean))]
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    const query = buildDocumentQuery({ search: deferredQuery, area: area === 'Todas las áreas' ? '' : area, type: type === 'Todos los tipos' ? '' : type, status: status === 'Todos los estados' ? '' : status, catalogs })
+    apiRequest(`/api/reader/documents/?${query}`)
+      .then((data) => { if (active) { setDocuments((data.results || []).map(normalizeDocument)); setTotal(data.count || 0) } })
+      .catch((requestError) => { if (active) setError(requestError.message) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [deferredQuery, area, type, status, catalogs])
+
+  const visibleDocuments = documents
+  const areas = catalogs.areas?.length ? catalogs.areas.map((item) => item.name) : [...new Set(documents.map((document) => document.area).filter(Boolean))]
+  const types = catalogs.types?.length ? catalogs.types.map((item) => item.name) : [...new Set(documents.map((document) => document.type).filter(Boolean))]
+  const statuses = ['Publicado']
   const selectedDocument = visibleDocuments[0]
 
   async function toggleFavorite(document) {
@@ -89,7 +96,7 @@ function ReaderLibraryView({ onAction, onNavigate }) {
         <section className="reader-library-table-card">
           <header className="reader-library-results-heading"><span><LibraryIcon size={17} /> <strong>{loading ? 'Cargando documentos...' : `${visibleDocuments.length} documentos encontrados`}</strong></span></header>
           <div className="reader-library-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>Versión vigente</th><th>Actualización</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => <tr key={document.id}><td>{document.code}</td><td><button className="reader-library-document-link" type="button" onClick={() => openDocument(document)}>{document.title}</button></td><td>{document.area}</td><td>{document.type}</td><td>{document.version}</td><td>{document.updated}</td><td><div className="reader-library-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => openDocument(document)}><LibraryIcon name="eye" size={16} /></button>{document.downloadUrl && <button type="button" aria-label={`Descargar ${document.title}`} onClick={() => downloadFile(document.downloadUrl)}><LibraryIcon name="download" size={16} /></button>}<button className={document.favorite ? 'is-favorite' : ''} type="button" aria-label={`${document.favorite ? 'Quitar de' : 'Agregar a'} favoritos`} onClick={() => toggleFavorite(document)}><LibraryIcon name="star" size={16} /></button></div></td></tr>)}</tbody></table>{!loading && !visibleDocuments.length && <div className="reader-library-empty"><LibraryIcon name="search" size={25} /><strong>Sin resultados</strong><span>Prueba con otros términos o limpia los filtros.</span></div>}</div>
-          <footer><span>Mostrando {visibleDocuments.length} de {documents.length} documentos</span></footer>
+          <footer><span>Mostrando {visibleDocuments.length} de {total} documentos</span></footer>
         </section>
       </main>
       <aside className="reader-library-sidebar"><section><header><h2><LibraryIcon name="bookmark" size={18} /> Documentos recientes</h2><button type="button" onClick={() => onNavigate?.('library')}>Ver todos</button></header><div className="reader-library-recent-list">{documents.slice(0, 5).length ? documents.slice(0, 5).map((document) => <button type="button" key={document.id} onClick={() => openDocument(document)}><span className="reader-library-recent-icon"><LibraryIcon name="document" size={18} /></span><span><strong>{document.code}</strong><small>{document.title}</small><time>{document.updated}</time></span></button>) : <p className="reader-library-empty">No hay documentos recientes.</p>}</div></section></aside>

@@ -29,6 +29,7 @@ from .models import (
     ProveedorAlmacenamiento,
     RolDocumental,
     TipoDocumentoCatalogo,
+    UsuarioDocumental,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import (
@@ -91,7 +92,10 @@ def apply_document_filters(queryset, params):
     if params.get('date_to'):
         queryset = queryset.filter(fecha_documento__lte=params['date_to'])
     if params.get('status_code'):
-        queryset = queryset.filter(archivos__estado_version__codigo=params['status_code'])
+        queryset = queryset.filter(
+            archivos__es_vigente=True,
+            archivos__estado_version__codigo=params['status_code'],
+        )
     date_from = parse_filter_date(params.get('updated_from'), 'updated_from')
     date_to = parse_filter_date(params.get('updated_to'), 'updated_to', end=True)
     if date_from:
@@ -545,6 +549,20 @@ class DocumentCatalogView(APIView):
             'types': [
                 {'id': item.id, 'code': item.codigo, 'name': item.nombre}
                 for item in TipoDocumentoCatalogo.objects.filter(activo=True).order_by('nombre')
+            ],
+            'statuses': [
+                {'code': item.codigo, 'name': item.nombre}
+                for item in EstadoVersionCatalogo.objects.order_by('codigo')
+            ],
+            'responsibles': [
+                {
+                    'id': str(item.id),
+                    'name': f'{item.nombres} {item.apellidos}'.strip(),
+                }
+                for item in UsuarioDocumental.objects.filter(
+                    organizacion_id=request.user.organizacion_id,
+                    activo=True,
+                ).order_by('apellidos', 'nombres')
             ],
         })
 

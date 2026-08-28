@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { apiRequest, downloadFile, formatDate, normalizeDocument } from './documentApi'
+import { apiRequest, buildDocumentQuery, downloadFile, formatDate, normalizeDocument } from './documentApi'
 import './EditorDocumentsView.css'
 
 const PAGE_SIZE = 10
@@ -49,7 +49,7 @@ function statusTone(status) {
 
 function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
   const [documents, setDocuments] = useState([])
-  const [catalogs, setCatalogs] = useState({ areas: [], types: [] })
+  const [catalogs, setCatalogs] = useState({ areas: [], types: [], statuses: [] })
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
   const [area, setArea] = useState('')
@@ -63,19 +63,27 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
 
   useEffect(() => {
     let active = true
-    Promise.all([apiRequest('/api/documents/?limit=100'), apiRequest('/api/documents/catalogs/')])
-      .then(([documentData, catalogData]) => { if (active) { setDocuments((documentData.results || []).map(normalizeDocument)); setCatalogs(catalogData) } })
+    apiRequest('/api/documents/catalogs/')
+      .then((catalogData) => { if (active) setCatalogs(catalogData) })
       .catch((requestError) => { if (active) setError(requestError.message) })
-      .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [])
 
-  const statuses = [...new Map(documents.map((document) => [document.status, { id: document.status, name: document.status }]).filter((item) => item[0])).values()]
-  const visibleDocuments = documents.filter((document) => {
-    const searchable = [document.code, document.title, document.type, document.area, document.status, document.reviewer].join(' ').toLowerCase()
-    const updatedDate = document.updated_at ? new Date(document.updated_at).toISOString().slice(0, 10) : ''
-    return (!deferredSearch || searchable.includes(deferredSearch)) && (!type || document.type === type) && (!area || document.area === area) && (!status || document.status === status) && (!from || updatedDate >= from) && (!until || updatedDate <= until)
-  })
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    const query = buildDocumentQuery({ search: deferredSearch, type, area, status, from, until, catalogs })
+    apiRequest(`/api/documents/?${query}`)
+      .then((data) => { if (active) setDocuments((data.results || []).map(normalizeDocument)) })
+      .catch((requestError) => { if (active) setError(requestError.message) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [deferredSearch, type, area, status, from, until, catalogs])
+
+  const statuses = catalogs.statuses?.length
+    ? catalogs.statuses.map((item) => ({ id: item.code, name: item.name }))
+    : [...new Map(documents.map((document) => [document.status, { id: document.status, name: document.status }]).filter((item) => item[0])).values()]
+  const visibleDocuments = documents
   const totalPages = Math.max(1, Math.ceil(visibleDocuments.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const pageDocuments = visibleDocuments.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)

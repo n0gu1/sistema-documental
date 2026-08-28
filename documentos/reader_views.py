@@ -109,6 +109,8 @@ class ReaderDocumentListView(APIView):
             documents = [document for document in documents if str(document.tipo_documento_id) == request.query_params['type_id']]
         if request.query_params.get('area_id'):
             documents = [document for document in documents if str(document.area_id) == request.query_params['area_id']]
+        if request.query_params.get('status_code') and request.query_params['status_code'] != 'PUBLICADO':
+            documents = []
         date_from = parse_reader_date(request.query_params.get('date_from'), 'date_from')
         date_to = parse_reader_date(request.query_params.get('date_to'), 'date_to', end=True)
         if date_from:

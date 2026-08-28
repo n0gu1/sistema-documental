@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useState } from 'react'
-import { apiRequest, normalizeDocument } from './documentApi'
+import { apiRequest, buildDocumentQuery, normalizeDocument } from './documentApi'
 import './DocumentsView.css'
 
 const typeTones = { Política: 'blue', Manual: 'green', Código: 'violet', Plan: 'blue', Informe: 'orange', Procedimiento: 'green', Lineamiento: 'blue', Acta: 'orange', Presupuesto: 'green' }
@@ -35,36 +35,46 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
   const [area, setArea] = useState('Todas')
   const [status, setStatus] = useState('Todos')
   const [owner, setOwner] = useState('Todos')
+  const [from, setFrom] = useState('')
+  const [until, setUntil] = useState('')
   const [classification, setClassification] = useState('Todas')
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modal, setModal] = useState('')
-  const [catalogs, setCatalogs] = useState({ areas: [], types: [] })
+  const [catalogs, setCatalogs] = useState({ areas: [], types: [], statuses: [], responsibles: [] })
   const [form, setForm] = useState({ code: '', title: '', description: '', area_id: '', type_id: '', file: null })
   const [saving, setSaving] = useState(false)
   const deferredSearch = useDeferredValue(`${globalQuery} ${search}`.trim().toLowerCase())
 
   useEffect(() => {
     let active = true
-    apiRequest('/api/documents/?limit=100')
+    apiRequest('/api/documents/catalogs/')
+      .then((data) => { if (active) setCatalogs(data) })
+      .catch((requestError) => { if (active) setError(requestError.message) })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    const query = buildDocumentQuery({ search: deferredSearch, type: type === 'Todas' ? '' : type, area: area === 'Todas' ? '' : area, status: status === 'Todos' ? '' : status, responsible: owner === 'Todos' ? '' : owner, from, until, catalogs })
+    apiRequest(`/api/documents/?${query}`)
       .then((data) => { if (active) { setDocuments((data.results || []).map(normalizeDocument)); setTotal(data.count || 0) } })
       .catch((requestError) => { if (active) setError(requestError.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [deferredSearch, type, area, status, owner, from, until, catalogs])
 
-  const visibleDocuments = documents.filter((document) => {
-    const ownerName = document.responsible?.name || ''
-    const searchable = [document.code, document.title, document.type, document.area, ownerName, document.status].join(' ').toLowerCase()
-    return (!deferredSearch || searchable.includes(deferredSearch)) && (type === 'Todas' || document.type === type) && (area === 'Todas' || document.area === area) && (status === 'Todos' || document.status === status) && (owner === 'Todos' || ownerName === owner)
-  })
-  const options = (key) => ['Todas', ...new Set(documents.map((document) => document[key]).filter(Boolean))]
-  const statusOptions = ['Todos', ...new Set(documents.map((document) => document.status).filter(Boolean))]
+  const visibleDocuments = documents
+  const options = (key) => key === 'type'
+    ? ['Todas', ...(catalogs.types || []).map((item) => item.name)]
+    : ['Todas', ...(catalogs.areas || []).map((item) => item.name)]
+  const statusOptions = ['Todos', ...(catalogs.statuses || []).map((item) => item.name)]
   const counts = statusOptions.slice(1).map((item) => [item, documents.filter((document) => document.status === item).length])
 
   function clearFilters() {
-    setSearch(''); setType('Todas'); setArea('Todas'); setStatus('Todos'); setOwner('Todos'); setClassification('Todas'); setAdvancedOpen(false)
+    setSearch(''); setType('Todas'); setArea('Todas'); setStatus('Todos'); setOwner('Todos'); setFrom(''); setUntil(''); setClassification('Todas'); setAdvancedOpen(false)
   }
 
   function exportList() {
@@ -98,7 +108,7 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
     <div className="documents-hero"><div className="documents-title"><div><p>Repositorio institucional</p><h1>Gestión documental</h1><span>Administre, clasifique y controle los documentos institucionales de la organización.</span></div><div className="documents-date"><DocumentViewIcon name="calendar" size={18} />{today}</div><div className="documents-toolbar"><button className="documents-button documents-button--primary" type="button" onClick={() => openCreate('create')}><DocumentViewIcon name="plus" size={19} /> Nuevo documento</button><button className="documents-button" type="button" onClick={() => openCreate('upload')}><DocumentViewIcon name="upload" size={19} /> Subir documento</button><button className="documents-button" type="button" onClick={exportList}><DocumentViewIcon name="download" size={19} /> Exportar listado</button></div></div>
       <section className="documents-summary" aria-label="Resumen documental"><div className="documents-summary__items">{counts.map(([label, count], index) => <article key={label}><span className={`documents-summary__icon documents-summary__icon--${['blue', 'orange', 'green', 'violet'][index % 4]}`}><DocumentViewIcon name={index === 0 ? 'document' : index === 1 ? 'clock' : index === 2 ? 'check' : 'archive'} size={21} /></span><div><small>{label}</small><strong>{count}</strong></div></article>)}</div><footer><span>Total documentos <strong>{total}</strong></span><span>Datos de la organización <DocumentViewIcon name="refresh" size={17} /></span></footer></section>
     </div>
-    <section className="documents-filters"><label className="documents-filter documents-filter--search"><span>Búsqueda</span><div><DocumentViewIcon name="search" size={17} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por código, título o palabras clave..." /></div></label><SelectFilter label="Tipo" value={type} onChange={setType} options={options('type')} /><SelectFilter label="Área" value={area} onChange={setArea} options={options('area')} /><SelectFilter label="Estado" value={status} onChange={setStatus} options={statusOptions} /><SelectFilter label="Responsable" value={owner} onChange={setOwner} options={['Todos', ...new Set(documents.map((document) => document.responsible?.name).filter(Boolean))]} /><label className="documents-filter documents-filter--date"><span>Fecha</span><div><DocumentViewIcon name="calendar" size={17} /><input type="text" placeholder="Rango de fechas" readOnly /></div></label><SelectFilter label="Clasificación" value={classification} onChange={setClassification} options={['Todas']} /><div className="documents-filter-actions"><button type="button" onClick={clearFilters}><DocumentViewIcon name="filter" size={17} /> Limpiar filtros</button><button className={advancedOpen ? 'is-active' : ''} type="button" onClick={() => setAdvancedOpen((open) => !open)}><DocumentViewIcon name="sliders" size={17} /> Filtros avanzados <DocumentViewIcon name="chevron" size={14} /></button></div>{advancedOpen && <p className="documents-advanced-message">No hay filtros avanzados disponibles para los datos publicados por el backend.</p>}</section>
+     <section className="documents-filters"><label className="documents-filter documents-filter--search"><span>Búsqueda</span><div><DocumentViewIcon name="search" size={17} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por código, título o palabras clave..." /></div></label><SelectFilter label="Tipo" value={type} onChange={setType} options={options('type')} /><SelectFilter label="Área" value={area} onChange={setArea} options={options('area')} /><SelectFilter label="Estado" value={status} onChange={setStatus} options={statusOptions} /><SelectFilter label="Responsable" value={owner} onChange={setOwner} options={['Todos', ...(catalogs.responsibles || []).map((item) => item.name)]} /><label className="documents-filter documents-filter--date"><span>Desde</span><div><DocumentViewIcon name="calendar" size={17} /><input type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div></label><label className="documents-filter documents-filter--date"><span>Hasta</span><div><DocumentViewIcon name="calendar" size={17} /><input type="date" value={until} onChange={(event) => setUntil(event.target.value)} /></div></label><SelectFilter label="Clasificación" value={classification} onChange={setClassification} options={['Todas']} /><div className="documents-filter-actions"><button type="button" onClick={clearFilters}><DocumentViewIcon name="filter" size={17} /> Limpiar filtros</button><button className={advancedOpen ? 'is-active' : ''} type="button" onClick={() => setAdvancedOpen((open) => !open)}><DocumentViewIcon name="sliders" size={17} /> Filtros avanzados <DocumentViewIcon name="chevron" size={14} /></button></div>{advancedOpen && <p className="documents-advanced-message">Los filtros se aplican remotamente sobre el catálogo documental.</p>}</section>
     {error && <p className="documents-error" role="alert">{error}</p>}
     <section className="documents-table-panel"><div className="documents-table-scroll"><table><thead><tr><th>Código</th><th>Documento</th><th>Tipo</th><th>Área</th><th>Responsable</th><th>Estado</th><th>Versión actual</th><th>Última actualización</th><th>Acciones</th></tr></thead><tbody>{visibleDocuments.map((document) => { const ownerName = document.responsible?.name || '—'; const initials = ownerName.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'; return <tr key={document.id}><td className="documents-code">{document.code}</td><td><span className="documents-name">{document.title}{document.favorite && <span className="documents-favorite"><DocumentViewIcon name="star" size={13} /></span>}</span></td><td><span className={`documents-type documents-type--${typeTones[document.type] || 'blue'}`}>{document.type}</span></td><td>{document.area}</td><td><span className="documents-owner"><i className="documents-owner__avatar documents-owner__avatar--blue">{initials}</i>{ownerName}</span></td><td><span className="documents-state">{document.status}</span></td><td>{document.version}</td><td><span className="documents-updated"><strong>{document.updated}</strong><small>por {ownerName}</small></span></td><td><div className="documents-row-actions"><button type="button" aria-label={`Ver ${document.title}`} onClick={() => onOpenVersions?.(document.id)}><DocumentViewIcon name="eye" size={16} /></button><button type="button" aria-label={`Editar ${document.title}`} onClick={() => onOpenVersions?.(document.id)}><DocumentViewIcon name="edit" size={16} /></button><button type="button" title="Ver historial de versiones" aria-label={`Ver versiones de ${document.title}`} onClick={() => onOpenVersions?.(document.id)}><DocumentViewIcon name="copy" size={16} /></button><button type="button" aria-label={`Compartir ${document.title}`} onClick={() => window.navigator.clipboard?.writeText(`${document.title} (${document.code})`)}><DocumentViewIcon name="share" size={16} /></button><button type="button" aria-label={`Más acciones para ${document.title}`} onClick={() => onOpenVersions?.(document.id)}><DocumentViewIcon name="more" size={16} /></button></div></td></tr> })}</tbody></table>{loading && <div className="documents-empty">Cargando documentos...</div>}{!loading && !visibleDocuments.length && <div className="documents-empty"><DocumentViewIcon name="search" size={23} /><strong>Sin resultados</strong><span>Pruebe con otros términos o limpie los filtros seleccionados.</span></div>}</div><footer className="documents-pagination"><span>Mostrando {visibleDocuments.length} de {total} documentos</span></footer></section>
     {modal && <div className="documents-modal" role="dialog" aria-modal="true" aria-labelledby="documents-modal-title"><form onSubmit={createDocument}><header><h2 id="documents-modal-title">{modal === 'upload' ? 'Subir documento' : 'Nuevo documento'}</h2><button type="button" onClick={() => setModal('')}>×</button></header><label>Código<input required value={form.code} onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} /></label><label>Título<input required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} /></label><label>Descripción<textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label><label>Área<select required value={form.area_id} onChange={(event) => setForm({ ...form, area_id: event.target.value })}><option value="">Seleccione un área</option>{catalogs.areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Tipo de documento<select required value={form.type_id} onChange={(event) => setForm({ ...form, type_id: event.target.value })}><option value="">Seleccione un tipo</option>{catalogs.types.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Archivo {modal === 'upload' && <em>*</em>}<input type="file" required={modal === 'upload'} onChange={(event) => setForm({ ...form, file: event.target.files?.[0] || null })} /></label><footer><button type="button" onClick={() => setModal('')}>Cancelar</button><button className="is-primary" type="submit" disabled={saving || !catalogs.areas.length || !catalogs.types.length}>{saving ? 'Guardando...' : 'Guardar'}</button></footer></form></div>}
