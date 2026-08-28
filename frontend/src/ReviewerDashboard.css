@@ -36,6 +36,10 @@
 .reviewer-shell .editor-topbar { height: 70px; padding-inline: 28px; }
 .reviewer-shell .editor-search { width: min(530px, 50vw); }
 .reviewer-shell .reviewer-page-content { min-width: 0; padding: 0 28px; }
+.reviewer-heading { align-items: flex-start; }
+.reviewer-heading h1 { font-size: clamp(27px, 2.3vw, 31px); }
+.reviewer-heading p { line-height: 1.25; }
+.reviewer-heading time { margin-top: 7px; }
 .reviewer-metrics { gap: 18px; }
 .reviewer-metric { min-height: 114px; padding: 17px; gap: 17px; }
 .reviewer-metric p { font-size: 13px; }
