@@ -261,6 +261,35 @@ class UserDeletionTests(SimpleTestCase):
 
 
 class UserCreationTests(SimpleTestCase):
+    @patch('documentos.management_views.AreaCatalogo.objects.filter')
+    @patch('documentos.management_views.require_permission')
+    def test_create_rejects_area_from_another_organization(self, require_permission, area_filter):
+        organization_id = uuid4()
+        area_id = uuid4()
+        area_filter.return_value.exists.return_value = False
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=uuid4(), organizacion_id=organization_id),
+            data={
+                'username': 'nuevo.usuario',
+                'email': 'nuevo@example.com',
+                'first_name': 'Nuevo',
+                'last_name': 'Usuario',
+                'organization_id': str(organization_id),
+                'area_id': str(area_id),
+                'temporary_password': 'TemporalSegura123!',
+            },
+        )
+
+        response = UserListCreateView().post(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'INVALID_AREA')
+        area_filter.assert_called_once_with(
+            pk=area_id,
+            organizacion_id=organization_id,
+            activa=True,
+        )
+
     @patch('documentos.management_views.RolDocumental.objects.filter')
     @patch('documentos.management_views.require_permission')
     def test_create_rejects_role_from_another_organization(self, require_permission, role_filter):
@@ -289,6 +318,34 @@ class UserCreationTests(SimpleTestCase):
             id__in=[valid_role_id, foreign_role_id],
             organizacion_id=organization_id,
             activo=True,
+        )
+
+    @patch('documentos.management_views.AreaCatalogo.objects.filter')
+    @patch('documentos.management_views.get_user_for_organization')
+    @patch('documentos.management_views.require_permission')
+    def test_update_rejects_area_from_another_organization(self, require_permission, get_user, area_filter):
+        organization_id = uuid4()
+        user_id = uuid4()
+        area_id = uuid4()
+        area_filter.return_value.exists.return_value = False
+        get_user.return_value = SimpleNamespace(
+            id=user_id,
+            pk=user_id,
+            organizacion_id=organization_id,
+        )
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=uuid4(), organizacion_id=organization_id),
+            data={'area_id': str(area_id)},
+        )
+
+        response = UserDetailView().patch(request, user_id)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'INVALID_AREA')
+        area_filter.assert_called_once_with(
+            pk=area_id,
+            organizacion_id=organization_id,
+            activa=True,
         )
 
 

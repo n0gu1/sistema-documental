@@ -24,6 +24,7 @@ from .models import (
     ArchivoDocumento,
     DetalleSolicitudRevision,
     Documento,
+    AreaCatalogo,
     SolicitudRevision,
 )
 from .serializers import (
@@ -173,6 +174,16 @@ def get_user_for_organization(user_id, organization_id):
         return UsuarioDocumental.objects.get(pk=user_id, organizacion_id=organization_id)
     except UsuarioDocumental.DoesNotExist:
         return None
+
+
+def validate_area_assignment(area_id, organization_id):
+    if area_id is None:
+        return True
+    return AreaCatalogo.objects.filter(
+        pk=area_id,
+        organizacion_id=organization_id,
+        activa=True,
+    ).exists()
 
 
 def serialize_dashboard_document(document):
@@ -327,6 +338,11 @@ class UserListCreateView(APIView):
         data = serializer.validated_data
         if data['organization_id'] != request.user.organizacion_id:
             raise PermissionDenied({'code': 'ORGANIZATION_MISMATCH', 'detail': 'Organizacion no autorizada.'})
+        if not validate_area_assignment(data.get('area_id'), data['organization_id']):
+            return Response(
+                {'code': 'INVALID_AREA', 'detail': 'El area no pertenece a la organizacion o no esta activa.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         role_ids = data.get('role_ids', [])
         valid_role_ids = set(RolDocumental.objects.filter(
             id__in=role_ids,
@@ -388,6 +404,11 @@ class UserDetailView(APIView):
         serializer = UserUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        if 'area_id' in data and not validate_area_assignment(data['area_id'], user.organizacion_id):
+            return Response(
+                {'code': 'INVALID_AREA', 'detail': 'El area no pertenece a la organizacion o no esta activa.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if 'email' in data and UsuarioDocumental.objects.filter(
             organizacion_id=user.organizacion_id,
             correo__iexact=data['email'],
