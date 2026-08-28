@@ -5,6 +5,7 @@ from django.db import transaction
 from django.http import Http404
 from django.utils import timezone
 from rest_framework import serializers, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -274,6 +275,19 @@ def add_resolution_comment(review, user, content, comment_type='RESOLUCION', par
         tipo=comment_type,
         contenido=content,
     )
+
+
+def ensure_checklist_editable(request, review):
+    if review.revisor_id != request.user.id:
+        raise PermissionDenied({
+            'code': 'REVIEWER_NOT_ASSIGNED',
+            'detail': 'Solo el revisor asignado puede modificar el checklist.',
+        })
+    if review.estado_revision.codigo != 'PENDIENTE':
+        raise serializers.ValidationError({
+            'code': 'REVIEW_ALREADY_RESOLVED',
+            'detail': 'No se puede modificar el checklist de una revision resuelta.',
+        })
 
 
 class ReviewSubmitView(APIView):
@@ -569,6 +583,7 @@ class ReviewChecklistCreateView(APIView):
     def post(self, request, review_id):
         require_permission(request, REVIEW_READ)
         review = get_review_or_404(request, review_id)
+        ensure_checklist_editable(request, review)
         serializer = ChecklistSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         item = ElementoChecklistRevision.objects.create(
@@ -592,6 +607,7 @@ class ReviewChecklistUpdateView(APIView):
         if not item:
             raise Http404
         review = get_review_or_404(request, item.solicitud_id)
+        ensure_checklist_editable(request, review)
         serializer = ChecklistUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         item.completada = serializer.validated_data['completed']

@@ -109,7 +109,7 @@ ORDEN RECOMENDADO
 [x] Implementar asignacion de revisores. Solo se asignan revisores activos de la organizacion con rol de revisor y acceso al area o al documento mediante ACL.
 [x] Implementar fechas limite y prioridades.
 [x] Implementar bandeja de revision.
-[~] Implementar checklist de revision. Falta restringir su modificacion al revisor asignado y bloquear cambios cuando la revision ya fue resuelta.
+[x] Implementar checklist de revision. Solo el revisor asignado puede modificarlo y se bloquean cambios cuando la revision ya fue resuelta.
 [~] Implementar comentarios y observaciones. Falta bloquear nuevos comentarios en revisiones resueltas y exigir observacion al devolver o rechazar.
 [x] Implementar respuestas a comentarios.
 [x] Implementar resolucion de observaciones.

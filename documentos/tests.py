@@ -57,6 +57,7 @@ from .workflow_views import (
     ReviewCommentSerializer,
     SubmitReviewSerializer,
     VERSION_TRANSITIONS,
+    ensure_checklist_editable,
     reviewer_has_document_access,
     transition_version,
     validate_reviewer_ids,
@@ -950,6 +951,30 @@ class WorkflowTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('reviewer_ids', serializer.errors)
+
+    def test_checklist_requires_assigned_reviewer(self):
+        reviewer = SimpleNamespace(id=uuid4())
+        review = SimpleNamespace(
+            revisor_id=uuid4(),
+            estado_revision=SimpleNamespace(codigo='PENDIENTE'),
+        )
+
+        with self.assertRaises(PermissionDenied) as context:
+            ensure_checklist_editable(SimpleNamespace(user=reviewer), review)
+
+        self.assertEqual(context.exception.detail['code'], 'REVIEWER_NOT_ASSIGNED')
+
+    def test_checklist_is_locked_after_review_resolution(self):
+        reviewer = SimpleNamespace(id=uuid4())
+        review = SimpleNamespace(
+            revisor_id=reviewer.id,
+            estado_revision=SimpleNamespace(codigo='APROBADA'),
+        )
+
+        with self.assertRaises(ValidationError) as context:
+            ensure_checklist_editable(SimpleNamespace(user=reviewer), review)
+
+        self.assertEqual(context.exception.detail['code'], 'REVIEW_ALREADY_RESOLVED')
 
     @patch('documentos.workflow_views.has_document_permission', return_value=True)
     @patch('documentos.workflow_views.has_area_permission', return_value=False)
