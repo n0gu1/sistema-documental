@@ -57,7 +57,9 @@ from .workflow_views import (
     ReviewCommentSerializer,
     SubmitReviewSerializer,
     VERSION_TRANSITIONS,
+    reviewer_has_document_access,
     transition_version,
+    validate_reviewer_ids,
 )
 
 
@@ -948,6 +950,47 @@ class WorkflowTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('reviewer_ids', serializer.errors)
+
+    @patch('documentos.workflow_views.has_document_permission', return_value=True)
+    @patch('documentos.workflow_views.has_area_permission', return_value=False)
+    def test_reviewer_can_access_document_through_explicit_permission(self, has_area, has_document):
+        reviewer = SimpleNamespace(id=uuid4(), nombre_usuario='revisor.documento')
+        document = SimpleNamespace(id=uuid4(), area_id=uuid4())
+
+        self.assertTrue(reviewer_has_document_access(reviewer, document))
+        has_area.assert_called_once_with(reviewer, document.area_id)
+        has_document.assert_called_once_with(reviewer, document.id, 'revisiones.consultar')
+
+    @patch('documentos.workflow_views.has_document_permission', return_value=False)
+    @patch('documentos.workflow_views.has_area_permission', return_value=False)
+    def test_reviewer_without_area_or_document_access_is_rejected(self, has_area, has_document):
+        reviewer_id = uuid4()
+        reviewer = SimpleNamespace(id=reviewer_id, nombre_usuario='revisor.aislado')
+        document = SimpleNamespace(id=uuid4(), area_id=uuid4())
+        with patch('documentos.workflow_views.UsuarioDocumental.objects.filter', return_value=[reviewer]), patch(
+            'documentos.workflow_views.get_user_roles',
+            return_value=[{'code': 'REVISOR'}],
+        ):
+            with self.assertRaises(ValidationError) as context:
+                validate_reviewer_ids([reviewer_id], uuid4(), document)
+
+        self.assertIn('no tiene acceso', str(context.exception.detail['reviewer_ids']))
+        self.assertEqual(has_document.call_count, 2)
+
+    @patch('documentos.workflow_views.has_document_permission', return_value=False)
+    @patch('documentos.workflow_views.has_area_permission', return_value=True)
+    def test_reviewer_with_area_access_is_accepted(self, has_area, has_document):
+        reviewer_id = uuid4()
+        reviewer = SimpleNamespace(id=reviewer_id, nombre_usuario='revisor.area')
+        document = SimpleNamespace(id=uuid4(), area_id=uuid4())
+        with patch('documentos.workflow_views.UsuarioDocumental.objects.filter', return_value=[reviewer]), patch(
+            'documentos.workflow_views.get_user_roles',
+            return_value=[{'code': 'REVISOR'}],
+        ):
+            result = validate_reviewer_ids([reviewer_id], uuid4(), document)
+
+        self.assertEqual(result, [reviewer])
+        has_document.assert_not_called()
 
     @patch('documentos.workflow_views.HistorialEstadoVersion.objects.create')
     @patch('documentos.workflow_views.get_catalog_state')

@@ -30,12 +30,14 @@ from .notifications import (
     notify_review_comment,
     notify_review_decision,
 )
+from .reader_access import has_area_permission, has_document_permission
 
 
 REVIEW_READ = 'revisiones.consultar'
 REVIEW_SEND = 'revisiones.enviar'
 REVIEW_APPROVE = 'revisiones.aprobar'
 REVIEW_REJECT = 'revisiones.rechazar'
+DOCUMENT_READ = 'documentos.consultar'
 
 VERSION_TRANSITIONS = {
     'BORRADOR': {'EN_REVISION'},
@@ -235,7 +237,16 @@ def get_revision_state(code):
     return get_catalog_state(EstadoRevisionCatalogo, code)
 
 
-def validate_reviewer_ids(reviewer_ids, organization_id):
+def reviewer_has_document_access(reviewer, document):
+    if has_area_permission(reviewer, document.area_id):
+        return True
+    return any(
+        has_document_permission(reviewer, document.id, permission)
+        for permission in (REVIEW_READ, DOCUMENT_READ)
+    )
+
+
+def validate_reviewer_ids(reviewer_ids, organization_id, document):
     reviewers = list(UsuarioDocumental.objects.filter(
         id__in=reviewer_ids,
         organizacion_id=organization_id,
@@ -247,6 +258,8 @@ def validate_reviewer_ids(reviewer_ids, organization_id):
     for reviewer in reviewers:
         if not any(role['code'] in {'REVISOR', 'ADMINISTRADOR'} for role in get_user_roles(reviewer.id)):
             raise serializers.ValidationError({'reviewer_ids': f'{reviewer.nombre_usuario} no tiene rol de revisor.'})
+        if not reviewer_has_document_access(reviewer, document):
+            raise serializers.ValidationError({'reviewer_ids': f'{reviewer.nombre_usuario} no tiene acceso al area ni al documento.'})
     return [reviewers_by_id[reviewer_id] for reviewer_id in reviewer_ids]
 
 
@@ -274,7 +287,7 @@ class ReviewSubmitView(APIView):
         data = serializer.validated_data
         if version.estado_version.codigo != 'BORRADOR':
             raise serializers.ValidationError({'code': 'VERSION_NOT_EDITABLE', 'detail': 'Solo se pueden enviar versiones en borrador.'})
-        reviewers = validate_reviewer_ids(data['reviewer_ids'], document.organizacion_id)
+        reviewers = validate_reviewer_ids(data['reviewer_ids'], document.organizacion_id, document)
         if data.get('deadline') and data['deadline'] <= timezone.now():
             raise serializers.ValidationError({'deadline': 'La fecha limite debe ser futura.'})
         pending_state = get_revision_state('PENDIENTE')
@@ -382,7 +395,11 @@ class ReviewAssignmentView(APIView):
         serializer = ReviewAssignmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        reviewer = validate_reviewer_ids([data['reviewer_id']], review.version_documento.documento.organizacion_id)[0]
+        reviewer = validate_reviewer_ids(
+            [data['reviewer_id']],
+            review.version_documento.documento.organizacion_id,
+            review.version_documento.documento,
+        )[0]
         if data.get('deadline') and data['deadline'] <= timezone.now():
             raise serializers.ValidationError({'deadline': 'La fecha limite debe ser futura.'})
         review.revisor = reviewer

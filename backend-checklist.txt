@@ -106,7 +106,7 @@ ORDEN RECOMENDADO
 6. FLUJO DOCUMENTAL
 [x] Definir transiciones validas de estado.
 [x] Implementar envio a revision.
-[~] Implementar asignacion de revisores. Falta comprobar que el revisor asignado tenga acceso al area o al documento.
+[x] Implementar asignacion de revisores. Solo se asignan revisores activos de la organizacion con rol de revisor y acceso al area o al documento mediante ACL.
 [x] Implementar fechas limite y prioridades.
 [x] Implementar bandeja de revision.
 [~] Implementar checklist de revision. Falta restringir su modificacion al revisor asignado y bloquear cambios cuando la revision ya fue resuelta.
