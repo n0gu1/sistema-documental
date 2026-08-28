@@ -58,6 +58,7 @@ from .workflow_views import (
     ChecklistSerializer,
     ReviewCandidateListView,
     ReviewCommentSerializer,
+    ReviewDocumentListView,
     SubmitReviewSerializer,
     VERSION_TRANSITIONS,
     ensure_checklist_editable,
@@ -1038,6 +1039,36 @@ class WorkflowTests(SimpleTestCase):
         }])
         user_filter.assert_called_once_with(organizacion_id=organization_id, activo=True)
         require_permission.assert_called_once_with(request, 'revisiones.enviar')
+
+    @patch('documentos.workflow_views.serialize_review', return_value={'id': 'review-1'})
+    @patch('documentos.workflow_views.is_admin', return_value=False)
+    @patch('documentos.workflow_views.get_document_or_404')
+    @patch('documentos.workflow_views.require_permission')
+    @patch('documentos.workflow_views.SolicitudRevision.objects')
+    def test_document_reviews_return_only_reviews_requested_by_editor(self, review_objects, require_permission, get_document, is_admin_mock, serialize_review):
+        organization_id = uuid4()
+        editor = SimpleNamespace(id=uuid4(), organizacion_id=organization_id)
+        document = SimpleNamespace(id=uuid4())
+        review = SimpleNamespace(id=uuid4())
+        query = MagicMock()
+        query.filter.return_value = query
+        ordered_query = MagicMock()
+        ordered_query.count.return_value = 1
+        ordered_query.__iter__.return_value = iter([review])
+        query.prefetch_related.return_value.order_by.return_value = ordered_query
+        review_objects.select_related.return_value.filter.return_value = query
+        get_document.return_value = document
+        request = SimpleNamespace(user=editor)
+        document_id = uuid4()
+
+        response = ReviewDocumentListView().get(request, document_id)
+
+        self.assertEqual(response.data, {'count': 1, 'reviews': [{'id': 'review-1'}]})
+        get_document.assert_called_once_with(request, document_id)
+        query.filter.assert_called_once_with(solicitada_por=editor)
+        require_permission.assert_called_once_with(request, 'revisiones.enviar')
+        is_admin_mock.assert_called_once_with(editor)
+        serialize_review.assert_called_once_with(review)
 
     def test_checklist_requires_assigned_reviewer(self):
         reviewer = SimpleNamespace(id=uuid4())

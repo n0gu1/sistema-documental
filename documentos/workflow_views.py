@@ -420,6 +420,31 @@ class ReviewCandidateListView(APIView):
         return Response({'reviewers': reviewers})
 
 
+class ReviewDocumentListView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request, document_id):
+        require_permission(request, REVIEW_SEND)
+        document = get_document_or_404(request, document_id)
+        queryset = SolicitudRevision.objects.select_related(
+            'estado_revision',
+            'revisor',
+            'solicitada_por',
+            'version_documento__documento',
+            'version_documento__estado_version',
+            'detalle',
+        ).filter(
+            version_documento__documento=document,
+        )
+        if not is_admin(request.user):
+            queryset = queryset.filter(solicitada_por=request.user)
+        reviews = queryset.prefetch_related('checklist', 'comentarios__autor').order_by('-solicitada_en')
+        return Response({
+            'count': reviews.count(),
+            'reviews': [serialize_review(review) for review in reviews],
+        })
+
+
 class ReviewAssignmentView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 

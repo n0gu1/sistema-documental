@@ -51,6 +51,7 @@ urlpatterns = [
     ),
     path('reviews/inbox/', workflow_views.ReviewInboxView.as_view(), name='review-inbox'),
     path('reviews/reviewers/', workflow_views.ReviewCandidateListView.as_view(), name='review-candidates'),
+    path('documents/<uuid:document_id>/reviews/', workflow_views.ReviewDocumentListView.as_view(), name='document-reviews'),
     path('reviews/<uuid:review_id>/', workflow_views.ReviewDetailView.as_view(), name='review-detail'),
     path('reviews/<uuid:review_id>/assign/', workflow_views.ReviewAssignmentView.as_view(), name='review-assign'),
     path('reviews/<uuid:review_id>/approve/', workflow_views.ReviewApproveView.as_view(), name='review-approve'),
