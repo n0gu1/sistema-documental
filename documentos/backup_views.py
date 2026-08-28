@@ -17,6 +17,7 @@ from .backup_service import (
     get_or_create_configuration,
     load_backup_archive,
     next_execution,
+    restore_backup,
     verify_backup,
 )
 from .auth_utils import record_auth_event
@@ -252,16 +253,26 @@ class BackupRestoreView(APIView):
         if backup.estado != 'exitoso':
             raise ValidationError({'detail': 'Solo se pueden restaurar respaldos exitosos.'})
         mode = request.data.get('mode', 'verify')
-        if mode not in {'verify', 'restore_files'}:
-            raise ValidationError({'mode': 'El modo debe ser verify o restore_files.'})
+        if mode not in {'verify', 'restore', 'restore_files'}:
+            raise ValidationError({'mode': 'El modo debe ser verify, restore o restore_files.'})
         try:
-            result = verify_backup(backup, restore_files=mode == 'restore_files')
+            result = restore_backup(backup) if mode == 'restore' else verify_backup(
+                backup,
+                restore_files=mode == 'restore_files',
+            )
         except BackupExecutionError as error:
-            record_backup_event(request, 'RESPALDO_VERIFICADO', resource_id=backup.id, successful=False, result=str(error), details={'mode': mode})
+            record_backup_event(
+                request,
+                'RESPALDO_RESTAURADO' if mode in {'restore', 'restore_files'} else 'RESPALDO_VERIFICADO',
+                resource_id=backup.id,
+                successful=False,
+                result=str(error),
+                details={'mode': mode},
+            )
             return Response({'valid': False, 'detail': str(error)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         record_backup_event(
             request,
-            'RESPALDO_RESTAURADO' if mode == 'restore_files' else 'RESPALDO_VERIFICADO',
+            'RESPALDO_RESTAURADO' if mode in {'restore', 'restore_files'} else 'RESPALDO_VERIFICADO',
             resource_id=backup.id,
             details={'mode': mode, **result},
         )

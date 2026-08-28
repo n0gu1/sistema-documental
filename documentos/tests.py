@@ -9,6 +9,7 @@ from uuid import uuid4
 from zipfile import ZipFile
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection as django_connection
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
@@ -19,6 +20,7 @@ from .audit_views import audit_query_parts, fetch_security_alerts, require_audit
 from .auth_utils import record_access_denied, record_auth_event, user_has_permission
 from .backup_service import (
     BACKUP_FORMAT,
+    BACKUP_SCHEMA,
     BackupExecutionError,
     build_backup_archive,
     build_storage_snapshot,
@@ -26,7 +28,11 @@ from .backup_service import (
     decrypt_archive,
     encrypt_archive,
     load_backup_archive,
+    restore_backup,
+    restore_database_snapshot,
+    restore_storage_snapshot,
     table_scope_clause,
+    validate_database_snapshot,
     verify_backup,
 )
 from .config_service import decrypt_secret, encrypt_secret, validate_section
@@ -1164,7 +1170,7 @@ class BackupSnapshotTests(SimpleTestCase):
         archive.read.return_value = json.dumps({'tables': []}).encode('utf-8')
         archive.close.return_value = None
         manifest = {
-            'format': BACKUP_FORMAT,
+            'format': 'sistema-documental-backup-v1',
             'organization_id': str(self.organization_id),
             'database_records': 0,
             'files': [],
@@ -1178,6 +1184,176 @@ class BackupSnapshotTests(SimpleTestCase):
         self.assertTrue(result['valid'])
         self.assertIsNone(backup.restaurado_en)
         backup.save.assert_not_called()
+
+    def test_restore_files_replaces_corrupt_existing_content(self):
+        content = b'restored-content'
+        archive = MagicMock()
+        archive.read.return_value = content
+        manifest = {
+            'format': 'sistema-documental-backup-v1',
+            'files': [{
+                'archive_path': 'files/file-id/file.pdf',
+                'storage_key': 'documentos/file.pdf',
+                'name': 'file.pdf',
+                'size': len(content),
+                'sha256': hashlib.sha256(content).hexdigest(),
+            }],
+        }
+        with (
+            patch('documentos.backup_service.default_storage.exists', return_value=True),
+            patch('documentos.backup_service.default_storage.open', return_value=BytesIO(b'corrupt-content')),
+            patch('documentos.backup_service.default_storage.delete') as delete,
+            patch('documentos.backup_service.default_storage.save', return_value='documentos/file.pdf') as save,
+        ):
+            result = restore_storage_snapshot(archive, manifest)
+
+        self.assertEqual(result['files_replaced'], 1)
+        self.assertEqual(result['files_restored'], 0)
+        delete.assert_called_once_with('documentos/file.pdf')
+        save.assert_called_once()
+
+    def test_restore_rejects_relational_rows_with_another_organization(self):
+        other_organization_id = uuid4()
+        schema = {
+            'name': BACKUP_SCHEMA,
+            'tables': [
+                {
+                    'name': 'organizaciones',
+                    'columns': [{'column_name': 'id'}],
+                },
+                {
+                    'name': 'usuarios',
+                    'columns': [{'column_name': 'id'}, {'column_name': 'organizacion_id'}],
+                },
+                {
+                    'name': 'documentos',
+                    'columns': [{'column_name': 'id'}, {'column_name': 'organizacion_id'}],
+                },
+                {
+                    'name': 'documentos_favoritos',
+                    'columns': [
+                        {'column_name': 'id'},
+                        {'column_name': 'documento_id'},
+                        {'column_name': 'usuario_id'},
+                    ],
+                },
+            ],
+            'constraints': [
+                {'table_name': table_name, 'constraint_type': 'PRIMARY KEY', 'constraint_columns': ['id']}
+                for table_name in ('organizaciones', 'usuarios', 'documentos', 'documentos_favoritos')
+            ] + [
+                {
+                    'table_name': 'documentos_favoritos',
+                    'constraint_type': 'FOREIGN KEY',
+                    'constraint_columns': ['documento_id'],
+                    'foreign_table_name': 'documentos',
+                    'foreign_columns': ['id'],
+                },
+                {
+                    'table_name': 'documentos_favoritos',
+                    'constraint_type': 'FOREIGN KEY',
+                    'constraint_columns': ['usuario_id'],
+                    'foreign_table_name': 'usuarios',
+                    'foreign_columns': ['id'],
+                },
+            ],
+        }
+        database = {
+            'schema': BACKUP_SCHEMA,
+            'organization_id': str(self.organization_id),
+            'tables': [
+                {'name': 'organizaciones', 'columns': ['id'], 'rows': [{'id': str(self.organization_id)}]},
+                {'name': 'usuarios', 'columns': ['id', 'organizacion_id'], 'rows': [{
+                    'id': str(uuid4()),
+                    'organizacion_id': str(other_organization_id),
+                }]},
+                {'name': 'documentos', 'columns': ['id', 'organizacion_id'], 'rows': []},
+                {'name': 'documentos_favoritos', 'columns': ['id', 'documento_id', 'usuario_id'], 'rows': []},
+            ],
+        }
+
+        with self.assertRaisesMessage(BackupExecutionError, 'otra organizacion'):
+            validate_database_snapshot(database, schema, self.organization_id)
+
+    def test_restore_database_upserts_rows_in_transaction(self):
+        database = {
+            'schema': BACKUP_SCHEMA,
+            'organization_id': str(self.organization_id),
+            'tables': [{
+                'name': 'organizaciones',
+                'columns': ['id', 'nombre'],
+                'rows': [{'id': str(self.organization_id), 'nombre': 'Restaurada'}],
+            }],
+        }
+        schema = {
+            'name': BACKUP_SCHEMA,
+            'tables': [{
+                'name': 'organizaciones',
+                'columns': [
+                    {'column_name': 'id', 'data_type': 'uuid'},
+                    {'column_name': 'nombre', 'data_type': 'text'},
+                ],
+            }],
+            'constraints': [{
+                'table_name': 'organizaciones',
+                'constraint_type': 'PRIMARY KEY',
+                'constraint_columns': ['id'],
+            }],
+        }
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        fake_connection = SimpleNamespace(vendor='sqlite', ops=django_connection.ops, cursor=MagicMock(return_value=cursor))
+        with (
+            patch('documentos.backup_service.database_table_names', return_value=['organizaciones']),
+            patch('documentos.backup_service.database_schema_snapshot', return_value=(schema, {'organizaciones': {'id', 'nombre'}})),
+            patch('documentos.backup_service.connection', fake_connection),
+            patch('documentos.backup_service.transaction.atomic', return_value=nullcontext()),
+        ):
+            result = restore_database_snapshot(database, schema, [], self.organization_id)
+
+        self.assertEqual(result['database_strategy'], 'upsert')
+        self.assertEqual(result['database_rows_restored'], 1)
+        self.assertIn('ON CONFLICT', cursor.execute.call_args.args[0])
+
+    def test_restore_backup_restores_database_and_files(self):
+        archive = MagicMock()
+        archive.close.return_value = None
+        manifest = {
+            'format': BACKUP_FORMAT,
+            'organization_id': str(self.organization_id),
+            'database_records': 2,
+            'files': [],
+            'missing_files': [],
+            'complete': True,
+        }
+        backup = SimpleNamespace(restaurado_en=None, save=MagicMock())
+        database_stats = {
+            'database_strategy': 'upsert',
+            'database_tables_restored': 2,
+            'database_rows_restored': 2,
+            'database_tables_skipped': [],
+            'sequences_advanced': 1,
+        }
+        file_stats = {
+            'files_verified': 0,
+            'files_restored': 0,
+            'files_replaced': 1,
+            'files_skipped': 0,
+        }
+        with (
+            patch('documentos.backup_service.load_backup_archive', return_value=(archive, manifest)),
+            patch('documentos.backup_service._read_v2_artifacts', return_value=({}, {}, [], {})),
+            patch('documentos.backup_service.validate_database_snapshot'),
+            patch('documentos.backup_service.database_restore_transaction', return_value=nullcontext()),
+            patch('documentos.backup_service._restore_database_snapshot_in_transaction', return_value=database_stats),
+            patch('documentos.backup_service.restore_storage_snapshot', return_value=file_stats),
+        ):
+            result = restore_backup(backup)
+
+        self.assertEqual(result['mode'], 'restore')
+        self.assertEqual(result['database_rows_restored'], 2)
+        self.assertEqual(result['files_replaced'], 1)
+        backup.save.assert_called_once_with(update_fields=['restaurado_en'])
 
 
 class SettingsSecurityTests(SimpleTestCase):

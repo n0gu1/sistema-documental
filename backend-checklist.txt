@@ -178,10 +178,10 @@ ORDEN RECOMENDADO
 [x] Configurar retencion de respaldos.
 [x] Cifrar respaldos.
 [x] Crear puntos de restauracion.
-[~] Implementar restauracion. Actualmente solo verifica el respaldo y recupera archivos faltantes; no restaura registros de base de datos ni reemplaza archivos corruptos existentes.
+[x] Implementar restauracion. El modo restore valida el snapshot, restaura registros con upsert transaccional y reemplaza archivos faltantes o corruptos verificando tamano y SHA-256.
 [~] Probar el plan de recuperacion. La prueba actual verifica integridad del archivo, pero no reconstruye la base de datos ni valida una recuperacion completa en un entorno aislado.
 [~] Configurar alertas de respaldos fallidos. Los fallos aparecen en la consulta del panel, pero falta notificacion activa por correo, webhook u otro canal.
-[ ] Implementar restauracion real de la base de datos desde `database.json` con validacion, orden de dependencias y transaccion.
+[x] Implementar restauracion real de la base de datos desde `database.json` con validacion, orden de dependencias y transaccion serializable. La restauracion es no destructiva y conserva filas creadas despues del respaldo.
 [x] Evitar que un respaldo de una organizacion incluya filas de otras organizaciones en tablas sin `organizacion_id` directo. Las tablas relacionales se filtran mediante claves foraneas y las reglas desconocidas cancelan el respaldo.
 [x] Marcar `restaurado_en` solamente cuando se ejecute una restauracion, no durante una simple verificacion.
 [ ] Definir versionado y rotacion segura de `BACKUP_ENCRYPTION_KEY` para no volver irrecuperables respaldos anteriores.
