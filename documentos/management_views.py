@@ -304,6 +304,37 @@ class UserDetailView(APIView):
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado')
         return Response({'user': serialize_management_user(user)})
 
+    def delete(self, request, user_id):
+        require_permission(request, 'usuarios.gestionar')
+        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        if not user:
+            return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if user.pk == request.user.id:
+            return Response(
+                {
+                    'code': 'USER_SELF_DEACTIVATION_NOT_ALLOWED',
+                    'detail': 'No puede darse de baja a si mismo.',
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        with transaction.atomic():
+            UsuarioDocumental.objects.filter(pk=user.pk, activo=True).update(
+                activo=False,
+                deshabilitado_en=now,
+                actualizado_en=now,
+            )
+            SesionDocumental.objects.filter(usuario_id=user.pk, revocada_en__isnull=True).update(
+                revocada_en=now,
+                motivo_revocacion='Cuenta dada de baja logicamente por un administrador',
+            )
+
+        user.activo = False
+        user.deshabilitado_en = now
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario dado de baja logicamente')
+        return Response({'user': serialize_management_user(user)})
+
 
 class UserStatusView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]

@@ -17,7 +17,7 @@ from .audit_views import audit_query_parts, require_audit_access
 from .auth_utils import record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .config_service import decrypt_secret, encrypt_secret, validate_section
-from .management_views import serialize_dashboard_document
+from .management_views import UserDetailView, serialize_dashboard_document
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import DocumentFileDownloadView, compare_versions, validate_metadata
 from .file_validation import validate_uploaded_file
@@ -172,6 +172,83 @@ class SerializerTests(SimpleTestCase):
         self.assertTrue(checklist.is_valid(), checklist.errors)
         self.assertEqual(comment.validated_data['content'], 'Observacion')
         self.assertEqual(checklist.validated_data['title'], 'Verificar')
+
+
+class UserDeletionTests(SimpleTestCase):
+    @patch('documentos.management_views.serialize_management_user', return_value={'id': 'usuario-inactivo', 'active': False})
+    @patch('documentos.management_views.record_management_event')
+    @patch('documentos.management_views.timezone.now')
+    @patch('documentos.management_views.SesionDocumental.objects.filter')
+    @patch('documentos.management_views.UsuarioDocumental.objects.filter')
+    @patch('documentos.management_views.get_user_for_organization')
+    @patch('documentos.management_views.require_permission')
+    @patch('documentos.management_views.transaction.atomic', return_value=nullcontext())
+    def test_delete_marks_user_inactive_and_revokes_sessions(
+        self,
+        atomic,
+        require_permission,
+        get_user,
+        user_filter,
+        session_filter,
+        now,
+        record_event,
+        serialize_user,
+    ):
+        user_id = uuid4()
+        organization_id = uuid4()
+        administrator_id = uuid4()
+        disabled_at = timezone.now()
+        user = SimpleNamespace(
+            id=user_id,
+            pk=user_id,
+            organizacion_id=organization_id,
+            activo=True,
+            deshabilitado_en=None,
+        )
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=administrator_id, organizacion_id=organization_id),
+            auth=SimpleNamespace(id=uuid4()),
+        )
+        get_user.return_value = user
+        now.return_value = disabled_at
+
+        response = UserDetailView().delete(request, user_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(user.activo)
+        self.assertEqual(user.deshabilitado_en, disabled_at)
+        user_filter.assert_called_once_with(pk=user_id, activo=True)
+        user_filter.return_value.update.assert_called_once_with(
+            activo=False,
+            deshabilitado_en=disabled_at,
+            actualizado_en=disabled_at,
+        )
+        session_filter.assert_called_once_with(usuario_id=user_id, revocada_en__isnull=True)
+        session_filter.return_value.update.assert_called_once_with(
+            revocada_en=disabled_at,
+            motivo_revocacion='Cuenta dada de baja logicamente por un administrador',
+        )
+        record_event.assert_called_once_with(
+            request,
+            user,
+            'USUARIO_MODIFICADO',
+            'Usuario dado de baja logicamente',
+        )
+        serialize_user.assert_called_once_with(user)
+
+    @patch('documentos.management_views.get_user_for_organization')
+    @patch('documentos.management_views.require_permission')
+    def test_delete_rejects_current_administrator(self, require_permission, get_user):
+        user_id = uuid4()
+        organization_id = uuid4()
+        user = SimpleNamespace(id=user_id, pk=user_id, organizacion_id=organization_id)
+        request = SimpleNamespace(user=SimpleNamespace(id=user_id, organizacion_id=organization_id))
+        get_user.return_value = user
+
+        response = UserDetailView().delete(request, user_id)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'USER_SELF_DEACTIVATION_NOT_ALLOWED')
 
 
 class ReportFormatTests(SimpleTestCase):

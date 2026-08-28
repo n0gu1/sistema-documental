@@ -56,7 +56,7 @@ ORDEN RECOMENDADO
 3. USUARIOS, ROLES Y PERMISOS
 [x] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
 [x] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos. Corregida la actualizacion de `ultima_actividad_en` y agregadas pruebas para actividad vigente y expiracion por inactividad.
-[~] Completar CRUD de usuarios. Existen listado, creacion, detalle y edicion; falta eliminacion o una definicion explicita de baja exclusivamente logica.
+[x] Completar CRUD de usuarios. DELETE implementado como baja exclusivamente logica, con revocacion de sesiones y proteccion contra la baja del propio administrador.
 [x] Activar, suspender y bloquear usuarios.
 [x] Implementar restablecimiento de contrasenas.
 [ ] Implementar autenticacion multifactor (MFA).
