@@ -22,6 +22,7 @@ from .management_views import (
     PermissionListView,
     UserDetailView,
     UserDeviceRevokeView,
+    UserListCreateView,
     build_device_inventory,
     device_fingerprint,
     serialize_dashboard_document,
@@ -257,6 +258,38 @@ class UserDeletionTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.data['code'], 'USER_SELF_DEACTIVATION_NOT_ALLOWED')
+
+
+class UserCreationTests(SimpleTestCase):
+    @patch('documentos.management_views.RolDocumental.objects.filter')
+    @patch('documentos.management_views.require_permission')
+    def test_create_rejects_role_from_another_organization(self, require_permission, role_filter):
+        organization_id = uuid4()
+        valid_role_id = uuid4()
+        foreign_role_id = uuid4()
+        request = SimpleNamespace(
+            user=SimpleNamespace(id=uuid4(), organizacion_id=organization_id),
+            data={
+                'username': 'nuevo.usuario',
+                'email': 'nuevo@example.com',
+                'first_name': 'Nuevo',
+                'last_name': 'Usuario',
+                'organization_id': str(organization_id),
+                'temporary_password': 'TemporalSegura123!',
+                'role_ids': [str(valid_role_id), str(foreign_role_id)],
+            },
+        )
+        role_filter.return_value.values_list.return_value = [valid_role_id]
+
+        response = UserListCreateView().post(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data['code'], 'INVALID_ROLE')
+        role_filter.assert_called_once_with(
+            id__in=[valid_role_id, foreign_role_id],
+            organizacion_id=organization_id,
+            activo=True,
+        )
 
 
 class DeviceInventoryTests(SimpleTestCase):

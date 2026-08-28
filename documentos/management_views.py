@@ -327,6 +327,17 @@ class UserListCreateView(APIView):
         data = serializer.validated_data
         if data['organization_id'] != request.user.organizacion_id:
             raise PermissionDenied({'code': 'ORGANIZATION_MISMATCH', 'detail': 'Organizacion no autorizada.'})
+        role_ids = data.get('role_ids', [])
+        valid_role_ids = set(RolDocumental.objects.filter(
+            id__in=role_ids,
+            organizacion_id=data['organization_id'],
+            activo=True,
+        ).values_list('id', flat=True))
+        if len(valid_role_ids) != len(set(role_ids)):
+            return Response(
+                {'code': 'INVALID_ROLE', 'detail': 'Uno o mas roles no pertenecen a la organizacion o no estan activos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if UsuarioDocumental.objects.filter(
             organizacion_id=data['organization_id'],
         ).filter(
@@ -353,7 +364,7 @@ class UserListCreateView(APIView):
                 activo=True,
                 debe_cambiar_contrasena=True,
             )
-            assign_roles(user, data.get('role_ids', []), request.user.id)
+            assign_roles(user, role_ids, request.user.id)
 
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario creado')
         return Response({'user': serialize_management_user(user)}, status=status.HTTP_201_CREATED)

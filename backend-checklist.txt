@@ -65,7 +65,7 @@ ORDEN RECOMENDADO
 [x] Crear permisos administrables. El catalogo permite crear, modificar, activar y desactivar permisos, y conserva las asignaciones existentes de los roles.
 [x] Asignar multiples roles a usuarios.
 [x] Aplicar permisos por rol, area y documento. El listado general, las exportaciones y los reportes respetan la ACL de area/documento, y el rol Administrador prevalece ante una ACL explicita.
-[ ] Validar que los roles asignados durante la creacion de un usuario pertenezcan a la misma organizacion.
+[x] Validar que los roles asignados durante la creacion de un usuario pertenezcan a la misma organizacion y esten activos.
 [ ] Crear endpoints e interfaz para administrar permisos explicitos por documento.
 [ ] Validar que el area asignada a un usuario pertenezca a su organizacion.
 
