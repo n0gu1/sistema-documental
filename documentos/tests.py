@@ -58,6 +58,7 @@ from .workflow_views import (
     SubmitReviewSerializer,
     VERSION_TRANSITIONS,
     ensure_checklist_editable,
+    require_review_observation,
     reviewer_has_document_access,
     transition_version,
     validate_reviewer_ids,
@@ -975,6 +976,17 @@ class WorkflowTests(SimpleTestCase):
             ensure_checklist_editable(SimpleNamespace(user=reviewer), review)
 
         self.assertEqual(context.exception.detail['code'], 'REVIEW_ALREADY_RESOLVED')
+
+    def test_return_and_reject_require_an_observation(self):
+        for action in ('return', 'reject'):
+            with self.subTest(action=action):
+                with self.assertRaises(ValidationError) as context:
+                    require_review_observation(action, '')
+
+                self.assertIn('comment', context.exception.detail)
+
+    def test_approval_does_not_require_an_observation(self):
+        self.assertIsNone(require_review_observation('approve', ''))
 
     @patch('documentos.workflow_views.has_document_permission', return_value=True)
     @patch('documentos.workflow_views.has_area_permission', return_value=False)

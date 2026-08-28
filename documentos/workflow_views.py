@@ -290,6 +290,13 @@ def ensure_checklist_editable(request, review):
         })
 
 
+def require_review_observation(action, comment):
+    if action in {'return', 'reject'} and not comment:
+        raise serializers.ValidationError({
+            'comment': 'Debe indicar una observacion para devolver o rechazar la revision.',
+        })
+
+
 class ReviewSubmitView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
@@ -459,6 +466,7 @@ class ReviewDecisionView(APIView):
         decision.is_valid(raise_exception=True)
         if review.estado_revision.codigo != 'PENDIENTE':
             return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'La solicitud ya fue resuelta.'}, status=status.HTTP_409_CONFLICT)
+        require_review_observation(self.action, decision.validated_data.get('comment'))
         document = review.version_documento.documento
         version = review.version_documento
         pending = get_revision_state('PENDIENTE')
@@ -469,7 +477,12 @@ class ReviewDecisionView(APIView):
             review.comentario_resolucion = decision.validated_data.get('comment') or None
             review.resuelta_en = now
             review.save(update_fields=['estado_revision', 'comentario_resolucion', 'resuelta_en'])
-            add_resolution_comment(review, request.user, decision.validated_data.get('comment'), 'RESOLUCION' if self.action != 'return' else 'OBSERVACION')
+            add_resolution_comment(
+                review,
+                request.user,
+                decision.validated_data.get('comment'),
+                'OBSERVACION' if self.action in {'return', 'reject'} else 'RESOLUCION',
+            )
             if self.action == 'approve':
                 if review.checklist.filter(completada=False).exists():
                     raise serializers.ValidationError({'code': 'CHECKLIST_INCOMPLETE', 'detail': 'Complete el checklist antes de aprobar.'})
@@ -522,6 +535,8 @@ class ReviewCommentListCreateView(APIView):
     def post(self, request, review_id):
         require_permission(request, REVIEW_READ)
         review = get_review_or_404(request, review_id)
+        if review.estado_revision.codigo != 'PENDIENTE':
+            return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'No se pueden agregar comentarios a una revision resuelta.'}, status=status.HTTP_409_CONFLICT)
         serializer = ReviewCommentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         parent = None
@@ -555,7 +570,11 @@ class ReviewCommentResolveView(APIView):
 
     def post(self, request, comment_id):
         require_permission(request, REVIEW_APPROVE)
-        comment = ComentarioRevision.objects.select_related('solicitud__revisor', 'solicitud__version_documento__documento').filter(
+        comment = ComentarioRevision.objects.select_related(
+            'solicitud__estado_revision',
+            'solicitud__revisor',
+            'solicitud__version_documento__documento',
+        ).filter(
             pk=comment_id,
             solicitud__version_documento__documento__organizacion_id=request.user.organizacion_id,
         ).first()
@@ -563,6 +582,8 @@ class ReviewCommentResolveView(APIView):
             raise Http404
         if not is_admin(request.user) and comment.solicitud.revisor_id != request.user.id:
             raise Http404
+        if comment.solicitud.estado_revision.codigo != 'PENDIENTE':
+            return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'No se pueden agregar comentarios a una revision resuelta.'}, status=status.HTTP_409_CONFLICT)
         if comment.tipo != 'OBSERVACION':
             raise serializers.ValidationError({'code': 'COMMENT_NOT_OBSERVATION', 'detail': 'Solo se pueden resolver observaciones.'})
         if comment.resuelto:

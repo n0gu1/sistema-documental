@@ -110,7 +110,7 @@ ORDEN RECOMENDADO
 [x] Implementar fechas limite y prioridades.
 [x] Implementar bandeja de revision.
 [x] Implementar checklist de revision. Solo el revisor asignado puede modificarlo y se bloquean cambios cuando la revision ya fue resuelta.
-[~] Implementar comentarios y observaciones. Falta bloquear nuevos comentarios en revisiones resueltas y exigir observacion al devolver o rechazar.
+[x] Implementar comentarios y observaciones. Se bloquean nuevos comentarios en revisiones resueltas y se exige observacion al devolver o rechazar.
 [x] Implementar respuestas a comentarios.
 [x] Implementar resolucion de observaciones.
 [x] Implementar aprobacion.
