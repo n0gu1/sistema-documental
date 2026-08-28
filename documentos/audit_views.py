@@ -19,6 +19,18 @@ AUDIT_COLUMNS = [
     'ip', 'user_agent',
 ]
 AUDIT_TIMESTAMP_CANDIDATES = ('creado_en', 'registrado_en', 'fecha_hora', 'fecha_evento', 'ocurrido_en', 'created_at')
+SECURITY_ALERT_THRESHOLD = 3
+SECURITY_ALERT_WINDOW_HOURS = 24
+SECURITY_ALERT_THRESHOLDS = {
+    'SESION_FALLIDA': SECURITY_ALERT_THRESHOLD,
+    'SESION_INVALIDA': 1,
+    'ACCESO_DENEGADO': SECURITY_ALERT_THRESHOLD,
+}
+SECURITY_ALERT_LABELS = {
+    'SESION_FALLIDA': ('Intentos de inicio de sesion fallidos', 'critico'),
+    'SESION_INVALIDA': ('Uso de sesiones invalidas', 'critico'),
+    'ACCESO_DENEGADO': ('Accesos no autorizados', 'alto'),
+}
 
 
 def audit_timestamp_column():
@@ -103,7 +115,7 @@ def audit_query_parts(params, timestamp_column='creado_en'):
         )''')
         values.extend([search] * 9)
     if params.get('critical') == 'true':
-        filters.append("(NOT ba.exitoso OR a.codigo IN ('SESION_FALLIDA', 'ALERTA_SEGURIDAD_GENERADA'))")
+        filters.append("(NOT ba.exitoso OR a.codigo IN ('SESION_FALLIDA', 'SESION_INVALIDA', 'ACCESO_DENEGADO', 'ALERTA_SEGURIDAD_GENERADA'))")
     return ' AND '.join(filters), values
 
 
@@ -148,6 +160,61 @@ def fetch_audit_rows(params, limit, offset=0):
         cursor.execute(f'SELECT COUNT(*) {audit_base_sql(where)}', values)
         total = cursor.fetchone()[0]
     return total, rows
+
+
+def fetch_security_alerts(organization_id):
+    timestamp_column = audit_timestamp_column()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'''
+                SELECT
+                    a.codigo AS action_code,
+                    COALESCE(MAX(tr.codigo), 'DESCONOCIDO') AS resource_code,
+                    ba.direccion_ip::text AS ip,
+                    ba.usuario_id AS user_id,
+                    COALESCE(u.nombre_usuario, 'desconocido') AS username,
+                    COUNT(*) AS event_count,
+                    MAX(ba.{timestamp_column}) AS last_event_at
+                FROM gestion_documental.bitacora_auditoria ba
+                LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
+                JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
+                LEFT JOIN gestion_documental.tipos_recurso_auditoria tr ON tr.id = ba.tipo_recurso_id
+                WHERE ba.organizacion_id = %s
+                  AND a.codigo IN ('SESION_FALLIDA', 'SESION_INVALIDA', 'ACCESO_DENEGADO')
+                  AND ba.{timestamp_column} >= CURRENT_TIMESTAMP - INTERVAL '{SECURITY_ALERT_WINDOW_HOURS} hours'
+                GROUP BY a.codigo, ba.direccion_ip, ba.usuario_id, u.nombre_usuario
+                HAVING COUNT(*) >= CASE WHEN a.codigo = 'SESION_INVALIDA' THEN 1 ELSE {SECURITY_ALERT_THRESHOLD} END
+                ORDER BY event_count DESC, last_event_at DESC
+                LIMIT 50
+            ''',
+            [organization_id],
+        )
+        rows = [dict(zip(['action_code', 'resource_code', 'ip', 'user_id', 'username', 'event_count', 'last_event_at'], row)) for row in cursor.fetchall()]
+
+    alerts = []
+    for row in rows:
+        title, severity = SECURITY_ALERT_LABELS.get(row['action_code'], ('Evento de seguridad', 'alto'))
+        event_count = int(row['event_count'])
+        user_id = str(row['user_id']) if row['user_id'] else None
+        source = row['username'] or 'Usuario desconocido'
+        if row['ip']:
+            source = f'{source} - IP {row["ip"]}'
+        alerts.append({
+            'id': f'{row["action_code"]}:{user_id or "unknown"}:{row["ip"] or "unknown"}',
+            'action_code': row['action_code'],
+            'resource_code': row['resource_code'],
+            'ip': row['ip'],
+            'user_id': user_id,
+            'username': row['username'],
+            'event_count': event_count,
+            'failed_attempts': event_count,
+            'last_event_at': row['last_event_at'],
+            'severity': severity,
+            'title': title,
+            'message': f'Se detectaron {event_count} eventos en las ultimas {SECURITY_ALERT_WINDOW_HOURS} horas.',
+            'source': source,
+        })
+    return alerts
 
 
 class AuditListView(APIView):
@@ -201,28 +268,11 @@ class AuditAlertsView(APIView):
 
     def get(self, request):
         require_audit_access(request)
-        timestamp_column = audit_timestamp_column()
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f'''
-                SELECT
-                    ba.direccion_ip::text AS ip,
-                    ba.usuario_id AS user_id,
-                    COALESCE(u.nombre_usuario, 'desconocido') AS username,
-                    COUNT(*) AS failed_attempts,
-                    MAX(ba.{timestamp_column}) AS last_event_at
-                FROM gestion_documental.bitacora_auditoria ba
-                LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
-                JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
-                WHERE ba.organizacion_id = %s
-                  AND a.codigo = 'SESION_FALLIDA'
-                  AND ba.{timestamp_column} >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
-                GROUP BY ba.direccion_ip, ba.usuario_id, u.nombre_usuario
-                HAVING COUNT(*) >= 3
-                ORDER BY failed_attempts DESC, last_event_at DESC
-                LIMIT 50
-                ''',
-                [request.user.organizacion_id],
-            )
-            alerts = [dict(zip(['ip', 'user_id', 'username', 'failed_attempts', 'last_event_at'], row)) for row in cursor.fetchall()]
-        return Response({'count': len(alerts), 'alerts': alerts})
+        alerts = fetch_security_alerts(request.user.organizacion_id)
+        return Response({
+            'count': len(alerts),
+            'alerts': alerts,
+            'threshold': SECURITY_ALERT_THRESHOLD,
+            'thresholds': SECURITY_ALERT_THRESHOLDS,
+            'window_hours': SECURITY_ALERT_WINDOW_HOURS,
+        })

@@ -236,9 +236,10 @@ class AdminDashboardView(APIView):
         overdue_reviews = pending_reviews.filter(detalle__fecha_limite__lt=now).count()
         users = UsuarioDocumental.objects.filter(organizacion_id=organization_id)
 
-        from .audit_views import fetch_audit_rows
+        from .audit_views import fetch_audit_rows, fetch_security_alerts
 
         _, activity = fetch_audit_rows({'organization_id': organization_id}, 6)
+        security_alerts = fetch_security_alerts(organization_id)
         activity = [
             {
                 'id': row['id'],
@@ -288,6 +289,8 @@ class AdminDashboardView(APIView):
             'recent_documents': [serialize_dashboard_document(document) for document in dashboard_documents[:6]],
             'pending_queue': review_rows,
             'activity': activity,
+            'security_alerts': security_alerts[:5],
+            'security_alert_count': len(security_alerts),
         })
 
 

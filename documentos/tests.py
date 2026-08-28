@@ -13,7 +13,7 @@ from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, Va
 from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
-from .audit_views import audit_query_parts, require_audit_access
+from .audit_views import audit_query_parts, fetch_security_alerts, require_audit_access
 from .auth_utils import record_access_denied, record_auth_event, user_has_permission
 from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
 from .config_service import decrypt_secret, encrypt_secret, validate_section
@@ -46,7 +46,7 @@ from .document_views import (
     validate_metadata,
 )
 from .file_validation import validate_uploaded_file
-from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
+from .models import ConfiguracionSistema, Documento, Organizacion, SesionDocumental, document_file_upload_to
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_area_permission, has_document_permission
 from .reader_views import ReaderAccessSerializer
@@ -1344,6 +1344,7 @@ class AuthenticationTests(SimpleTestCase):
         enforce_csrf.assert_called_once_with(request)
 
     @patch('documentos.authentication.SessionAuthentication.enforce_csrf')
+    @patch('documentos.authentication.record_auth_event')
     @patch('documentos.authentication.security_policy_for', return_value={'inactivity_minutes': 30})
     @patch('documentos.authentication.timezone.now')
     @patch('documentos.authentication.SesionDocumental.objects')
@@ -1352,6 +1353,7 @@ class AuthenticationTests(SimpleTestCase):
         session_manager,
         now_mock,
         security_policy,
+        record_event,
         enforce_csrf,
     ):
         now = timezone.make_aware(datetime(2026, 8, 27, 12, 0, 0))
@@ -1381,6 +1383,34 @@ class AuthenticationTests(SimpleTestCase):
             motivo_revocacion='Sesion expirada por inactividad',
         )
         enforce_csrf.assert_called_once_with(request)
+        record_event.assert_called_once()
+        self.assertEqual(record_event.call_args.kwargs['action_code'], 'SESION_INVALIDA')
+        self.assertFalse(record_event.call_args.kwargs['successful'])
+
+    @patch('documentos.authentication.record_auth_event')
+    @patch('documentos.authentication.SesionDocumental.objects')
+    def test_authentication_records_revoked_session(self, session_manager, record_event):
+        user = SimpleNamespace(id=uuid4(), organizacion_id=uuid4(), activo=True)
+        session = SimpleNamespace(
+            id=uuid4(),
+            pk=uuid4(),
+            usuario=user,
+            motivo_revocacion='Cierre de sesion',
+        )
+        session.pk = session.id
+        session_manager.select_related.return_value.get.side_effect = [
+            SesionDocumental.DoesNotExist,
+            session,
+        ]
+        request = APIRequestFactory().get('/api/auth/me/')
+        request.COOKIES['sd_session'] = 'revoked-session-token'
+
+        with self.assertRaises(AuthenticationFailed):
+            CookieTokenAuthentication().authenticate(request)
+
+        record_event.assert_called_once()
+        self.assertEqual(record_event.call_args.kwargs['action_code'], 'SESION_INVALIDA')
+        self.assertEqual(record_event.call_args.kwargs['result'], 'Sesión revocada')
 
     def test_forced_password_change_blocks_other_protected_endpoints(self):
         request = APIRequestFactory().get('/api/documents/')
@@ -1975,6 +2005,50 @@ class AuditTests(SimpleTestCase):
         self.assertIn('ba.exitoso = %s', where)
         self.assertIn('NOT ba.exitoso', where)
         self.assertEqual(values[1:4], ['SESION_FALLIDA', 'USUARIO', False])
+
+    @patch('documentos.audit_views.audit_timestamp_column', return_value='creado_en')
+    @patch('documentos.audit_views.connection')
+    def test_security_alerts_expose_repeated_denials(self, connection_mock, timestamp_column):
+        organization_id = uuid4()
+        user_id = uuid4()
+        cursor = connection_mock.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = [(
+            'ACCESO_DENEGADO',
+            'DOCUMENTO',
+            '192.0.2.20',
+            user_id,
+            'editor.demo',
+            4,
+            timezone.now(),
+        )]
+
+        alerts = fetch_security_alerts(organization_id)
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]['action_code'], 'ACCESO_DENEGADO')
+        self.assertEqual(alerts[0]['event_count'], 4)
+        self.assertEqual(alerts[0]['title'], 'Accesos no autorizados')
+        self.assertEqual(alerts[0]['severity'], 'alto')
+
+    @patch('documentos.audit_views.audit_timestamp_column', return_value='creado_en')
+    @patch('documentos.audit_views.connection')
+    def test_security_alerts_expose_a_single_invalid_session(self, connection_mock, timestamp_column):
+        cursor = connection_mock.cursor.return_value.__enter__.return_value
+        cursor.fetchall.return_value = [(
+            'SESION_INVALIDA',
+            'SESION',
+            '192.0.2.21',
+            uuid4(),
+            'usuario.demo',
+            1,
+            timezone.now(),
+        )]
+
+        alerts = fetch_security_alerts(uuid4())
+
+        self.assertEqual(len(alerts), 1)
+        self.assertEqual(alerts[0]['title'], 'Uso de sesiones invalidas')
+        self.assertEqual(alerts[0]['event_count'], 1)
 
     @patch('documentos.auth_utils.logger.critical')
     @patch('documentos.auth_utils.connection')

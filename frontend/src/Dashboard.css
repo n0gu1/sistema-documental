@@ -530,6 +530,17 @@
 .dashboard-metric strong { display: block; color: #102542; font-size: 25px; line-height: 1; }
 .dashboard-metric div > span { margin-top: 8px; display: block; color: #8795a8; font-size: 9px; }
 
+.dashboard-security-alerts { margin-top: 18px; border-color: #f0dfe0; }
+.dashboard-security-alerts .dashboard-panel__heading h2 { display: flex; align-items: center; gap: 7px; color: #9d2f39; }
+.dashboard-security-alerts__list { padding: 5px 19px 8px; }
+.dashboard-security-alerts__list article { min-height: 61px; padding: 8px 0; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; border-bottom: 1px solid #f1e7e7; }
+.dashboard-security-alerts__list article:last-child { border-bottom: 0; }
+.dashboard-security-alerts__list article > span { width: 30px; height: 30px; display: grid; place-items: center; color: #d33b47; background: #fff0f0; border-radius: 8px; }
+.dashboard-security-alerts__list strong { display: block; color: #3f2b35; font-size: 10px; }
+.dashboard-security-alerts__list p { margin: 3px 0 0; color: #8b6d76; font-size: 8px; }
+.dashboard-security-alerts__list small { display: block; margin-top: 3px; overflow: hidden; color: #a18a90; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-security-alerts__list b { padding: 4px 7px; color: #c73540; background: #ffe8e9; border-radius: 20px; font-size: 7px; font-weight: 650; }
+
 .dashboard-primary-grid,
 .dashboard-secondary-grid {
   margin-top: 18px;
