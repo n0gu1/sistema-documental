@@ -684,6 +684,9 @@ class ReporteGenerado(models.Model):
     nombre = models.CharField(max_length=200)
     filtros = models.JSONField(default=dict)
     filas = models.PositiveIntegerField(default=0)
+    clave_almacenamiento = models.TextField(null=True, blank=True)
+    tamano_bytes = models.BigIntegerField(null=True, blank=True)
+    sha256 = models.CharField(max_length=64, null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:

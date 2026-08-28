@@ -1,3 +1,4 @@
+import hashlib
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -51,7 +52,7 @@ from .models import ConfiguracionSistema, Documento, Organizacion, SesionDocumen
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_area_permission, has_document_permission
 from .reader_views import ReaderAccessSerializer
-from .reports_views import ReportDownloadView, ReportGenerateView, build_pdf, build_xlsx, summarize_report
+from .reports_views import ReportDownloadView, ReportGenerateView, build_pdf, build_xlsx, report_history, summarize_report
 from .notifications import create_notification
 from .security_utils import sanitize_text
 from .serializers import ChangePasswordSerializer, DocumentPermissionsSerializer, LoginSerializer, UserCreateSerializer
@@ -685,20 +686,40 @@ class ReportHistoryTests(SimpleTestCase):
             formato='PDF',
             filtros=self.filters,
             filas=1,
+            clave_almacenamiento='reportes/organizacion/reporte.pdf',
+            tamano_bytes=16,
+            sha256=hashlib.sha256(b'inmutable-report').hexdigest(),
             creado_en=timezone.now(),
+        )
+
+    @patch('documentos.reports_views.ReporteGenerado.objects.filter')
+    def test_personal_history_is_limited_to_the_generating_user(self, filter_reports):
+        report_history(SimpleNamespace(user=self.user), 'editor')
+
+        filter_reports.assert_called_once_with(
+            organizacion_id=self.organization_id,
+            alcance='editor',
+            generado_por_id=self.user.id,
         )
 
     @patch('documentos.reports_views.record_report_event')
     @patch('documentos.reports_views.ReporteGenerado.objects.create')
     @patch('documentos.reports_views.build_report_data')
+    @patch('documentos.reports_views.build_report_content')
+    @patch('documentos.reports_views.default_storage')
     @patch('documentos.reports_views.require_report_access')
-    def test_generation_persists_metadata_without_report_content(
+    def test_generation_persists_immutable_snapshot_and_metadata(
         self,
         require_access,
+        storage,
+        build_content,
         build_data,
         create_report,
         record_event,
     ):
+        content = b'inmutable-report'
+        storage.save.return_value = 'reportes/organizacion/reporte-generado.pdf'
+        build_content.return_value = content
         build_data.return_value = {'rows': [{'id': str(uuid4())}]}
         create_report.return_value = self.report
         request = SimpleNamespace(
@@ -715,18 +736,94 @@ class ReportHistoryTests(SimpleTestCase):
         self.assertEqual(created['generado_por_id'], self.user.id)
         self.assertEqual(created['filtros'], self.filters)
         self.assertEqual(created['filas'], 1)
+        self.assertEqual(created['clave_almacenamiento'], storage.save.return_value)
+        self.assertEqual(created['tamano_bytes'], len(content))
+        self.assertEqual(created['sha256'], hashlib.sha256(content).hexdigest())
         self.assertNotIn('contenido', created)
-        self.assertNotIn('archivo', created)
         self.assertEqual(response.data['report']['id'], str(self.report_id))
+        storage.save.assert_called_once()
         require_access.assert_called_once_with(request, 'executive', generate=True)
         record_event.assert_called_once()
+
+    @patch('documentos.reports_views.record_report_event')
+    @patch('documentos.reports_views.report_binary_response')
+    @patch('documentos.reports_views.build_report_data')
+    @patch('documentos.reports_views.require_report_access')
+    @patch('documentos.reports_views.default_storage')
+    @patch('documentos.reports_views.ReporteGenerado.objects.filter')
+    def test_download_uses_persisted_snapshot(
+        self,
+        filter_reports,
+        storage,
+        require_access,
+        build_data,
+        binary_response,
+        record_event,
+    ):
+        filter_reports.return_value.first.return_value = self.report
+        snapshot = b'inmutable-report'
+        storage.open.return_value = BytesIO(snapshot)
+        download_response = object()
+        binary_response.return_value = download_response
+        request = APIRequestFactory().get(f'/api/reports/{self.report_id}/download/')
+        request.user = self.user
+        request.auth = SimpleNamespace(id=uuid4())
+
+        response = ReportDownloadView().get(request, self.report_id)
+
+        self.assertIs(response, download_response)
+        storage.open.assert_called_once_with(self.report.clave_almacenamiento, 'rb')
+        binary_response.assert_called_once_with(snapshot, 'PDF')
+        build_data.assert_not_called()
+        require_access.assert_called_once_with(request, 'executive')
+        record_event.assert_called_once()
+
+    @patch('documentos.reports_views.ReporteGenerado.objects.filter')
+    def test_personal_report_cannot_be_downloaded_by_another_user(self, filter_reports):
+        self.report.alcance = 'editor'
+        self.report.generado_por_id = uuid4()
+        filter_reports.return_value.first.return_value = self.report
+        request = APIRequestFactory().get(f'/api/reports/{self.report_id}/download/')
+        request.user = self.user
+        request.auth = SimpleNamespace(id=uuid4())
+
+        response = ReportDownloadView().get(request, self.report_id)
+
+        self.assertEqual(response.status_code, 404)
+
+    @patch('documentos.reports_views.record_report_event')
+    @patch('documentos.reports_views.report_binary_response')
+    @patch('documentos.reports_views.require_report_access')
+    @patch('documentos.reports_views.default_storage')
+    @patch('documentos.reports_views.ReporteGenerado.objects.filter')
+    def test_download_rejects_a_modified_snapshot(
+        self,
+        filter_reports,
+        storage,
+        require_access,
+        binary_response,
+        record_event,
+    ):
+        self.report.tamano_bytes = None
+        filter_reports.return_value.first.return_value = self.report
+        storage.open.return_value = BytesIO(b'contenido alterado')
+        request = APIRequestFactory().get(f'/api/reports/{self.report_id}/download/')
+        request.user = self.user
+        request.auth = SimpleNamespace(id=uuid4())
+
+        response = ReportDownloadView().get(request, self.report_id)
+
+        self.assertEqual(response.status_code, 410)
+        binary_response.assert_not_called()
+        require_access.assert_called_once_with(request, 'executive')
+        record_event.assert_not_called()
 
     @patch('documentos.reports_views.record_report_event')
     @patch('documentos.reports_views.report_response')
     @patch('documentos.reports_views.build_report_data')
     @patch('documentos.reports_views.require_report_access')
     @patch('documentos.reports_views.ReporteGenerado.objects.filter')
-    def test_download_recalculates_report_using_saved_filters(
+    def test_legacy_metadata_only_report_is_recalculated(
         self,
         filter_reports,
         require_access,
@@ -734,8 +831,9 @@ class ReportHistoryTests(SimpleTestCase):
         report_response,
         record_event,
     ):
+        self.report.clave_almacenamiento = None
         filter_reports.return_value.first.return_value = self.report
-        current_data = {'scope': 'executive', 'filters': self.filters, 'rows': [{'id': str(uuid4())}, {'id': str(uuid4())}]}
+        current_data = {'scope': 'executive', 'filters': self.filters, 'rows': [{'id': str(uuid4())}]}
         download_response = object()
         build_data.return_value = current_data
         report_response.return_value = download_response
@@ -753,7 +851,7 @@ class ReportHistoryTests(SimpleTestCase):
 
 
 class ScheduledReportTests(SimpleTestCase):
-    def test_scheduled_report_creates_metadata_and_advances_schedule(self):
+    def test_scheduled_report_persists_snapshot_and_advances_schedule(self):
         now = timezone.now()
         initial_next_run = now - timedelta(hours=1)
         schedule = SimpleNamespace(
@@ -775,17 +873,19 @@ class ScheduledReportTests(SimpleTestCase):
             patch('documentos.management.commands.generar_reportes_programados.ProgramacionReporte.objects.filter', return_value=[schedule]),
             patch('documentos.management.commands.generar_reportes_programados.UsuarioDocumental.objects.get', return_value=user),
             patch('documentos.management.commands.generar_reportes_programados.build_report_data', return_value=report_data) as build_data,
-            patch('documentos.management.commands.generar_reportes_programados.ReporteGenerado.objects.create') as create_report,
+            patch('documentos.management.commands.generar_reportes_programados.persist_report_snapshot') as persist_snapshot,
         ):
             GenerateScheduledReportsCommand().handle()
 
-        created = create_report.call_args.kwargs
-        self.assertEqual(created['organizacion_id'], schedule.organizacion_id)
-        self.assertEqual(created['generado_por_id'], schedule.creado_por_id)
-        self.assertEqual(created['filtros'], schedule.filtros)
-        self.assertEqual(created['filas'], 2)
-        self.assertNotIn('contenido', created)
-        self.assertNotIn('archivo', created)
+        persist_snapshot.assert_called_once_with(
+            organization_id=schedule.organizacion_id,
+            generated_by_id=schedule.creado_por_id,
+            scope=schedule.alcance,
+            report_format=schedule.formato,
+            name=schedule.nombre,
+            filters=schedule.filtros,
+            data=report_data,
+        )
         self.assertEqual(schedule.proxima_ejecucion_en, initial_next_run + timedelta(days=1))
         schedule.save.assert_called_once_with(update_fields=['proxima_ejecucion_en', 'actualizada_en'])
         self.assertEqual(build_data.call_args.args[1:], ('executive', schedule.filtros))

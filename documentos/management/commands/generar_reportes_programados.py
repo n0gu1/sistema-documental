@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from documentos.models import ProgramacionReporte, ReporteGenerado, UsuarioDocumental
-from documentos.reports_views import build_report_data
+from documentos.models import ProgramacionReporte, UsuarioDocumental
+from documentos.reports_views import build_report_data, persist_report_snapshot
 
 
 def next_execution(value, frequency):
@@ -31,14 +31,14 @@ class Command(BaseCommand):
             user = UsuarioDocumental.objects.get(pk=schedule.creado_por_id)
             request = SimpleNamespace(user=user)
             data = build_report_data(request, schedule.alcance, schedule.filtros)
-            ReporteGenerado.objects.create(
-                organizacion_id=schedule.organizacion_id,
-                generado_por_id=schedule.creado_por_id,
-                alcance=schedule.alcance,
-                formato=schedule.formato,
-                nombre=schedule.nombre,
-                filtros=schedule.filtros,
-                filas=len(data['rows']),
+            persist_report_snapshot(
+                organization_id=schedule.organizacion_id,
+                generated_by_id=schedule.creado_por_id,
+                scope=schedule.alcance,
+                report_format=schedule.formato,
+                name=schedule.nombre,
+                filters=schedule.filtros,
+                data=data,
             )
             next_run = schedule.proxima_ejecucion_en
             while next_run <= now:

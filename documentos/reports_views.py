@@ -1,6 +1,10 @@
+import hashlib
+import uuid
 from datetime import datetime, time, timedelta
 from io import BytesIO
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
@@ -38,6 +42,11 @@ REPORT_DOCUMENT_PERMISSIONS = {
     'editor': 'documentos.consultar',
     'reviewer': 'revisiones.consultar',
 }
+REPORT_STORAGE_PREFIX = 'reportes'
+
+
+class ReportSnapshotError(Exception):
+    pass
 
 
 def parse_report_datetime(value, field_name, end=False):
@@ -265,14 +274,22 @@ def serialize_report(report):
         'filters': report.filtros,
         'rows': report.filas,
         'created_at': report.creado_en,
+        'snapshot_available': bool(getattr(report, 'clave_almacenamiento', None)),
+        'snapshot_size': getattr(report, 'tamano_bytes', None),
+        'snapshot_sha256': getattr(report, 'sha256', None),
         'download_url': f'/api/reports/{report.id}/download/',
     }
 
 
 def report_history(request, scope):
+    filters = {
+        'organizacion_id': request.user.organizacion_id,
+        'alcance': scope,
+    }
+    if scope in {'editor', 'reviewer'}:
+        filters['generado_por_id'] = request.user.id
     return [serialize_report(report) for report in ReporteGenerado.objects.filter(
-        organizacion_id=request.user.organizacion_id,
-        alcance=scope,
+        **filters,
     ).order_by('-creado_en', '-id')[:20]]
 
 
@@ -339,13 +356,66 @@ def build_pdf(data):
     return output.getvalue()
 
 
-def report_response(data, report_format):
-    content = build_pdf(data) if report_format == 'PDF' else build_xlsx(data)
+def build_report_content(data, report_format):
+    return build_pdf(data) if report_format == 'PDF' else build_xlsx(data)
+
+
+def report_binary_response(content, report_format):
     content_type = 'application/pdf' if report_format == 'PDF' else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     extension = report_format.lower()
     response = HttpResponse(content, content_type=content_type)
     response['Content-Disposition'] = f'attachment; filename="reporte-documental.{extension}"'
     return response
+
+
+def report_response(data, report_format):
+    return report_binary_response(build_report_content(data, report_format), report_format)
+
+
+def report_storage_name(organization_id, report_id, report_format):
+    return f'{REPORT_STORAGE_PREFIX}/{organization_id}/{report_id}.{report_format.lower()}'
+
+
+def persist_report_snapshot(*, organization_id, generated_by_id, scope, report_format, name, filters, data):
+    report_id = uuid.uuid4()
+    content = build_report_content(data, report_format)
+    storage_name = report_storage_name(organization_id, report_id, report_format)
+    stored_name = default_storage.save(storage_name, ContentFile(content))
+    try:
+        return ReporteGenerado.objects.create(
+            id=report_id,
+            organizacion_id=organization_id,
+            generado_por_id=generated_by_id,
+            alcance=scope,
+            formato=report_format,
+            nombre=name,
+            filtros=filters,
+            filas=len(data['rows']),
+            clave_almacenamiento=stored_name,
+            tamano_bytes=len(content),
+            sha256=hashlib.sha256(content).hexdigest(),
+        )
+    except Exception:
+        default_storage.delete(stored_name)
+        raise
+
+
+def read_report_snapshot(report):
+    storage_name = getattr(report, 'clave_almacenamiento', None)
+    if not storage_name:
+        return None
+    try:
+        with default_storage.open(storage_name, 'rb') as source:
+            content = source.read()
+    except Exception as error:
+        raise ReportSnapshotError('La instantanea del reporte no esta disponible.') from error
+    expected_size = getattr(report, 'tamano_bytes', None)
+    expected_sha256 = getattr(report, 'sha256', None)
+    if expected_size is not None and len(content) != expected_size:
+        raise ReportSnapshotError('La instantanea del reporte no pudo verificarse.')
+    if expected_sha256 and hashlib.sha256(content).hexdigest() != expected_sha256:
+        raise ReportSnapshotError('La instantanea del reporte no pudo verificarse.')
+    return content
 
 
 class ReportListView(APIView):
@@ -372,14 +442,14 @@ class ReportGenerateView(APIView):
             raise ValidationError({'format': 'El formato debe ser PDF o XLSX.'})
         filters = clean_filters(request.data.get('filters', {}))
         data = build_report_data(request, scope, filters)
-        report = ReporteGenerado.objects.create(
-            organizacion_id=request.user.organizacion_id,
-            generado_por_id=request.user.id,
-            alcance=scope,
-            formato=report_format,
-            nombre=f'Reporte {scope} - {timezone.localtime().strftime("%Y-%m-%d %H:%M")}',
-            filtros=filters,
-            filas=len(data['rows']),
+        report = persist_report_snapshot(
+            organization_id=request.user.organizacion_id,
+            generated_by_id=request.user.id,
+            scope=scope,
+            report_format=report_format,
+            name=f'Reporte {scope} - {timezone.localtime().strftime("%Y-%m-%d %H:%M")}',
+            filters=filters,
+            data=data,
         )
         record_report_event(
             request,
@@ -397,8 +467,18 @@ class ReportDownloadView(APIView):
         report = ReporteGenerado.objects.filter(pk=report_id, organizacion_id=request.user.organizacion_id).first()
         if not report:
             return Response({'detail': 'Reporte no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if report.alcance in {'editor', 'reviewer'} and report.generado_por_id != request.user.id:
+            return Response({'detail': 'Reporte no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         require_report_access(request, report.alcance)
-        response = report_response(build_report_data(request, report.alcance, report.filtros), report.formato)
+        try:
+            snapshot = read_report_snapshot(report)
+        except ReportSnapshotError as error:
+            return Response({'detail': str(error)}, status=status.HTTP_410_GONE)
+        response = (
+            report_response(build_report_data(request, report.alcance, report.filtros), report.formato)
+            if snapshot is None
+            else report_binary_response(snapshot, report.formato)
+        )
         record_report_event(request, 'REPORTE_DESCARGADO', resource_id=report.id, details={'format': report.formato})
         return response
 
