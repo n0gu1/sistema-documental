@@ -31,6 +31,8 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
   const [loading, setLoading] = useState(true)
   const [previewUrl, setPreviewUrl] = useState('')
   const [previewError, setPreviewError] = useState('')
+  const [rejectionOpen, setRejectionOpen] = useState(false)
+  const [rejectionComment, setRejectionComment] = useState('')
 
   useEffect(() => {
     let active = true
@@ -87,14 +89,24 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
     } catch (requestError) { setError(requestError.message) }
   }
 
-  async function decide(action) {
+  async function decide(action, decisionComment = comment) {
     if (!review || review.status?.code !== 'PENDIENTE') return
     try {
-      const data = await apiRequest(`/api/reviews/${review.id}/${action}/`, { method: 'POST', body: { comment } })
+      const data = await apiRequest(`/api/reviews/${review.id}/${action}/`, { method: 'POST', body: { comment: decisionComment } })
       setReview((current) => ({ ...current, ...data.review, document: current.document, files: current.files }))
-      setComment('')
+      if (action === 'reject') {
+        setRejectionComment('')
+        setRejectionOpen(false)
+      } else setComment('')
       onAction(`Revisión ${action === 'approve' ? 'aprobada' : action === 'reject' ? 'rechazada' : 'devuelta'}.`)
     } catch (requestError) { setError(requestError.message) }
+  }
+
+  async function rejectReview(event) {
+    event.preventDefault()
+    if (!rejectionComment.trim()) return setError('Indique el motivo del rechazo definitivo.')
+    setError('')
+    await decide('reject', rejectionComment)
   }
 
   async function addComment(event) {
@@ -137,7 +149,8 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
         <section><h2><ReviewIcon name="comment" size={20} />Observaciones del revisor</h2><div className="reviewer-side-comments">{comments.length ? comments.slice(-3).map((item) => <article key={item.id}><span>{item.author?.name || 'Usuario'}</span><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></article>) : <p className="reviewer-side-empty">No hay observaciones registradas.</p>}</div></section>
       </aside>
     </div>
-    <footer className="reviewer-review-actions"><button type="button" onClick={() => setActiveTab('Observaciones')}><ReviewIcon name="comment" size={18} />Guardar observación</button><button type="button" onClick={() => onNavigate?.('compare')}><ReviewIcon name="layers" size={18} />Comparar versiones</button><button type="button" className="is-return" disabled={!canDecide} onClick={() => decide('return')}><ReviewIcon name="close" size={18} />Devolver con observaciones</button><button type="button" className="is-approve" disabled={!canDecide} onClick={() => decide('approve')}><ReviewIcon name="check" size={18} />Aprobar documento</button></footer>
+    {rejectionOpen && <form className="reviewer-rejection-form" onSubmit={rejectReview}><div><h2>Rechazo definitivo</h2><p>Esta acción marcará la versión como rechazada y cerrará las revisiones pendientes.</p></div><textarea value={rejectionComment} onChange={(event) => setRejectionComment(event.target.value)} placeholder="Explique el motivo del rechazo definitivo..." maxLength={2000} autoFocus /><footer><button type="button" onClick={() => { setRejectionOpen(false); setRejectionComment('') }}>Cancelar</button><button className="is-reject" type="submit">Confirmar rechazo</button></footer></form>}
+    <footer className="reviewer-review-actions"><button type="button" onClick={() => setActiveTab('Observaciones')}><ReviewIcon name="comment" size={18} />Guardar observación</button><button type="button" onClick={() => onNavigate?.('compare')}><ReviewIcon name="layers" size={18} />Comparar versiones</button><button type="button" className="is-return" disabled={!canDecide} onClick={() => decide('return')}><ReviewIcon name="close" size={18} />Devolver con observaciones</button><button type="button" className="is-reject" disabled={!canDecide} onClick={() => { setError(''); setRejectionOpen(true) }}><ReviewIcon name="close" size={18} />Rechazar definitivamente</button><button type="button" className="is-approve" disabled={!canDecide} onClick={() => decide('approve')}><ReviewIcon name="check" size={18} />Aprobar documento</button></footer>
   </div>
 }
 

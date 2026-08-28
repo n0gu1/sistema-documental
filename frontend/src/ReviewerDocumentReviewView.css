@@ -22,3 +22,14 @@
 @media (max-width: 1250px) { .reviewer-review-body { grid-template-columns: minmax(0, 1fr) 300px; } }
 @media (max-width: 900px) { .reviewer-document-summary { grid-template-columns: 58px minmax(0, 1fr); }.reviewer-document-extra { padding-left: 73px; }.reviewer-review-body { grid-template-columns: 1fr; }.reviewer-review-sidebar { display: grid; grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 600px) { .reviewer-document-summary { display: block; }.reviewer-document-extra { padding-left: 0; }.reviewer-review-sidebar { display: flex; }.reviewer-preview-fallback { min-height: 360px; } }
+.reviewer-review-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.reviewer-review-actions button.is-reject, .reviewer-rejection-form button.is-reject { color: #d93e43; border-color: #df6267; }
+.reviewer-rejection-form { margin-top: 13px; padding: 15px 17px; display: grid; grid-template-columns: minmax(0, 1fr) 1.5fr auto; align-items: end; gap: 13px; background: #fff8f8; border: 1px solid #f0b8bb; border-radius: 8px; }
+.reviewer-rejection-form h2 { margin: 0; color: #9e292f; font-size: 13px; }
+.reviewer-rejection-form p { margin: 4px 0 0; color: #7d5b5d; font-size: 10px; line-height: 1.35; }
+.reviewer-rejection-form textarea { width: 100%; min-height: 58px; padding: 9px 10px; resize: vertical; color: #243a58; background: #fff; border: 1px solid #e0b7ba; border-radius: 5px; font: inherit; font-size: 10px; outline: 0; }
+.reviewer-rejection-form footer { display: flex; gap: 8px; }
+.reviewer-rejection-form footer button { min-height: 34px; padding: 0 12px; color: #68788d; background: #fff; border: 1px solid #c6d1de; border-radius: 5px; font-size: 10px; font-weight: 650; cursor: pointer; white-space: nowrap; }
+.reviewer-rejection-form footer button.is-reject { color: #fff; background: #c9363e; border-color: #c9363e; }
+@media (max-width: 900px) { .reviewer-review-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }.reviewer-review-actions button.is-approve { grid-column: auto; grid-row: auto; }.reviewer-rejection-form { grid-template-columns: 1fr 1fr; }.reviewer-rejection-form > div { grid-column: 1 / -1; }.reviewer-rejection-form textarea { grid-column: 1 / -1; }.reviewer-rejection-form footer { justify-content: flex-end; grid-column: 1 / -1; } }
+@media (max-width: 600px) { .reviewer-review-actions { grid-template-columns: 1fr; }.reviewer-rejection-form { display: block; }.reviewer-rejection-form textarea { margin-top: 12px; }.reviewer-rejection-form footer { margin-top: 10px; justify-content: flex-end; } }

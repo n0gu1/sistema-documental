@@ -121,7 +121,7 @@ ORDEN RECOMENDADO
 [x] Completar el envio a revision desde la pantalla del Editor; permite seleccionar revisores, prioridad, fecha limite, instrucciones y checklist inicial.
 [x] Completar la carga de una nueva version desde la pantalla de edicion del Editor; permite elegir archivo, comentario y tipo de version.
 [x] Incorporar en la interfaz la asignacion y reasignacion de revisores.
-[ ] Incorporar en la interfaz del Revisor la accion de rechazo definitivo.
+[x] Incorporar en la interfaz del Revisor la accion de rechazo definitivo.
 [ ] Incorporar en la interfaz autorizada la publicacion de una version aprobada.
 
 7. FUNCIONES DEL LECTOR
