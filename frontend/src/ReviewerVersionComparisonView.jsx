@@ -34,7 +34,7 @@ function versionFields(version) {
   return [
     ['name', 'Archivo', version?.name],
     ['mime_type', 'Tipo', version?.mime_type],
-    ['size', 'Tamaño', formatBytes(version?.size)],
+    ['size', 'Tamaño', version?.size],
     ['sha256', 'Hash SHA-256', version?.sha256],
     ['comment', 'Comentario de cambio', version?.comment],
     ['status', 'Estado', version?.status?.name],
