@@ -27,6 +27,7 @@ from .management_views import (
     device_fingerprint,
     serialize_dashboard_document,
 )
+from .management.commands.generar_reportes_programados import Command as GenerateScheduledReportsCommand
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, VersionRestoreSerializer
 from .document_views import (
     DocumentFileDownloadView,
@@ -749,6 +750,46 @@ class ReportHistoryTests(SimpleTestCase):
         report_response.assert_called_once_with(current_data, 'PDF')
         require_access.assert_called_once_with(request, 'executive')
         record_event.assert_called_once()
+
+
+class ScheduledReportTests(SimpleTestCase):
+    def test_scheduled_report_creates_metadata_and_advances_schedule(self):
+        now = timezone.now()
+        initial_next_run = now - timedelta(hours=1)
+        schedule = SimpleNamespace(
+            organizacion_id=uuid4(),
+            creado_por_id=uuid4(),
+            alcance='executive',
+            formato='XLSX',
+            nombre='Reporte ejecutivo diario',
+            filtros={'area_id': str(uuid4())},
+            frecuencia='daily',
+            proxima_ejecucion_en=initial_next_run,
+            save=MagicMock(),
+        )
+        user = SimpleNamespace(id=schedule.creado_por_id)
+        report_data = {'rows': [{}, {}]}
+
+        with (
+            patch('documentos.management.commands.generar_reportes_programados.timezone.now', return_value=now),
+            patch('documentos.management.commands.generar_reportes_programados.ProgramacionReporte.objects.filter', return_value=[schedule]),
+            patch('documentos.management.commands.generar_reportes_programados.UsuarioDocumental.objects.get', return_value=user),
+            patch('documentos.management.commands.generar_reportes_programados.build_report_data', return_value=report_data) as build_data,
+            patch('documentos.management.commands.generar_reportes_programados.ReporteGenerado.objects.create') as create_report,
+        ):
+            GenerateScheduledReportsCommand().handle()
+
+        created = create_report.call_args.kwargs
+        self.assertEqual(created['organizacion_id'], schedule.organizacion_id)
+        self.assertEqual(created['generado_por_id'], schedule.creado_por_id)
+        self.assertEqual(created['filtros'], schedule.filtros)
+        self.assertEqual(created['filas'], 2)
+        self.assertNotIn('contenido', created)
+        self.assertNotIn('archivo', created)
+        self.assertEqual(schedule.proxima_ejecucion_en, initial_next_run + timedelta(days=1))
+        schedule.save.assert_called_once_with(update_fields=['proxima_ejecucion_en', 'actualizada_en'])
+        self.assertEqual(build_data.call_args.args[1:], ('executive', schedule.filtros))
+        self.assertEqual(build_data.call_args.args[0].user, user)
 
 
 class BackupSecurityTests(SimpleTestCase):

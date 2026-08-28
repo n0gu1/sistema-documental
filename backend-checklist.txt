@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-28
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test documentos`: 108 pruebas exitosas en la verificacion local del 2026-08-28.
+- `python manage.py test documentos`: 109 pruebas exitosas en la verificacion local del 2026-08-28.
 - Render: deploy del commit `a6c57ac` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -40,6 +40,7 @@ VERIFICACION REALIZADA EL 2026-08-28
 - Render recuperacion: verificacion de integridad HTTP 200, restauracion segura de archivos faltantes HTTP 200 y prueba del plan de recuperacion HTTP 200; no quedaron programaciones temporales activas.
 - Playwright produccion: pantalla real de respaldos, politica automatica, historial, puntos de restauracion, restauracion y alertas visibles; consola sin errores.
 - Render: comando `generar_respaldos_programados` y servicio cron diario declarados en `render.yaml`; falta sincronizar el recurso cron Blueprint en la cuenta para ejecutar automaticamente.
+- Reportes programados: el comando `generar_reportes_programados` crea entradas de historial con metadatos y avanza las programaciones vencidas sin persistir archivos.
 
 ORDEN RECOMENDADO
 
@@ -165,7 +166,7 @@ ORDEN RECOMENDADO
 [x] Generar reportes en Excel/XLSX.
 [x] Guardar historial de reportes generados. Solo se conservan metadatos; al descargar se recalcula el reporte con datos actuales.
 [x] Descargar reportes generados. La descarga recalcula el reporte con los datos actuales usando los filtros guardados.
-[~] Programar reportes automaticos. Existe el comando, pero falta declarar y sincronizar un servicio cron para reportes en `render.yaml`; el comando registra metadatos y no persiste el archivo generado.
+[~] Programar reportes automaticos. El comando registra metadatos, no persiste el archivo generado y el servicio cron diario ya esta declarado en `render.yaml`; falta sincronizar el recurso cron Blueprint en la cuenta.
 [ ] Persistir el archivo o una instantanea inmutable de cada reporte generado.
 [ ] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado.
 
