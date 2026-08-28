@@ -80,7 +80,7 @@ function ReviewerDashboard({ user, onLogout, logoutPending, error: initialError 
 
   let content = dashboardView()
   if (activeView === 'review-inbox') content = <ReviewerReviewInboxView onOpenReview={openReview} />
-  if (activeView === 'review-document') content = <ReviewerDocumentReviewView reviewId={selectedReviewId} onAction={action} />
+  if (activeView === 'review-document') content = <ReviewerDocumentReviewView reviewId={selectedReviewId} onAction={action} onNavigate={navigate} />
   if (activeView === 'compare') content = <ReviewerVersionComparisonView />
   if (activeView === 'personal-log') content = <ReviewerPersonalLogView user={user} />
   if (activeView === 'reports') content = <ReviewerBasicReportsView />
