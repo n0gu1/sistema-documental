@@ -29,6 +29,8 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [previewUrl, setPreviewUrl] = useState('')
+  const [previewError, setPreviewError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -52,6 +54,31 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
     load()
     return () => { active = false }
   }, [reviewId])
+
+  useEffect(() => {
+    if (!review) return undefined
+    const file = review.files.find((item) => item.is_current) || review.files[0]
+    if (!file?.preview_url) {
+      return undefined
+    }
+    let active = true
+    let objectUrl = ''
+    fetch(file.preview_url, { credentials: 'include' })
+      .then((response) => {
+        if (!response.ok) throw new Error('No fue posible cargar la vista previa del archivo.')
+        return response.blob()
+      })
+      .then((blob) => {
+        if (!active) return
+        objectUrl = URL.createObjectURL(blob)
+        setPreviewUrl(objectUrl)
+      })
+      .catch((requestError) => { if (active) setPreviewError(requestError.message) })
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [review])
 
   async function updateChecklist(item) {
     try {
@@ -99,7 +126,7 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
     <div className="reviewer-review-body">
       <main>
         <nav className="reviewer-review-tabs" aria-label="Secciones de la revisión">{['Vista general', 'Contenido', ...(review.files.length ? ['Anexos'] : []), 'Observaciones'].map((tab) => <button className={activeTab === tab ? 'is-active' : ''} type="button" key={tab} onClick={() => setActiveTab(tab)}><ReviewIcon name={tab === 'Observaciones' ? 'comment' : tab === 'Anexos' ? 'paperclip' : tab === 'Contenido' ? 'document' : 'layers'} size={17} />{tab}</button>)}</nav>
-        {activeTab === 'Contenido' && <article className="reviewer-document-content reviewer-document-content--file">{currentFile?.preview_url ? <iframe title={`Contenido de ${review.document.title}`} src={currentFile.preview_url} /> : <p className="reviewer-review-empty">No hay un archivo disponible para previsualizar.</p>}</article>}
+         {activeTab === 'Contenido' && <article className="reviewer-document-content reviewer-document-content--file">{previewUrl ? <iframe title={`Contenido de ${review.document.title}`} src={previewUrl} /> : previewError ? <div className="reviewer-preview-fallback"><p className="reviewer-review-empty">{previewError}</p>{currentFile?.preview_url && <button type="button" onClick={() => window.open(currentFile.preview_url, '_blank', 'noopener,noreferrer')}><ReviewIcon name="eye" size={16} />Abrir vista previa</button>}</div> : currentFile?.preview_url ? <p className="reviewer-review-empty">Cargando vista previa...</p> : <p className="reviewer-review-empty">No hay un archivo disponible para previsualizar.</p>}</article>}
         {activeTab === 'Vista general' && <article className="reviewer-document-content"><h3>Vista general</h3><p>{review.document.description || 'Este documento no tiene una descripción registrada.'}</p><dl className="reviewer-overview-data"><div><dt>Solicitud de revisión</dt><dd>{review.request_comment || 'Sin instrucciones adicionales.'}</dd></div><div><dt>Tiempo restante</dt><dd>{daysRemaining(review.deadline, statusCode)}</dd></div></dl></article>}
         {activeTab === 'Anexos' && <article className="reviewer-document-content"><h3>Anexos y archivos</h3><div className="reviewer-file-list">{review.files.map((file) => <div key={file.id}><span><ReviewIcon name="paperclip" size={18} /></span><div><strong>{fileLabel(file)}</strong><small>{file.comment || 'Sin comentario de carga'}</small></div><div className="reviewer-file-actions">{file.preview_url && <button type="button" onClick={() => window.open(file.preview_url, '_blank', 'noopener,noreferrer')}><ReviewIcon name="eye" size={16} />Ver</button>}{file.download_url && <button type="button" onClick={() => window.open(file.download_url, '_blank', 'noopener,noreferrer')}><ReviewIcon name="download" size={16} />Descargar</button>}</div></div>)}</div></article>}
         {activeTab === 'Observaciones' && <article className="reviewer-document-content"><h3>Observaciones y comentarios</h3><div className="reviewer-observation-list">{comments.length ? comments.map((item) => <div key={item.id}><strong>{item.author?.name || 'Usuario'}</strong><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></div>) : <p className="reviewer-review-empty">No hay observaciones registradas.</p>}</div><form className="reviewer-comment-form" onSubmit={addComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Escribe una observación..." /><button type="submit"><ReviewIcon name="comment" size={17} />Guardar observación</button></form></article>}
