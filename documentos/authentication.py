@@ -48,9 +48,11 @@ class CookieTokenAuthentication(BaseAuthentication):
                 motivo_revocacion='Sesion expirada por inactividad',
             )
             raise AuthenticationFailed('La sesion ha expirado por inactividad.')
-        if session.ultima_actividad_en < activity_cutoff:
-            SesionDocumental.objects.filter(pk=session.pk).update(ultima_actividad_en=now)
-            session.ultima_actividad_en = now
+
+        SesionDocumental.objects.filter(pk=session.pk, revocada_en__isnull=True).update(
+            ultima_actividad_en=now,
+        )
+        session.ultima_actividad_en = now
 
         return session.usuario, session
 

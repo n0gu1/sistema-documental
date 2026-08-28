@@ -1,5 +1,5 @@
 from contextlib import nullcontext
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -9,7 +9,7 @@ from zipfile import ZipFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied, ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 
 from .authentication import CookieTokenAuthentication, hash_session_token
@@ -469,6 +469,83 @@ class AuthenticationTests(SimpleTestCase):
         request = APIRequestFactory().get('/api/auth/me/')
 
         self.assertIsNone(CookieTokenAuthentication().authenticate(request))
+
+    @patch('documentos.authentication.SessionAuthentication.enforce_csrf')
+    @patch('documentos.authentication.security_policy_for', return_value={'inactivity_minutes': 30})
+    @patch('documentos.authentication.timezone.now')
+    @patch('documentos.authentication.SesionDocumental.objects')
+    def test_authentication_updates_last_activity_for_active_session(
+        self,
+        session_manager,
+        now_mock,
+        security_policy,
+        enforce_csrf,
+    ):
+        now = timezone.make_aware(datetime(2026, 8, 27, 12, 0, 0))
+        now_mock.return_value = now
+        user = SimpleNamespace(
+            id=uuid4(),
+            organizacion_id=uuid4(),
+            activo=True,
+        )
+        session = SimpleNamespace(
+            id=uuid4(),
+            expira_en=now + timedelta(hours=1),
+            ultima_actividad_en=now - timedelta(minutes=5),
+            usuario=user,
+        )
+        session.pk = session.id
+        session_manager.select_related.return_value.get.return_value = session
+        request = APIRequestFactory().get('/api/auth/me/')
+        request.COOKIES['sd_session'] = 'opaque-session-token'
+
+        result = CookieTokenAuthentication().authenticate(request)
+
+        self.assertEqual(result, (user, session))
+        self.assertEqual(session.ultima_actividad_en, now)
+        session_manager.filter.assert_called_once_with(pk=session.id, revocada_en__isnull=True)
+        session_manager.filter.return_value.update.assert_called_once_with(ultima_actividad_en=now)
+        security_policy.assert_called_once_with(user.organizacion_id)
+        enforce_csrf.assert_called_once_with(request)
+
+    @patch('documentos.authentication.SessionAuthentication.enforce_csrf')
+    @patch('documentos.authentication.security_policy_for', return_value={'inactivity_minutes': 30})
+    @patch('documentos.authentication.timezone.now')
+    @patch('documentos.authentication.SesionDocumental.objects')
+    def test_authentication_revokes_inactive_session(
+        self,
+        session_manager,
+        now_mock,
+        security_policy,
+        enforce_csrf,
+    ):
+        now = timezone.make_aware(datetime(2026, 8, 27, 12, 0, 0))
+        now_mock.return_value = now
+        user = SimpleNamespace(
+            id=uuid4(),
+            organizacion_id=uuid4(),
+            activo=True,
+        )
+        session = SimpleNamespace(
+            id=uuid4(),
+            expira_en=now + timedelta(hours=1),
+            ultima_actividad_en=now - timedelta(minutes=31),
+            usuario=user,
+        )
+        session.pk = session.id
+        session_manager.select_related.return_value.get.return_value = session
+        request = APIRequestFactory().get('/api/auth/me/')
+        request.COOKIES['sd_session'] = 'opaque-session-token'
+
+        with self.assertRaises(AuthenticationFailed):
+            CookieTokenAuthentication().authenticate(request)
+
+        session_manager.filter.assert_called_once_with(pk=session.id, revocada_en__isnull=True)
+        session_manager.filter.return_value.update.assert_called_once_with(
+            revocada_en=now,
+            motivo_revocacion='Sesion expirada por inactividad',
+        )
+        enforce_csrf.assert_called_once_with(request)
 
     def test_forced_password_change_blocks_other_protected_endpoints(self):
         request = APIRequestFactory().get('/api/documents/')

@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-27
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test`: 58 pruebas exitosas.
+- `python manage.py test`: 61 pruebas exitosas en la verificacion local del 2026-08-27.
 - Render: deploy del commit `71e28df` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -55,56 +55,70 @@ ORDEN RECOMENDADO
 
 3. USUARIOS, ROLES Y PERMISOS
 [x] Autenticacion basica: login, logout, usuario actual y cambio de contrasena.
-[x] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos.
-[x] Completar CRUD de usuarios.
+[x] Sesiones con expiracion, revocacion y bloqueo por intentos fallidos. Corregida la actualizacion de `ultima_actividad_en` y agregadas pruebas para actividad vigente y expiracion por inactividad.
+[~] Completar CRUD de usuarios. Existen listado, creacion, detalle y edicion; falta eliminacion o una definicion explicita de baja exclusivamente logica.
 [x] Activar, suspender y bloquear usuarios.
 [x] Implementar restablecimiento de contrasenas.
 [ ] Implementar autenticacion multifactor (MFA).
-[x] Implementar gestion de sesiones y dispositivos.
+[~] Implementar gestion de sesiones y dispositivos. El backend lista y revoca sesiones; falta inventario real de dispositivos y completar su administracion desde la interfaz.
 [x] Crear roles administrables.
-[x] Crear permisos administrables.
+[~] Crear permisos administrables. Actualmente solo se listan permisos existentes y se asignan a roles; falta crear, modificar, activar y desactivar permisos.
 [x] Asignar multiples roles a usuarios.
-[x] Aplicar permisos por rol, area y documento. Los permisos globales respetan el area asignada; los permisos explicitos por documento tienen precedencia y los administradores mantienen acceso global.
+[~] Aplicar permisos por rol, area y documento. Falta aplicar la ACL de area/documento en el listado general, exportaciones y reportes; tambien debe verificarse el rol Administrador antes de que una ACL explicita pueda denegarle acceso.
+[ ] Validar que los roles asignados durante la creacion de un usuario pertenezcan a la misma organizacion.
+[ ] Crear endpoints e interfaz para administrar permisos explicitos por documento.
+[ ] Validar que el area asignada a un usuario pertenezca a su organizacion.
 
 4. DOCUMENTOS Y ARCHIVOS
 [x] Crear modelo de documentos. Adaptado al esquema existente de produccion y verificado en Render.
 [x] Crear modelo de metadatos documentales. La tabla se crea mediante la migracion 0005 y fue verificada en el flujo real.
 [x] Crear modelo de archivos asociados. Adaptado a `versiones_documento` y verificado en Render.
 [x] Implementar crear documentos. Verificado con autenticacion, metadatos y archivo PDF.
-[x] Implementar editar documentos. Verificado en Render.
-[x] Implementar eliminar y archivar documentos. Verificado en Render.
+[~] Implementar editar documentos. Falta impedir la modificacion directa de documentos o metadatos cuando la version se encuentre en revision, aprobada o publicada.
+[~] Implementar eliminar y archivar documentos. Existe borrado fisico y archivado logico; falta evitar la destruccion del historial y permitir desarchivar.
 [x] Implementar carga de archivos. Verificada con Backblaze B2.
 [x] Validar extension, MIME, tamano y contenido de archivos.
 [x] Implementar almacenamiento privado de archivos. Verificado mediante Backblaze B2.
 [x] Implementar descarga autorizada. Verificada en Render.
 [x] Implementar vista previa autorizada. Verificada en Render.
 [x] Implementar busqueda documental. Adaptada a las columnas reales y verificada.
-[x] Implementar filtros avanzados. Adaptados a las columnas reales.
-[x] Implementar ordenamiento y paginacion. Adaptados a las columnas reales.
-[x] Implementar exportacion del listado documental. Adaptada a las columnas reales y verificada.
+[~] Implementar filtros avanzados. El backend admite filtros, pero varias pantallas cargan hasta 100 registros y filtran localmente.
+[~] Implementar ordenamiento y paginacion. El backend pagina; falta paginacion remota completa en el frontend para acceder a registros posteriores a los primeros 100.
+[~] Implementar exportacion del listado documental. Falta aplicar permisos por area/documento y registrar la exportacion en auditoria.
+[ ] Asegurar que la creacion y el cambio de area de un documento respeten el area autorizada del usuario.
+[ ] Hacer transaccionalmente segura la eliminacion fisica de archivos, o sustituirla por eliminacion logica obligatoria.
 
 5. VERSIONAMIENTO
-[x] Crear versiones inmutables de documentos. Las versiones anteriores quedan sin vigencia y no tienen endpoints de edicion o borrado.
+[~] Crear versiones inmutables de documentos. No existen endpoints de edicion de versiones, pero el borrado fisico del documento destruye todas las versiones y archivos.
 [x] Registrar autor, fecha, tamano y comentario de cada version.
-[x] Mantener historial completo de versiones.
+[~] Mantener historial completo de versiones. El historial se pierde si el documento se elimina fisicamente.
 [x] Implementar comparacion entre versiones mediante SHA-256 y metadatos de archivo.
 [x] Implementar descarga de versiones.
-[x] Implementar linea de tiempo documental.
+[~] Implementar linea de tiempo documental. Actualmente solo incluye la creacion de versiones; faltan envios, asignaciones, comentarios, devoluciones, rechazos, aprobaciones, publicaciones, descargas y restauraciones.
+[ ] Implementar restauracion de una version anterior creando una nueva version y conservando todo el historial.
+[ ] Definir e implementar la regla de numeracion de versiones menores y mayores. El recorrido esperado 1.0, 1.1 y 1.2 no coincide con el incremento actual 1.0, 2.0 y siguientes.
+[ ] Registrar de forma explicita en la nueva version cuando su origen sea una restauracion.
 
 6. FLUJO DOCUMENTAL
 [x] Definir transiciones validas de estado.
 [x] Implementar envio a revision.
-[x] Implementar asignacion de revisores.
+[~] Implementar asignacion de revisores. Falta comprobar que el revisor asignado tenga acceso al area o al documento.
 [x] Implementar fechas limite y prioridades.
 [x] Implementar bandeja de revision.
-[x] Implementar checklist de revision.
-[x] Implementar comentarios y observaciones.
+[~] Implementar checklist de revision. Falta restringir su modificacion al revisor asignado y bloquear cambios cuando la revision ya fue resuelta.
+[~] Implementar comentarios y observaciones. Falta bloquear nuevos comentarios en revisiones resueltas y exigir observacion al devolver o rechazar.
 [x] Implementar respuestas a comentarios.
 [x] Implementar resolucion de observaciones.
 [x] Implementar aprobacion.
 [x] Implementar devolucion con observaciones.
 [x] Implementar rechazo.
 [x] Implementar publicacion de versiones.
+[ ] Impedir nuevas cargas y cambios de metadatos sobre versiones aprobadas o publicadas sin crear un nuevo borrador controlado.
+[ ] Completar el envio a revision desde la pantalla del Editor; el boton actual solo muestra un mensaje.
+[ ] Completar la carga de una nueva version desde la pantalla de edicion del Editor.
+[ ] Incorporar en la interfaz la asignacion y reasignacion de revisores.
+[ ] Incorporar en la interfaz del Revisor la accion de rechazo definitivo.
+[ ] Incorporar en la interfaz autorizada la publicacion de una version aprobada.
 
 7. FUNCIONES DEL LECTOR
 [x] Mostrar solamente documentos publicados y autorizados.
@@ -122,12 +136,12 @@ ORDEN RECOMENDADO
 
 9. AUDITORIA Y TRAZABILIDAD
 [x] Registrar eventos de autenticacion.
-[x] Registrar todas las operaciones documentales.
+[~] Registrar todas las operaciones documentales. Faltan denegaciones, exportacion documental, cambios de checklist, resolucion de observaciones, reportes, respaldos, restauraciones y cambios de configuracion.
 [x] Registrar cambios de usuarios, roles y permisos.
-[x] Registrar descargas, publicaciones y exportaciones.
+[~] Registrar descargas, publicaciones y exportaciones. La exportacion de bitacora se audita, pero la exportacion documental y la generacion/descarga de reportes no.
 [x] Consultar bitacora con filtros y paginacion.
 [x] Exportar bitacora.
-[x] Implementar alertas de seguridad.
+[~] Implementar alertas de seguridad. Actualmente se detectan principalmente intentos fallidos de inicio de sesion; faltan denegaciones RBAC/ACL, sesiones invalidas y accesos a recursos no autorizados.
 [x] Evitar perdida silenciosa de eventos de auditoria.
 
 10. ADMINISTRACION Y DASHBOARD
@@ -145,26 +159,32 @@ ORDEN RECOMENDADO
 [x] Filtrar reportes por fecha, area, tipo, estado y responsable.
 [x] Generar reportes en PDF.
 [x] Generar reportes en Excel/XLSX.
-[x] Guardar historial de reportes generados.
-[x] Descargar reportes generados.
-[x] Programar reportes automaticos.
+[~] Guardar historial de reportes generados. Solo se conservan metadatos; al descargar se recalcula el reporte con datos actuales.
+[~] Descargar reportes generados. La descarga funciona, pero no reproduce necesariamente el contenido historico original.
+[~] Programar reportes automaticos. Existe el comando, pero falta declarar y sincronizar un servicio cron para reportes en `render.yaml`; el comando registra metadatos y no persiste el archivo generado.
+[ ] Persistir el archivo o una instantanea inmutable de cada reporte generado.
+[ ] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado.
 
 12. RESPALDOS Y RECUPERACION
 [~] Configurar respaldos automaticos. Politica activa y cron diario declarado en `render.yaml`; falta sincronizar el recurso cron Blueprint en Render.
 [x] Permitir respaldos manuales.
-[x] Respaldar base de datos y archivos documentales.
+[~] Respaldar base de datos y archivos documentales. Falta garantizar aislamiento por organizacion en tablas relacionales, consistencia transaccional del snapshot e inclusion de esquema, secuencias y procedimiento de reconstruccion.
 [x] Configurar destinos de respaldo.
 [x] Configurar retencion de respaldos.
 [x] Cifrar respaldos.
 [x] Crear puntos de restauracion.
-[x] Implementar restauracion.
-[x] Probar el plan de recuperacion.
-[x] Configurar alertas de respaldos fallidos.
+[~] Implementar restauracion. Actualmente solo verifica el respaldo y recupera archivos faltantes; no restaura registros de base de datos ni reemplaza archivos corruptos existentes.
+[~] Probar el plan de recuperacion. La prueba actual verifica integridad del archivo, pero no reconstruye la base de datos ni valida una recuperacion completa en un entorno aislado.
+[~] Configurar alertas de respaldos fallidos. Los fallos aparecen en la consulta del panel, pero falta notificacion activa por correo, webhook u otro canal.
+[ ] Implementar restauracion real de la base de datos desde `database.json` con validacion, orden de dependencias y transaccion.
+[ ] Evitar que un respaldo de una organizacion incluya filas de otras organizaciones en tablas sin `organizacion_id` directo.
+[ ] Marcar `restaurado_en` solamente cuando se ejecute una restauracion, no durante una simple verificacion.
+[ ] Definir versionado y rotacion segura de `BACKUP_ENCRYPTION_KEY` para no volver irrecuperables respaldos anteriores.
 
 13. CONFIGURACION E INTEGRACIONES
 [x] Guardar configuracion de la organizacion.
-[x] Guardar politicas de contrasena.
-[x] Guardar politicas de sesion.
+[~] Guardar politicas de contrasena. La configuracion se persiste, pero falta aplicar expiracion y conservar la fecha del ultimo cambio de contrasena.
+[~] Guardar politicas de sesion. La configuracion se persiste, pero falta corregir la actualizacion de actividad y aplicar de forma consistente los limites configurados.
 [x] Guardar configuracion SMTP.
 [x] Guardar limites y tipos de archivo permitidos.
 [x] Guardar branding, logo y favicon.
@@ -174,23 +194,92 @@ ORDEN RECOMENDADO
 14. CALIDAD Y SEGURIDAD
 [x] Crear pruebas de modelos.
 [x] Crear pruebas de endpoints.
-[x] Crear pruebas de permisos por rol.
-[x] Crear pruebas del flujo documental.
+[~] Crear pruebas de permisos por rol. Faltan pruebas integrales de aislamiento entre organizaciones, ACL en listados/exportaciones/reportes y asignacion de roles ajenos.
+[~] Crear pruebas del flujo documental. Faltan pruebas end-to-end desde creacion hasta publicacion y restauracion.
 [x] Crear pruebas de carga y descarga de archivos.
 [x] Crear pruebas de auditoria.
 [x] Agregar validacion y sanitizacion de entradas.
 [x] Agregar proteccion contra archivos maliciosos.
 [x] Agregar monitoreo y registro de errores.
 [x] Configurar alertas operativas.
+[ ] Crear pruebas automatizadas del frontend.
+[ ] Crear pruebas end-to-end para Administrador, Editor, Revisor y Lector.
+[ ] Probar eliminacion logica, desarchivado y restauracion de versiones.
+[ ] Probar restauracion completa de base de datos y archivos en un entorno aislado.
+[ ] Corregir las advertencias actuales del linter del frontend.
+[ ] Dividir el bundle principal del frontend, actualmente superior a 500 KB minificado.
 
 15. INTEGRACION FINAL
 [x] Crear cliente API compartido en el frontend.
 [x] Conectar el panel del administrador.
-[x] Conectar el panel del editor.
-[x] Conectar el panel del revisor.
+[~] Conectar el panel del editor. Faltan envio real a revision, carga de nueva version y consulta del flujo desde la pantalla de edicion.
+[~] Conectar el panel del revisor. Faltan rechazo definitivo y algunas operaciones de asignacion/publicacion desde la interfaz.
 [x] Conectar el panel del lector.
-[x] Reemplazar todos los datos mock por datos reales.
-[x] Validar permisos y flujos en Render. Verificado en los despliegues documentados y en el deploy `71e28df`.
+[~] Reemplazar todos los datos mock por datos reales. Persisten mensajes y acciones simuladas en el flujo del Editor, y varias vistas abren el primer documento o revision en lugar del elemento seleccionado.
+[~] Validar permisos y flujos en Render. Las rutas principales fueron verificadas, pero falta validar ACL en listados/exportaciones/reportes, aislamiento multiorganizacion y recuperacion completa.
 [ ] Ejecutar pruebas completas de aceptacion.
+
+16. BRECHAS DE ARQUITECTURA Y DOCUMENTACION
+[ ] Alinear la tesis con la arquitectura real: Django REST Framework + React + PostgreSQL, no Django + Oracle con vistas MTV renderizadas en servidor.
+[ ] Actualizar viabilidad tecnica, arquitectura, despliegue, modelo de datos y glosario para reflejar PostgreSQL, React, API REST y almacenamiento S3/B2.
+[ ] Documentar formalmente la politica de eliminacion logica, retencion, restauracion y disposicion final de documentos.
+[ ] Documentar la matriz efectiva de permisos por rol, area y documento y convertirla en casos de prueba de aceptacion.
+[ ] Documentar RPO, RTO y procedimiento de recuperacion completa con responsables y evidencia de una prueba real.
+
+17. FRONTEND PENDIENTE
+
+17.1 FLUJO DEL EDITOR
+[ ] Conectar el boton `Enviar a revision` con el endpoint de envio y permitir seleccionar revisores, prioridad, fecha limite, comentario y checklist.
+[ ] Conectar el boton `Subir nueva version` con un selector de archivo, comentario de cambio, validaciones y confirmacion del resultado.
+[ ] Mostrar al Editor el flujo real del documento, su estado, revisores asignados, checklist y observaciones.
+[ ] Mostrar al Editor el motivo de devolucion o rechazo y permitir crear la version corregida desde el mismo recorrido.
+[ ] Deshabilitar edicion y carga directa cuando la version se encuentre en revision, aprobada o publicada.
+
+17.2 FLUJO DEL REVISOR Y PUBLICACION
+[ ] Incorporar la accion de rechazo definitivo en la pantalla del Revisor.
+[ ] Solicitar obligatoriamente una observacion al devolver o rechazar un documento.
+[ ] Incorporar una interfaz para asignar y reasignar revisores autorizados.
+[ ] Incorporar la publicacion de una version aprobada para usuarios con el permiso correspondiente.
+[ ] Mostrar y permitir resolver observaciones pendientes antes de aprobar.
+[ ] Bloquear cambios de checklist y comentarios cuando la solicitud de revision ya este resuelta.
+
+17.3 VERSIONES, ARCHIVADO Y RESTAURACION
+[ ] Incorporar la restauracion de una version anterior y mostrar que se generara una nueva version sin eliminar el historial.
+[ ] Mostrar la version de origen y el motivo de cada restauracion.
+[ ] Incorporar consulta de documentos archivados y accion para desarchivarlos.
+[ ] Solicitar motivo y confirmacion para archivar, eliminar o restaurar documentos.
+[ ] Mostrar una linea de tiempo completa con creacion, versiones, revision, devolucion, rechazo, aprobacion, publicacion, descarga y restauracion.
+
+17.4 USUARIOS, SESIONES Y PERMISOS
+[ ] Incorporar administracion de roles asignados a usuarios existentes desde su ficha.
+[ ] Incorporar consulta y revocacion de sesiones o dispositivos desde el panel administrativo.
+[ ] Incorporar administracion de permisos explicitos por documento y area.
+[ ] Ocultar o deshabilitar acciones de acuerdo con los permisos efectivos, sin sustituir la validacion obligatoria del backend.
+[ ] Mostrar mensajes claros y consistentes ante acceso denegado, sesion expirada, cuenta bloqueada y contrasena pendiente de cambio.
+
+17.5 NAVEGACION, BUSQUEDA Y LISTADOS
+[ ] Corregir las vistas que cargan el primer documento o revision cuando deberian abrir el elemento seleccionado.
+[ ] Implementar paginacion remota en documentos, versiones, revisiones, historial, favoritos, usuarios, roles, reportes y bitacora.
+[ ] Ejecutar busqueda y filtros en el backend para no limitar los resultados a los primeros 100 registros.
+[ ] Hacer que las exportaciones incluyan todos los resultados autorizados y no solo los registros cargados en memoria.
+[ ] Conectar las notificaciones con la pantalla del documento, revision o evento correspondiente.
+[ ] Mantener los filtros, pagina y seleccion al regresar desde el detalle de un documento.
+
+17.6 REPORTES Y RESPALDOS
+[ ] Mostrar reportes historicos inmutables y descargar el archivo generado originalmente.
+[ ] Incorporar administracion completa de programaciones de reportes y mostrar su proxima ejecucion real.
+[ ] Ajustar la interfaz de respaldos para diferenciar `Verificar`, `Restaurar archivos` y `Restaurar sistema completo`.
+[ ] No presentar una verificacion o restauracion de archivos como recuperacion completa de la base de datos.
+[ ] Mostrar resultados detallados de restauracion, archivos omitidos, errores y registros recuperados.
+
+17.7 CALIDAD DEL FRONTEND
+[ ] Crear pruebas unitarias y de componentes para formularios, permisos, filtros, estados y manejo de errores.
+[ ] Crear pruebas end-to-end del recorrido completo de Administrador, Editor, Revisor y Lector.
+[ ] Probar el ciclo crear, versionar, enviar, devolver, corregir, aprobar, publicar, consultar y restaurar.
+[ ] Probar que cada rol solo vea y ejecute las funciones autorizadas.
+[ ] Corregir las advertencias de `oxlint`, especialmente efectos con actualizaciones sincronas y dependencias faltantes.
+[ ] Dividir el bundle principal mediante carga diferida de modulos para reducir el archivo JavaScript superior a 500 KB.
+[ ] Validar responsive, accesibilidad por teclado, foco, etiquetas, contraste y mensajes de error en escritorio y movil.
+[ ] Ejecutar pruebas de aceptacion con usuarios reales y registrar evidencia de cada caso aprobado.
 
 Estado de despliegue: commit `71e28df` publicado en Render; `/api/health/` devolvio HTTP 200 con la base de datos operativa. Las cuatro cuentas de prueba autenticaron correctamente y sus paneles cargaron las APIs esperadas. Las mutaciones documentales y la restriccion por area tienen cobertura local; la prueba completa de aceptacion permanece pendiente.
