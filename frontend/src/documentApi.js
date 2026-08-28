@@ -1,5 +1,14 @@
 import { apiRequest, formatDate } from './api'
 
+export const DOCUMENT_ORDERING_OPTIONS = [
+  { value: '-updated_at', label: 'Más recientes' },
+  { value: 'updated_at', label: 'Más antiguas' },
+  { value: 'code', label: 'Código A-Z' },
+  { value: '-code', label: 'Código Z-A' },
+  { value: 'title', label: 'Título A-Z' },
+  { value: '-title', label: 'Título Z-A' },
+]
+
 export function normalizeDocument(document) {
   return {
     ...document,
@@ -20,8 +29,9 @@ export function normalizeDocument(document) {
   }
 }
 
-export function buildDocumentQuery({ search = '', type = '', area = '', status = '', responsible = '', from = '', until = '', catalogs = {}, limit = 100, offset = 0 } = {}) {
+export function buildDocumentQuery({ search = '', type = '', area = '', status = '', responsible = '', from = '', until = '', ordering = '-updated_at', catalogs = {}, limit = 100, offset = 0 } = {}) {
   const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (ordering) params.set('ordering', ordering)
   if (search.trim()) params.set('search', search.trim())
   const typeId = catalogs.types?.find((item) => item.name === type)?.id || type
   const areaId = catalogs.areas?.find((item) => item.name === area)?.id || area

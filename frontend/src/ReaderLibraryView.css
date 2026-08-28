@@ -252,8 +252,41 @@
   padding: 0 17px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   color: #718097;
   font-size: 10px;
+}
+
+.reader-library-table-card > footer label,
+.reader-library-pagination {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.reader-library-table-card > footer select,
+.reader-library-pagination button {
+  height: 27px;
+  color: #52657d;
+  background: #fff;
+  border: 1px solid #d8e1eb;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+.reader-library-table-card > footer select {
+  padding: 0 8px;
+}
+
+.reader-library-pagination button {
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.reader-library-pagination button:disabled {
+  color: #b5c0ce;
+  cursor: not-allowed;
 }
 
 .reader-library-empty {

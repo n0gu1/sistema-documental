@@ -120,7 +120,15 @@ class ReaderDocumentListView(APIView):
         if request.query_params.get('favorite') == 'true':
             favorite_ids = set(FavoritoDocumento.objects.filter(usuario_id=request.user.id).values_list('documento_id', flat=True))
             documents = [document for document in documents if document.id in favorite_ids]
-        documents.sort(key=lambda item: (item.actualizado_en, item.codigo), reverse=True)
+        ordering = request.query_params.get('ordering', '-updated_at')
+        ordering_key = ordering.lstrip('-')
+        ordering_fields = {
+            'updated_at': lambda item: item.actualizado_en,
+            'code': lambda item: item.codigo,
+            'title': lambda item: item.nombre,
+        }
+        key = ordering_fields.get(ordering_key, ordering_fields['updated_at'])
+        documents.sort(key=lambda item: (key(item), item.codigo), reverse=ordering.startswith('-'))
         total = len(documents)
         try:
             limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
