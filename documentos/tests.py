@@ -56,6 +56,7 @@ from .security_utils import sanitize_text
 from .serializers import ChangePasswordSerializer, DocumentPermissionsSerializer, LoginSerializer, UserCreateSerializer
 from .workflow_views import (
     ChecklistSerializer,
+    ReviewCandidateListView,
     ReviewCommentSerializer,
     SubmitReviewSerializer,
     VERSION_TRANSITIONS,
@@ -1004,6 +1005,39 @@ class WorkflowTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('reviewer_ids', serializer.errors)
+
+    @patch('documentos.workflow_views.require_permission')
+    @patch('documentos.workflow_views.get_user_roles')
+    @patch('documentos.workflow_views.UsuarioDocumental.objects.filter')
+    def test_review_candidates_include_only_active_review_roles(self, user_filter, get_roles, require_permission):
+        organization_id = uuid4()
+        reviewer = SimpleNamespace(
+            id=uuid4(),
+            nombre_usuario='revisor.activo',
+            nombres='Revisor',
+            apellidos='Activo',
+        )
+        editor = SimpleNamespace(
+            id=uuid4(),
+            nombre_usuario='editor.activo',
+            nombres='Editor',
+            apellidos='Activo',
+        )
+        query = MagicMock()
+        query.order_by.return_value = [reviewer, editor]
+        user_filter.return_value = query
+        get_roles.side_effect = [[{'code': 'REVISOR'}], [{'code': 'EDITOR'}]]
+        request = SimpleNamespace(user=SimpleNamespace(organizacion_id=organization_id))
+
+        response = ReviewCandidateListView().get(request)
+
+        self.assertEqual(response.data['reviewers'], [{
+            'id': str(reviewer.id),
+            'username': reviewer.nombre_usuario,
+            'name': 'Revisor Activo',
+        }])
+        user_filter.assert_called_once_with(organizacion_id=organization_id, activo=True)
+        require_permission.assert_called_once_with(request, 'revisiones.enviar')
 
     def test_checklist_requires_assigned_reviewer(self):
         reviewer = SimpleNamespace(id=uuid4())

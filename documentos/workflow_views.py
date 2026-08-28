@@ -403,6 +403,23 @@ class ReviewDetailView(APIView):
         return Response({'review': serialize_review(get_review_or_404(request, review_id))})
 
 
+class ReviewCandidateListView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def get(self, request):
+        require_permission(request, REVIEW_SEND)
+        users = UsuarioDocumental.objects.filter(
+            organizacion_id=request.user.organizacion_id,
+            activo=True,
+        ).order_by('apellidos', 'nombres')
+        reviewers = [
+            serialize_user_summary(user)
+            for user in users
+            if any(role['code'] in {'REVISOR', 'ADMINISTRADOR'} for role in get_user_roles(user.id))
+        ]
+        return Response({'reviewers': reviewers})
+
+
 class ReviewAssignmentView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 

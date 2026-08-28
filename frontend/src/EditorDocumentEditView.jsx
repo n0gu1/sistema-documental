@@ -23,6 +23,12 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   const [keywords, setKeywords] = useState('')
   const [scope, setScope] = useState('')
   const [tab, setTab] = useState('Información general')
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewers, setReviewers] = useState([])
+  const [reviewForm, setReviewForm] = useState({ reviewerIds: [], deadline: '', priority: 'MEDIA', comment: '', checklist: '' })
+  const [reviewError, setReviewError] = useState('')
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [reviewSubmitting, setReviewSubmitting] = useState(false)
 
   useEffect(() => {
     if (!document?.id) return undefined
@@ -53,18 +59,58 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
     } catch (requestError) { setSaveError(requestError.message) }
   }
 
+  async function openReviewForm() {
+    if (!document?.id) return onAction('No se encontró el documento seleccionado.')
+    if (directEditLocked(loadedDocument.status)) return onAction('La versión actual no permite enviarse a revisión. Cree o seleccione un borrador.')
+    setReviewError('')
+    setReviewOpen(true)
+    if (reviewers.length) return
+    setReviewLoading(true)
+    try {
+      const data = await apiRequest('/api/reviews/reviewers/')
+      setReviewers(data.reviewers || [])
+    } catch (requestError) { setReviewError(requestError.message) } finally { setReviewLoading(false) }
+  }
+
+  async function submitReview(event) {
+    event.preventDefault()
+    const currentFile = loadedDocument.files?.find((file) => file.is_current)
+    if (!currentFile?.id) return setReviewError('El documento no tiene una versión disponible para enviar.')
+    if (!reviewForm.reviewerIds.length) return setReviewError('Seleccione al menos un revisor.')
+    setReviewError('')
+    setReviewSubmitting(true)
+    try {
+      await apiRequest(`/api/documents/${document.id}/versions/${currentFile.id}/submit-review/`, {
+        method: 'POST',
+        body: {
+          reviewer_ids: reviewForm.reviewerIds,
+          ...(reviewForm.deadline ? { deadline: reviewForm.deadline } : {}),
+          priority: reviewForm.priority,
+          comment: reviewForm.comment,
+          checklist: reviewForm.checklist.split('\n').map((item) => item.trim()).filter(Boolean),
+        },
+      })
+      const refreshed = await apiRequest(`/api/documents/${document.id}/`)
+      setLoadedDocument(refreshed.document || loadedDocument)
+      setReviewOpen(false)
+      setReviewForm({ reviewerIds: [], deadline: '', priority: 'MEDIA', comment: '', checklist: '' })
+      onAction('El documento se envió a revisión correctamente.')
+    } catch (requestError) { setReviewError(requestError.message) } finally { setReviewSubmitting(false) }
+  }
+
   if (!document?.id) return <div className="editor-edit-view"><p className="editor-empty">Selecciona un documento para editarlo.</p></div>
   const currentVersion = loadedDocument.files?.find((file) => file.is_current) || loadedDocument.version
   const currentVersionLabel = typeof currentVersion === 'string' ? currentVersion : currentVersion?.version || '—'
   const responsible = loadedDocument.responsible?.name || '—'
   const status = loadedDocument.status?.name || '—'
 
-  return <div className="editor-edit-view"><header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>{(loadError || saveError) && <p className="editor-error" role="alert">{loadError || saveError}</p>}
+  return <div className="editor-edit-view"><header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>{(loadError || saveError || reviewError) && <p className="editor-error" role="alert">{loadError || saveError || reviewError}</p>}
     <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title || 'Sin título'}</h2><span>Versión {currentVersionLabel}</span></div><dl><div><dt>Código</dt><dd>{loadedDocument.code || '—'}</dd></div><div><dt>Área</dt><dd>{loadedDocument.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{loadedDocument.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{currentVersionLabel}</dd></div><div><dt>Estado</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}<br />por {responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl></section>
     <div className="editor-edit-layout"><main className="editor-edit-main"><nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map((item) => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'document' : item === 'Anexos' ? 'document' : 'flow'} size={17} /> {item}</button>)}</nav>{tab === 'Información general' ? <section className="editor-edit-form"><div className="editor-edit-fields"><div><label>Título del documento <em>*</em><input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} /><small>{description.length}/500</small></label><label>Área responsable<span className="editor-responsible"><i>{(loadedDocument.area?.name || '—').slice(0, 2).toUpperCase()}</i><b>{loadedDocument.area?.name || '—'}</b></span></label><label>Responsable del documento<span className="editor-responsible"><i>{responsible.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'}</i><b>{responsible}</b></span></label></div><div><label>Código <input value={loadedDocument.code || ''} readOnly /></label><label>Clasificación<input value={classification} onChange={(event) => setClassification(event.target.value)} placeholder="Sin clasificación registrada" /></label><label>Tipo de documento<input value={loadedDocument.type?.name || ''} readOnly /></label><label>Palabras clave<input value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Sin palabras clave registradas" /></label><label>Alcance<textarea value={scope} onChange={(event) => setScope(event.target.value)} maxLength={300} placeholder="Sin alcance registrado" /><small>{scope.length}/300</small></label></div></div></section> : <section className="editor-edit-form"><p className="editor-empty">Esta sección no tiene datos disponibles en el backend.</p></section>}</main>
       <aside className="editor-edit-sidebar"><section className="editor-edit-side-card"><h2>Estado del documento</h2><dl><div><dt>Estado actual</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}</dd></div><div><dt>Responsable</dt><dd>{responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl><button type="button" onClick={() => onAction('El flujo del documento no está disponible en el backend actual.')}><EditIcon name="flow" size={16} /> Ver flujo del documento</button></section><section className="editor-edit-side-card"><header><h2>Checklist de revisión interna</h2><span>Sin datos registrados</span></header><div className="editor-check-progress"><i style={{ width: '0%' }} /></div><p className="editor-empty">No hay checklist asociado a este documento.</p></section><section className="editor-edit-side-card editor-edit-comments"><h2>Comentarios del revisor</h2><p className="editor-empty">No hay comentarios registrados.</p></section></aside></div>
-    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><button type="button" onClick={() => onAction('La carga de una nueva versión requiere seleccionar un archivo.')}><EditIcon name="document" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={() => onAction('El envío a revisión requiere el flujo documental del backend.')}><EditIcon name="flow" size={17} /> Enviar a revisión</button></div></footer>
-  </div>
+    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><button type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</button><button type="button" onClick={() => onAction('La carga de una nueva versión requiere seleccionar un archivo.')}><EditIcon name="document" size={17} /> Subir nueva versión</button><button className="is-primary" type="button" onClick={openReviewForm} disabled={reviewSubmitting}><EditIcon name="flow" size={17} /> Enviar a revisión</button></div></footer>
+    {reviewOpen && <section className="editor-review-form" aria-labelledby="editor-review-form-title"><header><div><h2 id="editor-review-form-title">Enviar a revisión</h2><p>Asigne revisores y deje las instrucciones para esta versión.</p></div><button type="button" onClick={() => setReviewOpen(false)} aria-label="Cerrar formulario">×</button></header><form onSubmit={submitReview}><label>Revisores<select multiple value={reviewForm.reviewerIds} onChange={(event) => setReviewForm((current) => ({ ...current, reviewerIds: Array.from(event.target.selectedOptions, (option) => option.value) }))} disabled={reviewLoading || reviewSubmitting}>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.name} · {reviewer.username}</option>)}</select><small>{reviewLoading ? 'Cargando revisores...' : 'Puede seleccionar uno o varios revisores.'}</small></label><div className="editor-review-form-grid"><label>Fecha límite<input type="datetime-local" value={reviewForm.deadline} onChange={(event) => setReviewForm((current) => ({ ...current, deadline: event.target.value }))} disabled={reviewSubmitting} /></label><label>Prioridad<select value={reviewForm.priority} onChange={(event) => setReviewForm((current) => ({ ...current, priority: event.target.value }))} disabled={reviewSubmitting}><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option></select></label></div><label>Instrucciones<textarea value={reviewForm.comment} onChange={(event) => setReviewForm((current) => ({ ...current, comment: event.target.value }))} maxLength={2000} placeholder="Indique qué debe revisar el equipo." disabled={reviewSubmitting} /></label><label>Checklist inicial<textarea value={reviewForm.checklist} onChange={(event) => setReviewForm((current) => ({ ...current, checklist: event.target.value }))} placeholder="Un punto por línea" disabled={reviewSubmitting} /></label><footer><button type="button" onClick={() => setReviewOpen(false)} disabled={reviewSubmitting}>Cancelar</button><button className="is-primary" type="submit" disabled={reviewLoading || reviewSubmitting}>{reviewSubmitting ? 'Enviando...' : 'Enviar a revisión'}</button></footer></form></section>}
+   </div>
 }
 
 function EditorDocumentEditView(props) {
