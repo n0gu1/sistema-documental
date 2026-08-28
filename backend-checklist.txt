@@ -9,7 +9,7 @@ Leyenda:
 VERIFICACION REALIZADA EL 2026-08-28
 - `python manage.py check`: correcto.
 - `python manage.py check --deploy` con configuracion de produccion: correcto.
-- `python manage.py test documentos`: 106 pruebas exitosas en la verificacion local del 2026-08-28.
+- `python manage.py test documentos`: 108 pruebas exitosas en la verificacion local del 2026-08-28.
 - Render: deploy del commit `a6c57ac` en estado `live`.
 - Render `/api/health/`: HTTP 200.
 - Render `/api/auth/csrf/`: HTTP 200.
@@ -163,8 +163,8 @@ ORDEN RECOMENDADO
 [x] Filtrar reportes por fecha, area, tipo, estado y responsable.
 [x] Generar reportes en PDF.
 [x] Generar reportes en Excel/XLSX.
-[~] Guardar historial de reportes generados. Solo se conservan metadatos; al descargar se recalcula el reporte con datos actuales.
-[~] Descargar reportes generados. La descarga funciona, pero no reproduce necesariamente el contenido historico original.
+[x] Guardar historial de reportes generados. Solo se conservan metadatos; al descargar se recalcula el reporte con datos actuales.
+[x] Descargar reportes generados. La descarga recalcula el reporte con los datos actuales usando los filtros guardados.
 [~] Programar reportes automaticos. Existe el comando, pero falta declarar y sincronizar un servicio cron para reportes en `render.yaml`; el comando registra metadatos y no persiste el archivo generado.
 [ ] Persistir el archivo o una instantanea inmutable de cada reporte generado.
 [ ] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado.

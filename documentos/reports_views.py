@@ -273,7 +273,7 @@ def report_history(request, scope):
     return [serialize_report(report) for report in ReporteGenerado.objects.filter(
         organizacion_id=request.user.organizacion_id,
         alcance=scope,
-    )[:20]]
+    ).order_by('-creado_en', '-id')[:20]]
 
 
 def cell_value(value):

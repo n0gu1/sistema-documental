@@ -50,7 +50,7 @@ from .models import ConfiguracionSistema, Documento, Organizacion, SesionDocumen
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
 from .reader_access import has_area_permission, has_document_permission
 from .reader_views import ReaderAccessSerializer
-from .reports_views import build_pdf, build_xlsx, summarize_report
+from .reports_views import ReportDownloadView, ReportGenerateView, build_pdf, build_xlsx, summarize_report
 from .notifications import create_notification
 from .security_utils import sanitize_text
 from .serializers import ChangePasswordSerializer, DocumentPermissionsSerializer, LoginSerializer, UserCreateSerializer
@@ -669,6 +669,86 @@ class ReportFormatTests(SimpleTestCase):
         data = {'scope': 'executive', 'summary': summarize_report(self.rows, 'executive'), 'rows': self.rows}
 
         self.assertTrue(build_pdf(data).startswith(b'%PDF-'))
+
+
+class ReportHistoryTests(SimpleTestCase):
+    def setUp(self):
+        self.organization_id = uuid4()
+        self.user = SimpleNamespace(id=uuid4(), organizacion_id=self.organization_id)
+        self.report_id = uuid4()
+        self.filters = {'status_code': 'PUBLICADO'}
+        self.report = SimpleNamespace(
+            id=self.report_id,
+            nombre='Reporte executive - 2026-08-28 12:00',
+            alcance='executive',
+            formato='PDF',
+            filtros=self.filters,
+            filas=1,
+            creado_en=timezone.now(),
+        )
+
+    @patch('documentos.reports_views.record_report_event')
+    @patch('documentos.reports_views.ReporteGenerado.objects.create')
+    @patch('documentos.reports_views.build_report_data')
+    @patch('documentos.reports_views.require_report_access')
+    def test_generation_persists_metadata_without_report_content(
+        self,
+        require_access,
+        build_data,
+        create_report,
+        record_event,
+    ):
+        build_data.return_value = {'rows': [{'id': str(uuid4())}]}
+        create_report.return_value = self.report
+        request = SimpleNamespace(
+            data={'scope': 'executive', 'format': 'PDF', 'filters': self.filters},
+            user=self.user,
+            auth=SimpleNamespace(id=uuid4()),
+        )
+
+        response = ReportGenerateView().post(request)
+
+        self.assertEqual(response.status_code, 201)
+        created = create_report.call_args.kwargs
+        self.assertEqual(created['organizacion_id'], self.organization_id)
+        self.assertEqual(created['generado_por_id'], self.user.id)
+        self.assertEqual(created['filtros'], self.filters)
+        self.assertEqual(created['filas'], 1)
+        self.assertNotIn('contenido', created)
+        self.assertNotIn('archivo', created)
+        self.assertEqual(response.data['report']['id'], str(self.report_id))
+        require_access.assert_called_once_with(request, 'executive', generate=True)
+        record_event.assert_called_once()
+
+    @patch('documentos.reports_views.record_report_event')
+    @patch('documentos.reports_views.report_response')
+    @patch('documentos.reports_views.build_report_data')
+    @patch('documentos.reports_views.require_report_access')
+    @patch('documentos.reports_views.ReporteGenerado.objects.filter')
+    def test_download_recalculates_report_using_saved_filters(
+        self,
+        filter_reports,
+        require_access,
+        build_data,
+        report_response,
+        record_event,
+    ):
+        filter_reports.return_value.first.return_value = self.report
+        current_data = {'scope': 'executive', 'filters': self.filters, 'rows': [{'id': str(uuid4())}, {'id': str(uuid4())}]}
+        download_response = object()
+        build_data.return_value = current_data
+        report_response.return_value = download_response
+        request = APIRequestFactory().get(f'/api/reports/{self.report_id}/download/')
+        request.user = self.user
+        request.auth = SimpleNamespace(id=uuid4())
+
+        response = ReportDownloadView().get(request, self.report_id)
+
+        self.assertIs(response, download_response)
+        build_data.assert_called_once_with(request, 'executive', self.filters)
+        report_response.assert_called_once_with(current_data, 'PDF')
+        require_access.assert_called_once_with(request, 'executive')
+        record_event.assert_called_once()
 
 
 class BackupSecurityTests(SimpleTestCase):
