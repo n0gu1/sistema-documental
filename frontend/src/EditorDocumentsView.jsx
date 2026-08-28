@@ -251,31 +251,20 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
   }
 
   function exportList() {
-    const csv = [
-      "Código,Documento,Tipo,Área,Estado,Versión,Actualización,Responsable",
-      ...visibleDocuments.map((item) =>
-        [
-          item.code,
-          item.title,
-          item.type,
-          item.area,
-          item.status,
-          item.version,
-          item.updated,
-          item.reviewer,
-        ]
-          .map((value) => `"${value}"`)
-          .join(","),
-      ),
-    ].join("\n");
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    link.download = "mis-documentos.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
-    onAction("El listado se exportó correctamente.");
+    const query = buildDocumentQuery({
+      search: deferredSearch,
+      type,
+      area,
+      status,
+      from,
+      until,
+      ordering,
+      catalogs,
+      limit: 100,
+      offset: 0,
+    });
+    window.open(`/api/documents/export/?${query}`, "_blank", "noopener,noreferrer");
+    onAction("El listado se exportará con los filtros y permisos aplicables.");
   }
 
   return (

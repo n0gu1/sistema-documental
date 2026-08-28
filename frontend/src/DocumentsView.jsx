@@ -288,7 +288,20 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
   }
 
   function exportList() {
-    window.open("/api/documents/export/", "_blank", "noopener,noreferrer");
+    const query = buildDocumentQuery({
+      search: deferredSearch,
+      type: type === "Todas" ? "" : type,
+      area: area === "Todas" ? "" : area,
+      status: status === "Todos" ? "" : status,
+      responsible: owner === "Todos" ? "" : owner,
+      from,
+      until,
+      ordering: classification,
+      catalogs,
+      limit: 100,
+      offset: 0,
+    });
+    window.open(`/api/documents/export/?${query}`, "_blank", "noopener,noreferrer");
   }
 
   async function openCreate(mode) {

@@ -894,12 +894,30 @@ class DocumentExportView(APIView):
         if is_reader_user(request.user):
             raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})
         queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
-        queryset = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
+        documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
+        record_auth_event(
+            action_code='DOCUMENTO_EXPORTADO',
+            resource_code='DOCUMENTO',
+            organization_id=request.user.organizacion_id,
+            user_id=request.user.id,
+            session_id=getattr(request.auth, 'id', None),
+            request=request,
+            successful=True,
+            result='Listado documental exportado correctamente',
+            details={
+                'document_count': len(documents),
+                'filters': {
+                    key: value
+                    for key, value in request.query_params.items()
+                    if key not in {'limit', 'offset'}
+                },
+            },
+        )
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = 'attachment; filename="documentos.csv"'
         writer = csv.writer(response)
         writer.writerow(['Codigo', 'Titulo', 'Tipo', 'Area', 'Estado', 'Responsable', 'Actualizado'])
-        for document in queryset:
+        for document in documents:
             version = current_version(document)
             writer.writerow([
                 document.codigo,

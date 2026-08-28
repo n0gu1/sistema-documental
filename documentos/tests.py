@@ -31,6 +31,7 @@ from .document_serializers import DocumentCreateSerializer, DocumentFileSerializ
 from .document_views import (
     DocumentFileDownloadView,
     DocumentDetailView,
+    DocumentExportView,
     DocumentPermissionsView,
     DocumentUnarchiveView,
     compare_versions,
@@ -539,6 +540,59 @@ class PermissionManagementTests(SimpleTestCase):
             activo=False,
         )
         record_event.assert_called_once()
+
+
+class DocumentExportTests(SimpleTestCase):
+    @patch('documentos.document_views.is_reader_user', return_value=False)
+    @patch('documentos.document_views.record_auth_event')
+    @patch('documentos.document_views.current_version')
+    @patch('documentos.document_views.filter_accessible_documents')
+    @patch('documentos.document_views.apply_document_filters')
+    @patch('documentos.document_views.document_queryset')
+    @patch('documentos.document_views.require_permission')
+    def test_export_applies_access_filter_and_records_audit(
+        self,
+        require_permission,
+        document_queryset,
+        apply_filters,
+        filter_accessible,
+        current_version,
+        record_event,
+        is_reader_user,
+    ):
+        organization_id = uuid4()
+        user_id = uuid4()
+        document = SimpleNamespace(
+            id=uuid4(),
+            organizacion_id=organization_id,
+            codigo='POL-001',
+            nombre='Politica de calidad',
+            tipo_documento=SimpleNamespace(nombre='Politica'),
+            area=SimpleNamespace(nombre='Calidad'),
+            creado_por=SimpleNamespace(nombres='Ana', apellidos='Perez'),
+            actualizado_en=timezone.now(),
+        )
+        version = SimpleNamespace(estado_version=SimpleNamespace(nombre='Publicado'))
+        queryset = MagicMock()
+        document_queryset.return_value = queryset
+        apply_filters.return_value = queryset
+        filter_accessible.return_value = [document]
+        current_version.return_value = version
+        request = APIRequestFactory().get('/api/documents/export/?area_id=area-1')
+        request.user = SimpleNamespace(id=user_id, organizacion_id=organization_id)
+        request.auth = SimpleNamespace(id=uuid4())
+        request.query_params = request.GET
+
+        response = DocumentExportView().get(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('POL-001', response.content.decode())
+        require_permission.assert_called_once_with(request, 'documentos.consultar')
+        apply_filters.assert_called_once_with(queryset, request.query_params)
+        filter_accessible.assert_called_once_with(request.user, queryset, 'documentos.consultar')
+        record_event.assert_called_once()
+        self.assertEqual(record_event.call_args.kwargs['action_code'], 'DOCUMENTO_EXPORTADO')
+        self.assertEqual(record_event.call_args.kwargs['details']['document_count'], 1)
 
 
 class ReportFormatTests(SimpleTestCase):
