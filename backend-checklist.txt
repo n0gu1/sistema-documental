@@ -171,9 +171,9 @@ ORDEN RECOMENDADO
 [x] Restringir consulta y modificacion de programaciones al creador o a un administrador autorizado. El listado se limita al creador y la modificacion/cancelacion admite al creador o al rol Administrador.
 
 12. RESPALDOS Y RECUPERACION
-[~] Configurar respaldos automaticos. Politica activa y cron diario declarado en `render.yaml` con plan `starter`; la validacion de Render requiere metodo de pago para sincronizar el Blueprint.
+[~] Configurar respaldos automaticos. Politica activa y cron diario declarado en `render.yaml` con plan `starter`; la validacion de Render requiere metodo de pago para sincronizar el Blueprint.(PAGA)
 [x] Permitir respaldos manuales.
-[~] Respaldar base de datos y archivos documentales. Falta garantizar aislamiento por organizacion en tablas relacionales, consistencia transaccional del snapshot e inclusion de esquema, secuencias y procedimiento de reconstruccion.
+[x] Respaldar base de datos y archivos documentales. El snapshot aplica aislamiento por organizacion con reglas de relaciones y fallo seguro, usa una transaccion PostgreSQL consistente, valida hashes y tamanos de archivos e incluye esquema, secuencias y procedimiento de reconstruccion.
 [x] Configurar destinos de respaldo.
 [x] Configurar retencion de respaldos.
 [x] Cifrar respaldos.
@@ -182,8 +182,8 @@ ORDEN RECOMENDADO
 [~] Probar el plan de recuperacion. La prueba actual verifica integridad del archivo, pero no reconstruye la base de datos ni valida una recuperacion completa en un entorno aislado.
 [~] Configurar alertas de respaldos fallidos. Los fallos aparecen en la consulta del panel, pero falta notificacion activa por correo, webhook u otro canal.
 [ ] Implementar restauracion real de la base de datos desde `database.json` con validacion, orden de dependencias y transaccion.
-[ ] Evitar que un respaldo de una organizacion incluya filas de otras organizaciones en tablas sin `organizacion_id` directo.
-[ ] Marcar `restaurado_en` solamente cuando se ejecute una restauracion, no durante una simple verificacion.
+[x] Evitar que un respaldo de una organizacion incluya filas de otras organizaciones en tablas sin `organizacion_id` directo. Las tablas relacionales se filtran mediante claves foraneas y las reglas desconocidas cancelan el respaldo.
+[x] Marcar `restaurado_en` solamente cuando se ejecute una restauracion, no durante una simple verificacion.
 [ ] Definir versionado y rotacion segura de `BACKUP_ENCRYPTION_KEY` para no volver irrecuperables respaldos anteriores.
 
 13. CONFIGURACION E INTEGRACIONES

@@ -1,4 +1,5 @@
 import hashlib
+import json
 from contextlib import nullcontext
 from datetime import datetime, timedelta
 from io import BytesIO
@@ -16,7 +17,18 @@ from rest_framework.test import APIClient, APIRequestFactory
 from .authentication import CookieTokenAuthentication, hash_session_token
 from .audit_views import audit_query_parts, fetch_security_alerts, require_audit_access
 from .auth_utils import record_access_denied, record_auth_event, user_has_permission
-from .backup_service import BackupExecutionError, decrypt_archive, encrypt_archive
+from .backup_service import (
+    BACKUP_FORMAT,
+    BackupExecutionError,
+    build_backup_archive,
+    build_storage_snapshot,
+    database_snapshot_transaction,
+    decrypt_archive,
+    encrypt_archive,
+    load_backup_archive,
+    table_scope_clause,
+    verify_backup,
+)
 from .config_service import decrypt_secret, encrypt_secret, validate_section
 from .management_views import (
     PermissionDetailView,
@@ -1024,6 +1036,148 @@ class BackupSecurityTests(SimpleTestCase):
 
         with self.assertRaises(BackupExecutionError):
             decrypt_archive(bytes(payload))
+
+
+class BackupSnapshotTests(SimpleTestCase):
+    def setUp(self):
+        self.organization_id = uuid4()
+
+    def test_relational_table_scope_follows_document_organization(self):
+        clause, params = table_scope_clause(
+            'documentos_metadatos',
+            {
+                'documentos_metadatos': {'id', 'documento_id'},
+                'documentos': {'id', 'organizacion_id'},
+            },
+            self.organization_id,
+        )
+
+        self.assertIn('EXISTS', clause)
+        self.assertIn('documentos', clause)
+        self.assertEqual(params, [self.organization_id])
+
+    def test_unknown_table_fails_closed(self):
+        with self.assertRaisesMessage(BackupExecutionError, 'No existe una regla de aislamiento'):
+            table_scope_clause('tabla_no_registrada', {'tabla_no_registrada': {'id'}}, self.organization_id)
+
+    def test_relational_scope_requires_all_non_null_relations(self):
+        clause, params = table_scope_clause(
+            'documentos_favoritos',
+            {
+                'documentos_favoritos': {'documento_id', 'usuario_id'},
+                'documentos': {'id', 'organizacion_id'},
+                'usuarios': {'id', 'organizacion_id'},
+            },
+            self.organization_id,
+        )
+
+        self.assertIn(' AND ', clause)
+        self.assertIn('IS NULL', clause)
+        self.assertEqual(params, [self.organization_id, self.organization_id])
+
+    def test_postgres_snapshot_uses_repeatable_read_transaction(self):
+        cursor = MagicMock()
+        cursor.__enter__.return_value = cursor
+        connection = SimpleNamespace(vendor='postgresql', cursor=MagicMock(return_value=cursor))
+        with (
+            patch('documentos.backup_service.connection', connection),
+            patch('documentos.backup_service.transaction.atomic', return_value=nullcontext()),
+        ):
+            with database_snapshot_transaction() as metadata:
+                self.assertEqual(metadata['isolation_level'], 'REPEATABLE READ')
+                self.assertTrue(metadata['read_only'])
+
+        cursor.execute.assert_called_once_with('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY')
+
+    @override_settings(SECRET_KEY='backup-snapshot-secret')
+    def test_backup_archive_contains_reconstruction_artifacts(self):
+        database = {
+            'schema': 'gestion_documental',
+            'organization_id': str(self.organization_id),
+            'snapshot': {'isolation_level': 'REPEATABLE READ', 'read_only': True},
+            'table_load_order': ['organizaciones'],
+            'sequences': [{'sequence_name': 'example_id_seq', 'last_value': 4}],
+            'tables': [{'name': 'organizaciones', 'columns': ['id'], 'rows': [{'id': str(self.organization_id)}]}],
+        }
+        schema = {'name': 'gestion_documental', 'tables': [{'name': 'organizaciones'}], 'constraints': []}
+        metadata = {'isolation_level': 'REPEATABLE READ', 'read_only': True}
+        with (
+            patch('documentos.backup_service.database_snapshot_transaction', return_value=nullcontext(metadata)),
+            patch('documentos.backup_service._build_database_snapshot', return_value=(database, 1, schema, database['sequences'])),
+            patch('documentos.backup_service.build_storage_snapshot', return_value=([], [])),
+        ):
+            payload, stats = build_backup_archive(self.organization_id)
+
+        with ZipFile(BytesIO(decrypt_archive(payload))) as archive:
+            names = set(archive.namelist())
+            manifest = json.loads(archive.read('manifest.json'))
+            reconstruction = json.loads(archive.read('reconstruction.json'))
+
+        self.assertTrue({'database.json', 'schema.json', 'sequences.json', 'reconstruction.json', 'RECONSTRUCCION.md'}.issubset(names))
+        self.assertEqual(manifest['format'], BACKUP_FORMAT)
+        self.assertEqual(manifest['database_records'], 1)
+        self.assertEqual(reconstruction['organization_id'], str(self.organization_id))
+        self.assertEqual(stats['schema_tables'], 1)
+        self.assertEqual(stats['sequences'], 1)
+
+    def test_storage_snapshot_rejects_changed_file_content(self):
+        item = SimpleNamespace(
+            id=uuid4(),
+            documento_id=uuid4(),
+            clave_almacenamiento='documentos/file.pdf',
+            nombre_archivo_original='file.pdf',
+            tamano_bytes=4,
+            sha256=hashlib.sha256(b'good').hexdigest(),
+            tipo_mime='application/pdf',
+        )
+        queryset = MagicMock()
+        queryset.only.return_value = queryset
+        queryset.iterator.return_value = [item]
+        with (
+            patch('documentos.backup_service.ArchivoDocumento.objects.filter', return_value=queryset),
+            patch('documentos.backup_service.default_storage.exists', return_value=True),
+            patch('documentos.backup_service.default_storage.open', return_value=BytesIO(b'bad!')),
+            ZipFile(BytesIO(), 'w') as archive,
+        ):
+            with self.assertRaisesMessage(BackupExecutionError, 'suma de comprobacion'):
+                build_storage_snapshot(self.organization_id, archive)
+
+    @override_settings(SECRET_KEY='backup-snapshot-secret')
+    def test_v2_archive_requires_reconstruction_artifacts(self):
+        archive_buffer = BytesIO()
+        with ZipFile(archive_buffer, 'w') as archive:
+            archive.writestr(
+                'manifest.json',
+                json.dumps({'format': BACKUP_FORMAT, 'organization_id': str(self.organization_id)}),
+            )
+        payload = encrypt_archive(archive_buffer.getvalue())
+        backup = SimpleNamespace(
+            clave_almacenamiento='respaldos/test.sdbk',
+            sha256=hashlib.sha256(payload).hexdigest(),
+        )
+        with patch('documentos.backup_service.default_storage.open', return_value=BytesIO(payload)):
+            with self.assertRaisesMessage(BackupExecutionError, 'artefactos de reconstruccion'):
+                load_backup_archive(backup)
+
+    def test_verification_does_not_mark_backup_as_restored(self):
+        archive = MagicMock()
+        archive.read.return_value = json.dumps({'tables': []}).encode('utf-8')
+        archive.close.return_value = None
+        manifest = {
+            'format': BACKUP_FORMAT,
+            'organization_id': str(self.organization_id),
+            'database_records': 0,
+            'files': [],
+            'missing_files': [],
+            'complete': True,
+        }
+        backup = SimpleNamespace(restaurado_en=None, save=MagicMock())
+        with patch('documentos.backup_service.load_backup_archive', return_value=(archive, manifest)):
+            result = verify_backup(backup)
+
+        self.assertTrue(result['valid'])
+        self.assertIsNone(backup.restaurado_en)
+        backup.save.assert_not_called()
 
 
 class SettingsSecurityTests(SimpleTestCase):
