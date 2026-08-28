@@ -28,7 +28,13 @@ from .management_views import (
     serialize_dashboard_document,
 )
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
-from .document_views import DocumentFileDownloadView, DocumentPermissionsView, compare_versions, validate_metadata
+from .document_views import (
+    DocumentFileDownloadView,
+    DocumentPermissionsView,
+    compare_versions,
+    ensure_document_directly_editable,
+    validate_metadata,
+)
 from .file_validation import validate_uploaded_file
 from .models import ConfiguracionSistema, Documento, Organizacion, document_file_upload_to
 from .permissions import HasDocumentalPermission, IsAuthenticatedAndPasswordCurrent
@@ -1174,6 +1180,24 @@ class AuthApiTests(SimpleTestCase):
         check_password.assert_called_once_with('Actual123!', 'old-encoded-password')
         make_password.assert_called_once_with('StrongDifferent987!')
         record_auth_event.assert_called_once()
+
+
+class DocumentEditingTests(SimpleTestCase):
+    def test_direct_edit_is_blocked_for_review_approved_and_published_versions(self):
+        document = SimpleNamespace(id=uuid4())
+        for state_code in ('EN_REVISION', 'APROBADO', 'PUBLICADO'):
+            with self.subTest(state_code=state_code):
+                version = SimpleNamespace(estado_version=SimpleNamespace(codigo=state_code))
+                with patch('documentos.document_views.current_version', return_value=version):
+                    with self.assertRaises(ValidationError) as error:
+                        ensure_document_directly_editable(document)
+
+                self.assertEqual(error.exception.detail['code'], 'DOCUMENT_VERSION_LOCKED')
+
+    def test_direct_edit_is_allowed_without_a_locked_current_version(self):
+        document = SimpleNamespace(id=uuid4())
+        with patch('documentos.document_views.current_version', return_value=None):
+            self.assertIsNone(ensure_document_directly_editable(document))
 
 
 class DocumentPermissionsTests(SimpleTestCase):

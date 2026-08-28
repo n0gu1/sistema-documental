@@ -8,6 +8,11 @@ function EditIcon({ name, size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
+function directEditLocked(status) {
+  const code = typeof status === 'string' ? status : status?.code
+  return ['EN_REVISION', 'APROBADO', 'PUBLICADO'].includes(code)
+}
+
 function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   const [loadedDocument, setLoadedDocument] = useState(document || {})
   const [loadError, setLoadError] = useState('')
@@ -39,6 +44,7 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
 
   async function saveDraft() {
     if (!document?.id) return onAction('No se encontró el documento seleccionado.')
+    if (directEditLocked(loadedDocument.status)) return onAction('La versión actual no permite modificaciones directas. Cree una nueva versión en borrador.')
     setSaveError('')
     try {
       const data = await apiRequest(`/api/documents/${document.id}/`, { method: 'PATCH', body: { title, description, metadata: { ...(loadedDocument.metadata || {}), classification, keywords, scope } } })

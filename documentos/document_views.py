@@ -45,6 +45,7 @@ from .serializers import DocumentPermissionsSerializer
 READ_PERMISSION = 'documentos.consultar'
 WRITE_PERMISSION = 'documentos.gestionar'
 PREVIEWABLE_MIMES = {'application/pdf', 'image/jpeg', 'image/png'}
+DIRECT_EDIT_BLOCKED_STATES = {'EN_REVISION', 'APROBADO', 'PUBLICADO'}
 logger = logging.getLogger(__name__)
 
 
@@ -122,6 +123,16 @@ def page_queryset(queryset, params):
 
 def current_version(document):
     return document.archivos.select_related('estado_version').filter(es_vigente=True).first() or document.archivos.select_related('estado_version').first()
+
+
+def ensure_document_directly_editable(document):
+    version = current_version(document)
+    state_code = version.estado_version.codigo if version else None
+    if state_code in DIRECT_EDIT_BLOCKED_STATES:
+        raise ValidationError({
+            'code': 'DOCUMENT_VERSION_LOCKED',
+            'detail': f'No se puede modificar directamente un documento en estado {state_code}. Cree una nueva version en BORRADOR.',
+        })
 
 
 def serialize_version(document_file, request):
@@ -531,6 +542,7 @@ class DocumentDetailView(APIView):
     def patch(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
+        ensure_document_directly_editable(document)
         serializer = DocumentUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
