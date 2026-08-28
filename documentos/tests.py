@@ -30,9 +30,12 @@ from .management_views import (
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
 from .document_views import (
     DocumentFileDownloadView,
+    DocumentDetailView,
     DocumentPermissionsView,
+    DocumentUnarchiveView,
     compare_versions,
     ensure_document_directly_editable,
+    unarchive_document,
     validate_metadata,
 )
 from .file_validation import validate_uploaded_file
@@ -1198,6 +1201,101 @@ class DocumentEditingTests(SimpleTestCase):
         document = SimpleNamespace(id=uuid4())
         with patch('documentos.document_views.current_version', return_value=None):
             self.assertIsNone(ensure_document_directly_editable(document))
+
+
+class DocumentLifecycleTests(SimpleTestCase):
+    @patch('documentos.document_views.record_document_event')
+    @patch('documentos.document_views.get_document_or_404')
+    @patch('documentos.document_views.require_permission')
+    @patch('documentos.document_views.timezone.now')
+    def test_delete_archives_document_without_destroying_history(
+        self,
+        now_mock,
+        require_permission,
+        get_document,
+        record_event,
+    ):
+        document_id = uuid4()
+        archived_at = timezone.now()
+        document = SimpleNamespace(
+            id=document_id,
+            eliminado_en=None,
+            eliminado_por_id=None,
+            motivo_eliminacion=None,
+            actualizado_en=None,
+            save=MagicMock(),
+        )
+        administrator = SimpleNamespace(id=uuid4())
+        request = SimpleNamespace(user=administrator, data={'reason': 'Retiro controlado'})
+        now_mock.return_value = archived_at
+        get_document.return_value = document
+
+        response = DocumentDetailView().delete(request, document_id)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(document.eliminado_en, archived_at)
+        self.assertEqual(document.eliminado_por_id, administrator.id)
+        self.assertEqual(document.motivo_eliminacion, 'Retiro controlado')
+        document.save.assert_called_once_with(
+            update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'],
+        )
+        record_event.assert_called_once_with(request, document, 'DOCUMENTO_ARCHIVADO')
+
+    @patch('documentos.document_views.serialize_document', return_value={'id': 'documento-restaurado'})
+    @patch('documentos.document_views.record_document_event')
+    @patch('documentos.document_views.get_document_or_404')
+    @patch('documentos.document_views.require_permission')
+    @patch('documentos.document_views.timezone.now')
+    def test_unarchive_restores_document_and_keeps_versions(
+        self,
+        now_mock,
+        require_permission,
+        get_document,
+        record_event,
+        serialize_document,
+    ):
+        document_id = uuid4()
+        restored_at = timezone.now()
+        document = SimpleNamespace(
+            id=document_id,
+            eliminado_en=restored_at - timedelta(days=1),
+            eliminado_por_id=uuid4(),
+            motivo_eliminacion='Retiro controlado',
+            actualizado_en=None,
+            save=MagicMock(),
+        )
+        request = SimpleNamespace(user=SimpleNamespace(id=uuid4()), data={})
+        now_mock.return_value = restored_at
+        get_document.return_value = document
+
+        response = DocumentUnarchiveView().post(request, document_id)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(document.eliminado_en)
+        self.assertIsNone(document.eliminado_por_id)
+        self.assertIsNone(document.motivo_eliminacion)
+        document.save.assert_called_once_with(
+            update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'],
+        )
+        get_document.assert_called_once_with(request, document_id, include_archived=True)
+        record_event.assert_called_once_with(request, document, 'DOCUMENTO_MODIFICADO')
+        serialize_document.assert_called_once_with(document, request)
+
+    def test_unarchive_document_clears_only_logical_deletion_fields(self):
+        document = SimpleNamespace(
+            eliminado_en=timezone.now(),
+            eliminado_por_id=uuid4(),
+            motivo_eliminacion='Archivado',
+            actualizado_en=None,
+            save=MagicMock(),
+        )
+
+        unarchive_document(document)
+
+        self.assertIsNone(document.eliminado_en)
+        self.assertIsNone(document.eliminado_por_id)
+        self.assertIsNone(document.motivo_eliminacion)
+        document.save.assert_called_once()
 
 
 class DocumentPermissionsTests(SimpleTestCase):

@@ -49,11 +49,13 @@ DIRECT_EDIT_BLOCKED_STATES = {'EN_REVISION', 'APROBADO', 'PUBLICADO'}
 logger = logging.getLogger(__name__)
 
 
-def document_queryset(organization_id):
-    return Documento.objects.filter(
+def document_queryset(organization_id, include_archived=False):
+    queryset = Documento.objects.filter(
         organizacion_id=organization_id,
-        eliminado_en__isnull=True,
     ).select_related('area', 'tipo_documento', 'creado_por')
+    if not include_archived:
+        queryset = queryset.filter(eliminado_en__isnull=True)
+    return queryset
 
 
 def parse_filter_date(value, field_name, end=False):
@@ -123,6 +125,23 @@ def page_queryset(queryset, params):
 
 def current_version(document):
     return document.archivos.select_related('estado_version').filter(es_vigente=True).first() or document.archivos.select_related('estado_version').first()
+
+
+def archive_document(document, user, reason='Archivado por el usuario'):
+    now = timezone.now()
+    document.eliminado_en = now
+    document.eliminado_por_id = user.id
+    document.motivo_eliminacion = reason or 'Archivado por el usuario'
+    document.actualizado_en = now
+    document.save(update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'])
+
+
+def unarchive_document(document):
+    document.eliminado_en = None
+    document.eliminado_por_id = None
+    document.motivo_eliminacion = None
+    document.actualizado_en = timezone.now()
+    document.save(update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'])
 
 
 def ensure_document_directly_editable(document):
@@ -460,7 +479,11 @@ class DocumentListCreateView(APIView):
                 'next_offset': offset + limit if offset + limit < total else None,
                 'results': [serialize_reader_document(document, request) for document in page],
             })
-        queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
+        include_archived = request.query_params.get('include_archived') == 'true'
+        queryset = apply_document_filters(
+            document_queryset(request.user.organizacion_id, include_archived=include_archived),
+            request.query_params,
+        )
         documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
         total = len(documents)
         try:
@@ -578,12 +601,8 @@ class DocumentDetailView(APIView):
     def delete(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
-        record_document_event(request, document, 'DOCUMENTO_ELIMINADO')
-        files = list(document.archivos.all())
-        with transaction.atomic():
-            for document_file in files:
-                default_storage.delete(document_file.clave_almacenamiento)
-            document.delete()
+        archive_document(document, request.user, request.data.get('reason'))
+        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO')
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -642,12 +661,24 @@ class DocumentArchiveView(APIView):
     def post(self, request, document_id):
         require_permission(request, WRITE_PERMISSION)
         document = get_document_or_404(request, document_id)
-        document.eliminado_en = timezone.now()
-        document.eliminado_por_id = request.user.id
-        document.motivo_eliminacion = request.data.get('reason') or 'Archivado por el usuario'
-        document.actualizado_en = timezone.now()
-        document.save(update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'])
+        archive_document(document, request.user, request.data.get('reason'))
         record_document_event(request, document, 'DOCUMENTO_ARCHIVADO')
+        return Response({'document': serialize_document(document, request)})
+
+
+class DocumentUnarchiveView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def post(self, request, document_id):
+        require_permission(request, WRITE_PERMISSION)
+        document = get_document_or_404(request, document_id, include_archived=True)
+        if not document.eliminado_en:
+            return Response(
+                {'code': 'DOCUMENT_NOT_ARCHIVED', 'detail': 'El documento no esta archivado.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        unarchive_document(document)
+        record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
         return Response({'document': serialize_document(document, request)})
 
 

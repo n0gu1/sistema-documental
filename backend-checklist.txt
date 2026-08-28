@@ -78,7 +78,7 @@ ORDEN RECOMENDADO
 [x] Crear modelo de archivos asociados. Adaptado a `versiones_documento` y verificado en Render.
 [x] Implementar crear documentos. Verificado con autenticacion, metadatos y archivo PDF.
 [x] Implementar editar documentos. La modificación directa de datos y metadatos queda bloqueada cuando la versión está en revisión, aprobada o publicada; para continuar se debe crear una nueva versión en borrador.
-[~] Implementar eliminar y archivar documentos. Existe borrado fisico y archivado logico; falta evitar la destruccion del historial y permitir desarchivar.
+[x] Implementar eliminar y archivar documentos. DELETE y archivado realizan baja lógica, conservan el historial y los archivos, y existe endpoint para desarchivar.
 [x] Implementar carga de archivos. Verificada con Backblaze B2.
 [x] Validar extension, MIME, tamano y contenido de archivos.
 [x] Implementar almacenamiento privado de archivos. Verificado mediante Backblaze B2.
@@ -89,12 +89,12 @@ ORDEN RECOMENDADO
 [~] Implementar ordenamiento y paginacion. El backend pagina; falta paginacion remota completa en el frontend para acceder a registros posteriores a los primeros 100.
 [~] Implementar exportacion del listado documental. Falta aplicar permisos por area/documento y registrar la exportacion en auditoria.
 [ ] Asegurar que la creacion y el cambio de area de un documento respeten el area autorizada del usuario.
-[ ] Hacer transaccionalmente segura la eliminacion fisica de archivos, o sustituirla por eliminacion logica obligatoria.
+[x] Hacer transaccionalmente segura la eliminacion fisica de archivos, o sustituirla por eliminacion logica obligatoria. La aplicación ya no elimina físicamente documentos ni sus archivos.
 
 5. VERSIONAMIENTO
-[~] Crear versiones inmutables de documentos. No existen endpoints de edicion de versiones, pero el borrado fisico del documento destruye todas las versiones y archivos.
+[x] Crear versiones inmutables de documentos. No existen endpoints de edicion de versiones y la baja lógica ya no destruye versiones ni archivos.
 [x] Registrar autor, fecha, tamano y comentario de cada version.
-[~] Mantener historial completo de versiones. El historial se pierde si el documento se elimina fisicamente.
+[x] Mantener historial completo de versiones. El archivado y DELETE conservan el historial y permiten recuperar el documento mediante desarchivado.
 [x] Implementar comparacion entre versiones mediante SHA-256 y metadatos de archivo.
 [x] Implementar descarga de versiones.
 [~] Implementar linea de tiempo documental. Actualmente solo incluye la creacion de versiones; faltan envios, asignaciones, comentarios, devoluciones, rechazos, aprobaciones, publicaciones, descargas y restauraciones.

@@ -38,6 +38,7 @@ urlpatterns = [
     path('documents/<uuid:document_id>/', document_views.DocumentDetailView.as_view(), name='document-detail'),
     path('documents/<uuid:document_id>/permissions/', document_views.DocumentPermissionsView.as_view(), name='document-permissions'),
     path('documents/<uuid:document_id>/archive/', document_views.DocumentArchiveView.as_view(), name='document-archive'),
+    path('documents/<uuid:document_id>/unarchive/', document_views.DocumentUnarchiveView.as_view(), name='document-unarchive'),
     path('documents/<uuid:document_id>/files/', document_views.DocumentFileListCreateView.as_view(), name='document-files'),
     path('documents/<uuid:document_id>/versions/', document_views.DocumentVersionListView.as_view(), name='document-versions'),
     path('documents/<uuid:document_id>/versions/compare/', document_views.DocumentVersionCompareView.as_view(), name='document-version-compare'),
