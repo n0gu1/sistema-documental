@@ -27,13 +27,14 @@ from .management_views import (
     device_fingerprint,
     serialize_dashboard_document,
 )
-from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer
+from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, VersionRestoreSerializer
 from .document_views import (
     DocumentFileDownloadView,
     DocumentDetailView,
     DocumentExportView,
     DocumentPermissionsView,
     DocumentUnarchiveView,
+    DocumentVersionRestoreView,
     compare_versions,
     ensure_document_directly_editable,
     ensure_area_authorized,
@@ -804,6 +805,112 @@ class TimelineTests(SimpleTestCase):
         self.assertEqual(event['type'], 'document_restored')
         self.assertIsNone(event['version'])
         self.assertEqual(event['comment'], 'Reincorporacion solicitada')
+
+
+class VersionRestoreTests(SimpleTestCase):
+    def test_restore_serializer_sanitizes_comment(self):
+        serializer = VersionRestoreSerializer(data={'comment': '<p>Volver a la version aprobada.</p>'})
+
+        self.assertTrue(serializer.is_valid())
+        self.assertEqual(serializer.validated_data['comment'], 'Volver a la version aprobada.')
+
+    @patch('documentos.document_views.transaction.atomic')
+    @patch('documentos.document_views.record_document_event')
+    @patch('documentos.document_views.serialize_version')
+    @patch('documentos.document_views.HistorialEstadoVersion.objects.create')
+    @patch('documentos.document_views.ArchivoDocumento.objects.create')
+    @patch('documentos.document_views.EstadoVersionCatalogo.objects.get')
+    @patch('documentos.document_views.default_storage')
+    @patch('documentos.document_views.open_stored_file')
+    @patch('documentos.document_views.get_document_version_or_404')
+    @patch('documentos.document_views.require_permission')
+    def test_restore_creates_new_version_and_preserves_source(
+        self,
+        require_permission,
+        get_version,
+        open_file,
+        storage,
+        get_state,
+        create_version,
+        create_history,
+        serialize_version_mock,
+        record_event,
+        atomic_mock,
+    ):
+        document_id = uuid4()
+        source_id = uuid4()
+        document = SimpleNamespace(id=document_id, organizacion_id=uuid4(), archivos=MagicMock())
+        source_state = SimpleNamespace(id=1, codigo='PUBLICADO', nombre='Publicado')
+        draft_state = SimpleNamespace(id=2, codigo='BORRADOR', nombre='Borrador')
+        provider = SimpleNamespace(id=uuid4())
+        source = SimpleNamespace(
+            id=source_id,
+            es_vigente=False,
+            numero_mayor=1,
+            numero_menor=2,
+            orden_version=2,
+            nombre_archivo_original='politica.pdf',
+            proveedor_almacenamiento=provider,
+            tipo_mime='application/pdf',
+            tamano_bytes=25,
+            sha256='a' * 64,
+            estado_version=source_state,
+        )
+        latest = SimpleNamespace(id=uuid4(), numero_mayor=3, orden_version=3)
+        restored = SimpleNamespace(
+            id=uuid4(),
+            estado_version=draft_state,
+            numero_mayor=4,
+            numero_menor=0,
+            orden_version=4,
+        )
+        document.archivos.select_for_update.return_value.order_by.return_value.first.return_value = latest
+        get_version.return_value = (document, source)
+        open_file.return_value = BytesIO(b'%PDF-1.7 restored')
+        storage.save.return_value = 'org/doc/restored.pdf'
+        get_state.return_value = draft_state
+        create_version.return_value = restored
+        serialize_version_mock.side_effect = [{'id': 'restored'}, {'id': 'source'}]
+        atomic_mock.return_value.__enter__.return_value = None
+        request = APIRequestFactory().post('/api/documents/restore/', {'comment': 'Version aprobada'}, format='json')
+        request.data = {'comment': 'Version aprobada'}
+        request.user = SimpleNamespace(id=uuid4())
+        request.auth = None
+
+        response = DocumentVersionRestoreView().post(request, document_id, source_id)
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data['version'], {'id': 'restored'})
+        self.assertEqual(response.data['restored_from'], {'id': 'source'})
+        document.archivos.filter.assert_called_once_with(es_vigente=True)
+        document.archivos.filter.return_value.update.assert_called_once_with(es_vigente=False)
+        create_version.assert_called_once()
+        created = create_version.call_args.kwargs
+        self.assertEqual(created['documento'], document)
+        self.assertEqual(created['proveedor_almacenamiento'], provider)
+        self.assertEqual(created['numero_mayor'], 4)
+        self.assertEqual(created['orden_version'], 4)
+        self.assertEqual(created['sha256'], source.sha256)
+        self.assertEqual(created['comentario_cambio'], 'Version aprobada')
+        create_history.assert_called_once()
+        record_event.assert_called_once()
+        self.assertEqual(record_event.call_args.args[2], 'VERSION_RESTAURADA')
+        self.assertEqual(record_event.call_args.kwargs['resource_id'], restored.id)
+        self.assertEqual(record_event.call_args.kwargs['details']['source_version_id'], str(source.id))
+
+    @patch('documentos.document_views.get_document_version_or_404')
+    @patch('documentos.document_views.require_permission')
+    def test_restore_rejects_current_version(self, require_permission, get_version):
+        source = SimpleNamespace(es_vigente=True)
+        get_version.return_value = (SimpleNamespace(), source)
+        request = APIRequestFactory().post('/api/documents/restore/', {}, format='json')
+        request.data = {}
+        request.user = SimpleNamespace(id=uuid4())
+
+        response = DocumentVersionRestoreView().post(request, uuid4(), uuid4())
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.data['code'], 'VERSION_ALREADY_CURRENT')
 
 
 class WorkflowTests(SimpleTestCase):

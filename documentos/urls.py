@@ -41,6 +41,7 @@ urlpatterns = [
     path('documents/<uuid:document_id>/unarchive/', document_views.DocumentUnarchiveView.as_view(), name='document-unarchive'),
     path('documents/<uuid:document_id>/files/', document_views.DocumentFileListCreateView.as_view(), name='document-files'),
     path('documents/<uuid:document_id>/versions/', document_views.DocumentVersionListView.as_view(), name='document-versions'),
+    path('documents/<uuid:document_id>/versions/<uuid:version_id>/restore/', document_views.DocumentVersionRestoreView.as_view(), name='document-version-restore'),
     path('documents/<uuid:document_id>/versions/compare/', document_views.DocumentVersionCompareView.as_view(), name='document-version-compare'),
     path('documents/<uuid:document_id>/timeline/', document_views.DocumentVersionTimelineView.as_view(), name='document-version-timeline'),
     path(

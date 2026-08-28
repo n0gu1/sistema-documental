@@ -5,6 +5,7 @@ from datetime import datetime, time
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import connection, transaction
 from django.http import FileResponse, Http404, HttpResponse
@@ -17,7 +18,7 @@ from rest_framework.views import APIView
 
 from .auth_utils import record_auth_event, user_has_permission
 from .audit_views import audit_timestamp_column
-from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer
+from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer, VersionRestoreSerializer
 from .file_validation import validate_uploaded_file
 from .management_views import require_permission
 from .models import (
@@ -788,6 +789,88 @@ class DocumentVersionListView(APIView):
         return Response({'version': serialize_version(document_file, request)}, status=status.HTTP_201_CREATED)
 
 
+class DocumentVersionRestoreView(APIView):
+    permission_classes = [IsAuthenticatedAndPasswordCurrent]
+
+    def post(self, request, document_id, version_id):
+        require_permission(request, WRITE_PERMISSION)
+        document, source = get_document_version_or_404(request, document_id, version_id)
+        if source.es_vigente:
+            return Response(
+                {'code': 'VERSION_ALREADY_CURRENT', 'detail': 'La version seleccionada ya es la vigente.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+        serializer = VersionRestoreSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.validated_data.get('comment') or (
+            f'Restaurada desde la version {source.numero_mayor}.{source.numero_menor}'
+        )
+        storage_key = None
+        try:
+            with transaction.atomic():
+                latest = document.archivos.select_for_update().order_by('-orden_version').first()
+                if not latest or latest.id == source.id:
+                    raise ValidationError({'code': 'VERSION_NOT_RESTORABLE', 'detail': 'La version seleccionada no puede restaurarse.'})
+                document.archivos.filter(es_vigente=True).update(es_vigente=False)
+                storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{Path(source.nombre_archivo_original).suffix.lower()}'
+                with open_stored_file(source) as source_file:
+                    storage_key = default_storage.save(storage_name, File(source_file, name=storage_name))
+                restored = ArchivoDocumento.objects.create(
+                    id=uuid4(),
+                    documento=document,
+                    estado_version=EstadoVersionCatalogo.objects.get(codigo='BORRADOR'),
+                    proveedor_almacenamiento=source.proveedor_almacenamiento,
+                    numero_mayor=latest.numero_mayor + 1,
+                    numero_menor=0,
+                    orden_version=latest.orden_version + 1,
+                    es_vigente=True,
+                    nombre_archivo_original=source.nombre_archivo_original,
+                    clave_almacenamiento=storage_key,
+                    tipo_mime=source.tipo_mime,
+                    tamano_bytes=source.tamano_bytes,
+                    sha256=source.sha256,
+                    comentario_cambio=comment,
+                    creada_por=request.user,
+                    creada_en=timezone.now(),
+                )
+                HistorialEstadoVersion.objects.create(
+                    version_documento=restored,
+                    estado_nuevo=restored.estado_version,
+                    cambiado_por=request.user,
+                    comentario=comment,
+                    cambiado_en=timezone.now(),
+                )
+        except Http404:
+            if storage_key:
+                default_storage.delete(storage_key)
+            raise
+        except ValidationError:
+            if storage_key:
+                default_storage.delete(storage_key)
+            raise
+        except Exception as error:
+            if storage_key:
+                default_storage.delete(storage_key)
+            logger.exception('Error al restaurar version %s del documento %s', source.id, document.id)
+            raise ValidationError({'version': 'No se pudo restaurar la version documental.'}) from error
+        record_document_event(
+            request,
+            document,
+            'VERSION_RESTAURADA',
+            resource_code='ARCHIVO',
+            resource_id=restored.id,
+            details={
+                'source_version_id': str(source.id),
+                'source_version': f'{source.numero_mayor}.{source.numero_menor}',
+                'comment': comment,
+            },
+        )
+        return Response({
+            'version': serialize_version(restored, request),
+            'restored_from': serialize_version(source, request),
+        }, status=status.HTTP_201_CREATED)
+
+
 def get_document_version_or_404(request, document_id, version_id):
     document = get_document_or_404(request, document_id)
     version = version_queryset(document).filter(pk=version_id).first()
@@ -818,6 +901,7 @@ TIMELINE_ACTIONS = {
     'DOCUMENTO_MODIFICADO': ('document_updated', 'Documento modificado'),
     'DOCUMENTO_ARCHIVADO': ('document_archived', 'Documento archivado'),
     'DOCUMENTO_RESTAURADO': ('document_restored', 'Documento restaurado'),
+    'VERSION_RESTAURADA': ('version_restored', 'Version restaurada'),
     'REVISION_SOLICITADA': ('review_submitted', 'Revision enviada'),
     'REVISION_ASIGNADA': ('review_assigned', 'Revision asignada'),
     'REVISION_COMENTADA': ('review_commented', 'Comentario agregado'),

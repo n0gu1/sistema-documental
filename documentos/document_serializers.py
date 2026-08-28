@@ -38,3 +38,10 @@ class DocumentUpdateSerializer(DocumentCreateSerializer):
 class DocumentFileSerializer(serializers.Serializer):
     file = serializers.FileField()
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class VersionRestoreSerializer(serializers.Serializer):
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+    def validate_comment(self, value):
+        return sanitize_text(value)
