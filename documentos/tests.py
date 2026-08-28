@@ -39,6 +39,8 @@ from .document_views import (
     ensure_document_directly_editable,
     ensure_area_authorized,
     next_version_numbers,
+    save_document_file,
+    save_metadata,
     serialize_audit_timeline_event,
     unarchive_document,
     validate_metadata,
@@ -835,6 +837,56 @@ class VersionRestoreTests(SimpleTestCase):
 
         self.assertFalse(serializer.is_valid())
         self.assertIn('version_type', serializer.errors)
+
+    def test_upload_from_approved_version_creates_a_new_draft(self):
+        document = SimpleNamespace(
+            id=uuid4(),
+            organizacion_id=uuid4(),
+            archivos=MagicMock(),
+        )
+        document.archivos.select_for_update.return_value.order_by.return_value.first.return_value = SimpleNamespace(
+            numero_mayor=1,
+            numero_menor=0,
+            orden_version=2,
+            estado_version=SimpleNamespace(codigo='APROBADO'),
+        )
+        draft_state = SimpleNamespace(id=10, codigo='BORRADOR')
+        provider = SimpleNamespace(id=20)
+        created_version = SimpleNamespace(id=uuid4())
+        uploaded_file = SimpleNamespace()
+
+        with patch('documentos.document_views.validate_uploaded_file', return_value={
+            'name': 'nuevo.pdf',
+            'mime_type': 'application/pdf',
+            'size': 10,
+            'sha256': 'a' * 64,
+        }), patch('documentos.document_views.ProveedorAlmacenamiento.objects.filter') as providers, patch(
+            'documentos.document_views.EstadoVersionCatalogo.objects.filter',
+        ) as states, patch('documentos.document_views.default_storage') as storage, patch(
+            'documentos.document_views.ArchivoDocumento.objects.create',
+            return_value=created_version,
+        ) as create_version, patch('documentos.document_views.HistorialEstadoVersion.objects.create'), patch(
+            'documentos.document_views.transaction.atomic',
+        ):
+            providers.return_value.order_by.return_value.first.return_value = provider
+            states.return_value.first.return_value = draft_state
+            storage.save.return_value = 'documentos/nuevo.pdf'
+
+            result = save_document_file(document, uploaded_file, SimpleNamespace(id=uuid4()))
+
+        self.assertIs(result, created_version)
+        self.assertIs(create_version.call_args.kwargs['estado_version'], draft_state)
+        self.assertTrue(create_version.call_args.kwargs['es_vigente'])
+
+    def test_metadata_save_is_blocked_for_approved_version(self):
+        document = SimpleNamespace(id=uuid4())
+        version = SimpleNamespace(estado_version=SimpleNamespace(codigo='APROBADO'))
+
+        with patch('documentos.document_views.current_version', return_value=version):
+            with self.assertRaises(ValidationError) as error:
+                save_metadata(document, {'clasificacion': 'interna'})
+
+        self.assertEqual(error.exception.detail['code'], 'DOCUMENT_VERSION_LOCKED')
 
     @patch('documentos.document_views.transaction.atomic')
     @patch('documentos.document_views.record_document_event')

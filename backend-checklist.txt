@@ -117,7 +117,7 @@ ORDEN RECOMENDADO
 [x] Implementar devolucion con observaciones.
 [x] Implementar rechazo.
 [x] Implementar publicacion de versiones.
-[ ] Impedir nuevas cargas y cambios de metadatos sobre versiones aprobadas o publicadas sin crear un nuevo borrador controlado.
+[x] Impedir nuevas cargas y cambios de metadatos sobre versiones aprobadas o publicadas sin crear un nuevo borrador controlado.
 [ ] Completar el envio a revision desde la pantalla del Editor; el boton actual solo muestra un mensaje.
 [ ] Completar la carga de una nueva version desde la pantalla de edicion del Editor.
 [ ] Incorporar en la interfaz la asignacion y reasignacion de revisores.

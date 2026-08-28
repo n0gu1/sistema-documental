@@ -395,6 +395,7 @@ def validate_metadata(metadata):
 def save_metadata(document, metadata):
     if metadata is None:
         return
+    ensure_document_directly_editable(document)
     validate_metadata(metadata)
     MetadatoDocumento.objects.filter(documento_id=document.id).exclude(clave__in=metadata.keys()).delete()
     for key, value in metadata.items():
