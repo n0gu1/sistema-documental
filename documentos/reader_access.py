@@ -6,7 +6,11 @@ from .models import Documento, RegistroAccesoDocumento
 
 
 MANAGEMENT_PERMISSIONS = {
-    'documentos.gestionar',
+    'documentos.crear',
+    'documentos.modificar',
+    'documentos.eliminar',
+    'versiones.crear',
+    'versiones.restaurar',
     'usuarios.consultar',
     'usuarios.gestionar',
     'roles.gestionar',

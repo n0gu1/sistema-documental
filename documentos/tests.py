@@ -2447,7 +2447,7 @@ class DocumentLifecycleTests(SimpleTestCase):
         document.save.assert_called_once_with(
             update_fields=['eliminado_en', 'eliminado_por', 'motivo_eliminacion', 'actualizado_en'],
         )
-        get_document.assert_called_once_with(request, document_id, include_archived=True)
+        get_document.assert_called_once_with(request, document_id, include_archived=True, permission='documentos.eliminar')
         record_event.assert_called_once_with(request, document, 'DOCUMENTO_RESTAURADO')
         serialize_document.assert_called_once_with(document, request)
 
@@ -2517,7 +2517,7 @@ class DocumentPermissionsTests(SimpleTestCase):
             response = DocumentPermissionsView().put(request, document_id)
 
         self.assertEqual(response.status_code, 200)
-        require_permission_mock.assert_called_once_with(request, 'documentos.gestionar')
+        require_permission_mock.assert_called_once_with(request, 'roles.gestionar')
         validate_mock.assert_called_once()
         cursor.execute.assert_called_once_with(
             'DELETE FROM gestion_documental.documentos_roles_permisos WHERE documento_id = %s',

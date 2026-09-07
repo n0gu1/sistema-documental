@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from django.contrib.auth.hashers import make_password
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -50,6 +50,49 @@ def require_permission(request, permission_code):
                 'detail': 'No tiene permisos para realizar esta operacion.',
             },
         )
+
+
+def require_role_assignment_authority(request, role_ids, target_user=None):
+    """A manager may only delegate authority they currently hold in this organization."""
+    organization_id = request.user.organizacion_id
+    now = timezone.now()
+
+    def current_roles(user):
+        return RolDocumental.objects.filter(
+            Q(usuarios_documentales__vigente_hasta__isnull=True)
+            | Q(usuarios_documentales__vigente_hasta__gt=now),
+            organizacion_id=organization_id,
+            activo=True,
+            usuarios_documentales__usuario_id=user.pk,
+        )
+
+    def permissions_for(roles):
+        return set(RolPermisoDocumental.objects.filter(
+            rol__in=roles, permiso__activo=True,
+        ).values_list('permiso__codigo', flat=True))
+
+    actor_roles = current_roles(request.user)
+    if request.user.activo and actor_roles.filter(codigo='ADMINISTRADOR').exists():
+        return
+
+    requested_roles = RolDocumental.objects.filter(
+        id__in=role_ids, organizacion_id=organization_id, activo=True,
+    )
+    actor_permissions = permissions_for(actor_roles)
+    target_roles = current_roles(target_user) if target_user else RolDocumental.objects.none()
+    if (
+        not request.user.activo
+        or 'usuarios.gestionar' not in actor_permissions
+        or requested_roles.filter(codigo='ADMINISTRADOR').exists()
+        or target_roles.filter(codigo='ADMINISTRADOR').exists()
+        or not permissions_for(requested_roles).issubset(actor_permissions)
+        or not permissions_for(target_roles).issubset(actor_permissions)
+    ):
+        record_access_denied(request, 'ROLE_ASSIGNMENT_FORBIDDEN')
+        raise PermissionDenied({
+            'code': 'ROLE_ASSIGNMENT_FORBIDDEN',
+            'detail': 'No tiene autoridad para asignar estos roles o modificar los roles de este usuario.',
+        })
 
 
 def serialize_management_user(user, area_name=None):
@@ -347,7 +390,7 @@ class UserListCreateView(APIView):
                 {'code': 'INVALID_AREA', 'detail': 'El area no pertenece a la organizacion o no esta activa.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        role_ids = data.get('role_ids', [])
+        role_ids = data['role_ids']
         valid_role_ids = set(RolDocumental.objects.filter(
             id__in=role_ids,
             organizacion_id=data['organization_id'],
@@ -358,6 +401,7 @@ class UserListCreateView(APIView):
                 {'code': 'INVALID_ROLE', 'detail': 'Uno o mas roles no pertenecen a la organizacion o no estan activos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        require_role_assignment_authority(request, role_ids)
         if UsuarioDocumental.objects.filter(
             organizacion_id=data['organization_id'],
         ).filter(
@@ -604,6 +648,7 @@ class UserRolesView(APIView):
                 {'code': 'INVALID_ROLE', 'detail': 'Uno o mas roles no son validos.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        require_role_assignment_authority(request, role_ids, target_user=user)
         assign_roles(user, role_ids, request.user.id)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Roles de usuario actualizados')
         return Response({'roles': list(RolDocumental.objects.filter(

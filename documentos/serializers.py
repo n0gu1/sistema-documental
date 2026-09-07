@@ -65,8 +65,12 @@ class UserCreateSerializer(serializers.Serializer):
     temporary_password = serializers.CharField(max_length=128, write_only=True)
     role_ids = serializers.ListField(
         child=serializers.UUIDField(),
-        required=False,
-        allow_empty=True,
+        required=True,
+        allow_empty=False,
+        error_messages={
+            'required': 'Seleccione un rol para crear el usuario.',
+            'empty': 'Seleccione un rol para crear el usuario.',
+        },
     )
 
     def validate_temporary_password(self, value):

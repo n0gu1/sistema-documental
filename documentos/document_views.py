@@ -16,7 +16,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import record_access_denied, record_auth_event, user_has_permission
+from .auth_utils import record_access_denied, record_auth_event
 from .audit_views import audit_timestamp_column
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer, VersionRestoreSerializer
 from .file_validation import validate_uploaded_file
@@ -48,7 +48,14 @@ from .serializers import DocumentPermissionsSerializer
 
 
 READ_PERMISSION = 'documentos.consultar'
-WRITE_PERMISSION = 'documentos.gestionar'
+CREATE_PERMISSION = 'documentos.crear'
+UPDATE_PERMISSION = 'documentos.modificar'
+DELETE_PERMISSION = 'documentos.eliminar'
+DOWNLOAD_PERMISSION = 'documentos.descargar'
+VERSION_READ_PERMISSION = 'versiones.consultar'
+VERSION_CREATE_PERMISSION = 'versiones.crear'
+VERSION_RESTORE_PERMISSION = 'versiones.restaurar'
+ROLE_PERMISSION = 'roles.gestionar'
 PREVIEWABLE_MIMES = {'application/pdf', 'image/jpeg', 'image/png'}
 DIRECT_EDIT_BLOCKED_STATES = {'EN_REVISION', 'APROBADO', 'PUBLICADO'}
 logger = logging.getLogger(__name__)
@@ -262,7 +269,7 @@ def serialize_document(document, request, include_details=False):
     return result
 
 
-def get_document_or_404(request, document_id, include_archived=False):
+def get_document_or_404(request, document_id, include_archived=False, permission=READ_PERMISSION):
     queryset = Documento.objects.filter(organizacion_id=request.user.organizacion_id)
     if not include_archived:
         queryset = queryset.filter(eliminado_en__isnull=True)
@@ -273,7 +280,7 @@ def get_document_or_404(request, document_id, include_archived=False):
     if not has_document_permission(
         request.user,
         document.id,
-        WRITE_PERMISSION if user_has_permission(request.user, WRITE_PERMISSION) else READ_PERMISSION,
+        permission,
     ):
         record_access_denied(request, 'DOCUMENT_ACCESS_REQUIRED', resource_code='DOCUMENTO', resource_id=document.id)
         raise Http404
@@ -533,7 +540,7 @@ class DocumentListCreateView(APIView):
         })
 
     def post(self, request):
-        require_permission(request, WRITE_PERMISSION)
+        require_permission(request, CREATE_PERMISSION)
         serializer = DocumentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -618,14 +625,15 @@ class DocumentDetailView(APIView):
         return Response({'document': serialize_document(document, request, include_details=True)})
 
     def patch(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        require_permission(request, UPDATE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=UPDATE_PERMISSION)
         ensure_document_directly_editable(document)
         serializer = DocumentUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
+            require_permission(request, VERSION_CREATE_PERMISSION)
             validate_uploaded_file(uploaded_file, document.organizacion_id)
         updates = {}
         if 'code' in data:
@@ -662,8 +670,8 @@ class DocumentDetailView(APIView):
         return Response({'document': serialize_document(document, request, include_details=True)})
 
     def delete(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        require_permission(request, DELETE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION)
         archive_document(document, request.user, request.data.get('reason'))
         record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -679,11 +687,11 @@ class DocumentPermissionsView(APIView):
         return document
 
     def get(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
+        require_permission(request, ROLE_PERMISSION)
         return Response(document_permissions_payload(self.get_document(request, document_id)))
 
     def put(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
+        require_permission(request, ROLE_PERMISSION)
         document = self.get_document(request, document_id)
         serializer = DocumentPermissionsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -722,8 +730,8 @@ class DocumentArchiveView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        require_permission(request, DELETE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION)
         archive_document(document, request.user, request.data.get('reason'))
         record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
         return Response({'document': serialize_document(document, request)})
@@ -733,8 +741,8 @@ class DocumentUnarchiveView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id, include_archived=True)
+        require_permission(request, DELETE_PERMISSION)
+        document = get_document_or_404(request, document_id, include_archived=True, permission=DELETE_PERMISSION)
         if not document.eliminado_en:
             return Response(
                 {'code': 'DOCUMENT_NOT_ARCHIVED', 'detail': 'El documento no esta archivado.'},
@@ -758,8 +766,8 @@ class DocumentFileListCreateView(APIView):
         return Response({'files': [serialize_file(item, request) for item in files]})
 
     def post(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        require_permission(request, VERSION_CREATE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=VERSION_CREATE_PERMISSION)
         serializer = DocumentFileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         document_file = save_document_file(
@@ -785,7 +793,7 @@ class DocumentVersionListView(APIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
 
     def get(self, request, document_id):
-        require_permission(request, READ_PERMISSION)
+        require_permission(request, VERSION_READ_PERMISSION)
         document = get_read_document_or_404(request, document_id)
         versions = version_queryset(document)
         if is_reader_user(request.user):
@@ -796,8 +804,8 @@ class DocumentVersionListView(APIView):
         })
 
     def post(self, request, document_id):
-        require_permission(request, WRITE_PERMISSION)
-        document = get_document_or_404(request, document_id)
+        require_permission(request, VERSION_CREATE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=VERSION_CREATE_PERMISSION)
         serializer = DocumentFileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         document_file = save_document_file(
@@ -822,8 +830,8 @@ class DocumentVersionRestoreView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def post(self, request, document_id, version_id):
-        require_permission(request, WRITE_PERMISSION)
-        document, source = get_document_version_or_404(request, document_id, version_id)
+        require_permission(request, VERSION_RESTORE_PERMISSION)
+        document, source = get_document_version_or_404(request, document_id, version_id, permission=VERSION_RESTORE_PERMISSION)
         if source.es_vigente:
             return Response(
                 {'code': 'VERSION_ALREADY_CURRENT', 'detail': 'La version seleccionada ya es la vigente.'},
@@ -904,8 +912,8 @@ class DocumentVersionRestoreView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-def get_document_version_or_404(request, document_id, version_id):
-    document = get_document_or_404(request, document_id)
+def get_document_version_or_404(request, document_id, version_id, permission=READ_PERMISSION):
+    document = get_document_or_404(request, document_id, permission=permission)
     version = version_queryset(document).filter(pk=version_id).first()
     if not version:
         raise Http404
@@ -916,7 +924,7 @@ class DocumentVersionCompareView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id):
-        require_permission(request, READ_PERMISSION)
+        require_permission(request, VERSION_READ_PERMISSION)
         document = get_read_document_or_404(request, document_id)
         first_id = parse_version_id(request.query_params.get('from_version'), 'from_version')
         second_id = parse_version_id(request.query_params.get('to_version'), 'to_version')
@@ -1078,7 +1086,7 @@ class DocumentVersionTimelineView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id):
-        require_permission(request, READ_PERMISSION)
+        require_permission(request, VERSION_READ_PERMISSION)
         document = get_read_document_or_404(request, document_id)
         events = [serialize_version_timeline_event(version) for version in version_queryset(document)
                   if not is_reader_user(request.user) or version.estado_version.codigo == 'PUBLICADO']
@@ -1087,8 +1095,8 @@ class DocumentVersionTimelineView(APIView):
         return Response({'events': events})
 
 
-def get_document_file_or_404(request, document_id, file_id):
-    document = get_document_or_404(request, document_id)
+def get_document_file_or_404(request, document_id, file_id, permission=READ_PERMISSION):
+    document = get_document_or_404(request, document_id, permission=permission)
     document_file = document.archivos.filter(pk=file_id).first()
     if not document_file:
         raise Http404
@@ -1106,14 +1114,14 @@ class DocumentFileDownloadView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id, file_id):
-        require_permission(request, READ_PERMISSION)
+        require_permission(request, DOWNLOAD_PERMISSION)
         if is_reader_user(request.user):
             document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
             document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
             if not document_file:
                 raise Http404
         else:
-            document, document_file = get_document_file_or_404(request, document_id, file_id)
+            document, document_file = get_document_file_or_404(request, document_id, file_id, permission=DOWNLOAD_PERMISSION)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -1123,14 +1131,14 @@ class DocumentFileDownloadView(APIView):
 
 class DocumentVersionDownloadView(DocumentFileDownloadView):
     def get(self, request, document_id, version_id):
-        require_permission(request, READ_PERMISSION)
+        require_permission(request, DOWNLOAD_PERMISSION)
         if is_reader_user(request.user):
             document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
             document_file = document.archivos.filter(pk=version_id, estado_version__codigo='PUBLICADO').first()
             if not document_file:
                 raise Http404
         else:
-            document, document_file = get_document_version_or_404(request, document_id, version_id)
+            document, document_file = get_document_version_or_404(request, document_id, version_id, permission=DOWNLOAD_PERMISSION)
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'

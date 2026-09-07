@@ -25,7 +25,7 @@ function UserIcon({ name, size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-const initialForm = { username: '', email: '', first_name: '', last_name: '', temporary_password: '' }
+const initialForm = { username: '', email: '', first_name: '', last_name: '', temporary_password: '', role_id: '' }
 
 function mapUser(item) {
   const name = item.full_name || `${item.first_name} ${item.last_name}`.trim()
@@ -34,10 +34,57 @@ function mapUser(item) {
     name,
     initials: `${item.first_name?.[0] || ''}${item.last_name?.[0] || ''}` || 'US',
     area: item.area_name || 'Sin área',
-    role: item.roles?.[0]?.name || 'Sin rol',
+    role: item.roles?.map((role) => role.name).join(', ') || 'Sin rol',
     status: item.active ? 'Activo' : 'Suspendido',
     lastAccess: formatDate(item.last_access_at, 'Sin acceso'),
   }
+}
+
+function UserRoleForm({ user, roles, onSaved }) {
+  const currentRole = user.roles?.length === 1 ? roles.find((role) => role.codigo === user.roles[0].code) : null
+  const [roleId, setRoleId] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  useEffect(() => { setRoleId(currentRole?.id || '') }, [currentRole?.id])
+
+  async function saveRole(event) {
+    event.preventDefault()
+    if (saving) return
+    setError('')
+    setNotice('')
+    if (!roleId || !roles.some((role) => role.id === roleId && role.activo)) {
+      setError('Seleccione un rol válido y activo.')
+      return
+    }
+    setSaving(true)
+    let saved = false
+    try {
+      await apiRequest(`/api/admin/users/${user.id}/roles/`, { method: 'PUT', body: { role_ids: [roleId] } })
+      saved = true
+      const result = await apiRequest(`/api/admin/users/${user.id}/`)
+      onSaved(result.user)
+      setNotice('Rol actualizado correctamente.')
+    } catch (requestError) {
+      setError(saved ? `El rol se guardó, pero no se pudo actualizar la consulta. Recargue la página. ${requestError.message}` : requestError.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <form className="users-role-form" onSubmit={saveRole}>
+    <h3>Cambiar rol</h3>
+    <p>Rol actual: <strong>{user.role}</strong></p>
+    <label>Nuevo rol<select required value={roleId} disabled={saving} onChange={(event) => { setRoleId(event.target.value); setNotice(''); setError('') }}>
+      <option value="">Seleccione un rol</option>
+      {roles.map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}
+    </select></label>
+    {user.roles?.length > 1 && <p>El rol seleccionado reemplazará los roles actuales.</p>}
+    <button type="submit" disabled={saving || !roleId || roleId === currentRole?.id}>{saving ? 'Guardando…' : 'Guardar rol'}</button>
+    {error && <p className="users-error" role="alert">{error}</p>}
+    {notice && <p className="users-notice" role="status">{notice}</p>}
+  </form>
 }
 
 function UsersView({ globalQuery = '', organizationId }) {
@@ -76,7 +123,7 @@ function UsersView({ globalQuery = '', organizationId }) {
   useEffect(() => { loadUsers() }, [globalQuery])
 
   useEffect(() => {
-    apiRequest('/api/admin/roles/?limit=100').then((result) => setRoles(result.roles || [])).catch(() => {})
+    apiRequest('/api/admin/roles/?limit=100').then((result) => setRoles((result.roles || []).filter((role) => role.activo))).catch(() => {})
   }, [])
 
   const selectedUser = users.find((item) => item.id === selectedUserId) || null
@@ -98,8 +145,13 @@ function UsersView({ globalQuery = '', organizationId }) {
 
   async function createUser(event) {
     event.preventDefault()
+    if (!form.role_id || !roles.some((role) => role.id === form.role_id)) {
+      setError('Seleccione un rol válido para crear el usuario.')
+      return
+    }
     try {
-      await apiRequest('/api/admin/users/', { method: 'POST', body: { ...form, organization_id: organizationId, role_ids: roles[0] ? [roles[0].id] : [] } })
+      const { role_id, ...userData } = form
+      await apiRequest('/api/admin/users/', { method: 'POST', body: { ...userData, organization_id: organizationId, role_ids: [role_id] } })
       setForm(initialForm)
       setShowCreate(false)
       setNotice('Usuario creado correctamente.')
@@ -159,9 +211,9 @@ function UsersView({ globalQuery = '', organizationId }) {
     <section className="users-filters"><label className="users-filter users-filter--search"><span>Búsqueda</span><div><UserIcon name="search" size={17} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por nombre, usuario o correo..." /></div></label><label className="users-filter"><span>Estado</span><div><select value={status} onChange={(event) => setStatus(event.target.value)}><option>Todos</option><option>Activo</option><option>Suspendido</option></select><UserIcon name="chevron" size={14} /></div></label><button className="users-clear" type="button" onClick={() => { setSearch(''); setStatus('Todos') }}><UserIcon name="filter" size={16} /> Limpiar filtros</button></section>
     {error && <p className="users-error" role="alert">{error}</p>}
     {notice && <p className="users-notice" role="status">{notice}</p>}
-    {showCreate && <form className="users-create-panel" onSubmit={createUser}><h2>Crear usuario</h2><div><label>Usuario<input required value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} /></label><label>Correo<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label><label>Nombres<input required value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} /></label><label>Apellidos<input required value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} /></label><label>Contraseña temporal<input required type="password" value={form.temporary_password} onChange={(event) => setForm({ ...form, temporary_password: event.target.value })} /></label></div><button type="submit">Crear usuario</button><button type="button" onClick={() => setShowCreate(false)}>Cancelar</button></form>}
+    {showCreate && <form className="users-create-panel" onSubmit={createUser}><h2>Crear usuario</h2><div><label>Usuario<input required value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} /></label><label>Correo<input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label><label>Nombres<input required value={form.first_name} onChange={(event) => setForm({ ...form, first_name: event.target.value })} /></label><label>Apellidos<input required value={form.last_name} onChange={(event) => setForm({ ...form, last_name: event.target.value })} /></label><label>Contraseña temporal<input required type="password" value={form.temporary_password} onChange={(event) => setForm({ ...form, temporary_password: event.target.value })} /></label><label>Rol<select required value={form.role_id} onChange={(event) => setForm({ ...form, role_id: event.target.value })}><option value="">Seleccione un rol</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.nombre}</option>)}</select></label></div><button type="submit">Crear usuario</button><button type="button" onClick={() => setShowCreate(false)}>Cancelar</button></form>}
       <section className="users-table-panel"><div className="users-table-scroll"><table><thead><tr><th>Nombre</th><th>Usuario</th><th>Correo</th><th>Área</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Acciones</th></tr></thead><tbody>{visibleUsers.map((user) => <tr className={selectedUserId === user.id ? 'is-selected' : ''} key={user.id} onClick={() => { setSelectedUserId(user.id); setDetailTab('activity') }}><td><span className="users-name"><i className="users-avatar users-avatar--blue">{user.initials}</i><strong>{user.name}</strong></span></td><td>{user.username}</td><td>{user.email}</td><td>{user.area}</td><td>{user.role}</td><td><span className={`users-state users-state--${user.status.toLowerCase()}`}>{user.status}</span></td><td>{user.lastAccess}</td><td><div className="users-row-actions"><button type="button" aria-label={`Cambiar estado de ${user.name}`} onClick={(event) => { event.stopPropagation(); toggleStatus(user) }}><UserIcon name={user.active ? 'lock' : 'shield'} size={16} /></button><button type="button" aria-label={`Restablecer clave de ${user.name}`} onClick={(event) => { event.stopPropagation(); resetPassword(user) }}><UserIcon name="key" size={16} /></button>{user.active && <button type="button" aria-label={`Dar de baja a ${user.name}`} title="Dar de baja lógicamente" onClick={(event) => { event.stopPropagation(); deactivateUser(user) }}><UserIcon name="trash" size={16} /></button>}</div></td></tr>)}</tbody></table>{loading && <div className="users-empty">Cargando usuarios...</div>}{!loading && !visibleUsers.length && <div className="users-empty"><UserIcon name="search" size={24} /><strong>No se encontraron usuarios</strong><span>Pruebe con otros términos o filtros.</span></div>}</div><footer className="users-pagination"><span>Mostrando {visibleUsers.length} de {users.length} usuarios</span></footer></section>
-     {selectedUser && <section className="users-detail-panel"><aside className="users-profile-card"><div className="users-profile-card__heading"><span className="users-profile-avatar users-avatar--blue">{selectedUser.initials}</span><div><h2>{selectedUser.name}</h2><p>{selectedUser.role}</p></div></div><ul><li><UserIcon name="mail" size={15} /><span>{selectedUser.email}</span></li><li><UserIcon name="user" size={15} /><span>{selectedUser.username}</span></li><li><UserIcon name="clock" size={15} /><span>Último acceso: {selectedUser.lastAccess}</span></li></ul></aside><div className="users-detail-main"><nav className="users-detail-tabs"><button className={detailTab === 'activity' ? 'is-active' : ''} type="button" onClick={() => setDetailTab('activity')}>Actividad reciente</button><button className={detailTab === 'sessions' ? 'is-active' : ''} type="button" onClick={() => setDetailTab('sessions')}>Sesiones y dispositivos ({sessionInventory.devices.length})</button></nav><div className="users-detail-content">{detailTab === 'activity' ? <section className="users-activity"><h3>Actividad de {selectedUser.name}</h3>{activity.map((item) => <article key={item.id}><UserIcon name={item.successful ? 'shield' : 'lock'} size={16} /><span>{item.action || item.action_code}</span><time>{formatDate(item.event_at)}</time><small>{item.result || 'Sin resultado'}</small></article>)}{!activity.length && <p className="users-tab-placeholder">No hay actividad registrada para este usuario.</p>}</section> : <div className="users-session-content"><section className="users-devices"><div className="users-section-heading"><div><h3>Dispositivos detectados</h3><span>Agrupados desde las sesiones registradas.</span></div><strong>{sessionInventory.devices.length}</strong></div>{sessionsLoading && <p className="users-tab-placeholder">Cargando dispositivos...</p>}{!sessionsLoading && !sessionInventory.devices.length && <p className="users-tab-placeholder">No hay dispositivos registrados.</p>}{sessionInventory.devices.map((device) => <article className="users-device" key={device.id}><span className="users-device__icon"><UserIcon name="monitor" size={18} /></span><div><strong>{device.name}</strong><small>{device.device_type} · {device.ip_address || 'IP no disponible'}</small><small>Última actividad: {formatDate(device.last_activity_at, 'Sin actividad')} · {device.session_count} sesión(es)</small></div><button type="button" disabled={!device.active} onClick={() => revokeDevice(device)}>{device.active ? 'Revocar' : 'Revocado'}</button></article>)}</section><section className="users-sessions"><div className="users-section-heading"><div><h3>Sesiones registradas</h3><span>Incluye sesiones activas y revocadas.</span></div><strong>{sessionInventory.sessions.length}</strong></div>{sessionsLoading && <p className="users-tab-placeholder">Cargando sesiones...</p>}{!sessionsLoading && !sessionInventory.sessions.length && <p className="users-tab-placeholder">No hay sesiones registradas.</p>}{sessionInventory.sessions.map((session) => <article className="users-session" key={session.id}><div><strong>{session.device_name}</strong><small>{session.ip_address || 'IP no disponible'} · Iniciada: {formatDate(session.started_at)}</small><small>Actividad: {formatDate(session.last_activity_at, 'Sin actividad')}</small>{session.revocation_reason && <small>{session.revocation_reason}</small>}</div><span className={session.active ? 'users-session__active' : 'users-session__revoked'}>{session.active ? 'Activa' : 'Revocada'}</span>{session.active && <button type="button" onClick={() => revokeSession(session)}>Revocar</button>}</article>)}</section></div>}</div></div></section>}
+     {selectedUser && <section className="users-detail-panel"><aside className="users-profile-card"><div className="users-profile-card__heading"><span className="users-profile-avatar users-avatar--blue">{selectedUser.initials}</span><div><h2>{selectedUser.name}</h2><p>{selectedUser.role}</p></div></div><ul><li><UserIcon name="mail" size={15} /><span>{selectedUser.email}</span></li><li><UserIcon name="user" size={15} /><span>{selectedUser.username}</span></li><li><UserIcon name="clock" size={15} /><span>Último acceso: {selectedUser.lastAccess}</span></li></ul><UserRoleForm key={selectedUser.id} user={selectedUser} roles={roles} onSaved={(updatedUser) => setUsers((current) => current.map((item) => item.id === updatedUser.id ? mapUser(updatedUser) : item))} /></aside><div className="users-detail-main"><nav className="users-detail-tabs"><button className={detailTab === 'activity' ? 'is-active' : ''} type="button" onClick={() => setDetailTab('activity')}>Actividad reciente</button><button className={detailTab === 'sessions' ? 'is-active' : ''} type="button" onClick={() => setDetailTab('sessions')}>Sesiones y dispositivos ({sessionInventory.devices.length})</button></nav><div className="users-detail-content">{detailTab === 'activity' ? <section className="users-activity"><h3>Actividad de {selectedUser.name}</h3>{activity.map((item) => <article key={item.id}><UserIcon name={item.successful ? 'shield' : 'lock'} size={16} /><span>{item.action || item.action_code}</span><time>{formatDate(item.event_at)}</time><small>{item.result || 'Sin resultado'}</small></article>)}{!activity.length && <p className="users-tab-placeholder">No hay actividad registrada para este usuario.</p>}</section> : <div className="users-session-content"><section className="users-devices"><div className="users-section-heading"><div><h3>Dispositivos detectados</h3><span>Agrupados desde las sesiones registradas.</span></div><strong>{sessionInventory.devices.length}</strong></div>{sessionsLoading && <p className="users-tab-placeholder">Cargando dispositivos...</p>}{!sessionsLoading && !sessionInventory.devices.length && <p className="users-tab-placeholder">No hay dispositivos registrados.</p>}{sessionInventory.devices.map((device) => <article className="users-device" key={device.id}><span className="users-device__icon"><UserIcon name="monitor" size={18} /></span><div><strong>{device.name}</strong><small>{device.device_type} · {device.ip_address || 'IP no disponible'}</small><small>Última actividad: {formatDate(device.last_activity_at, 'Sin actividad')} · {device.session_count} sesión(es)</small></div><button type="button" disabled={!device.active} onClick={() => revokeDevice(device)}>{device.active ? 'Revocar' : 'Revocado'}</button></article>)}</section><section className="users-sessions"><div className="users-section-heading"><div><h3>Sesiones registradas</h3><span>Incluye sesiones activas y revocadas.</span></div><strong>{sessionInventory.sessions.length}</strong></div>{sessionsLoading && <p className="users-tab-placeholder">Cargando sesiones...</p>}{!sessionsLoading && !sessionInventory.sessions.length && <p className="users-tab-placeholder">No hay sesiones registradas.</p>}{sessionInventory.sessions.map((session) => <article className="users-session" key={session.id}><div><strong>{session.device_name}</strong><small>{session.ip_address || 'IP no disponible'} · Iniciada: {formatDate(session.started_at)}</small><small>Actividad: {formatDate(session.last_activity_at, 'Sin actividad')}</small>{session.revocation_reason && <small>{session.revocation_reason}</small>}</div><span className={session.active ? 'users-session__active' : 'users-session__revoked'}>{session.active ? 'Activa' : 'Revocada'}</span>{session.active && <button type="button" onClick={() => revokeSession(session)}>Revocar</button>}</article>)}</section></div>}</div></div></section>}
   </div>
 }
 
