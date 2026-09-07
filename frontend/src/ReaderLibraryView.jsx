@@ -1,3 +1,4 @@
+import { PermissionButton } from './Permissions'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
   apiRequest,
@@ -309,13 +310,13 @@ function ReaderLibraryView({ onAction, onNavigate }) {
                             <LibraryIcon name="eye" size={16} />
                           </button>
                           {document.downloadUrl && (
-                            <button
+                            <PermissionButton permission="documentos.descargar"
                               type="button"
                               aria-label={`Descargar ${document.title}`}
                               onClick={() => downloadFile(document.downloadUrl)}
                             >
                               <LibraryIcon name="download" size={16} />
-                            </button>
+                            </PermissionButton>
                           )}
                           <button
                             className={document.favorite ? "is-favorite" : ""}

@@ -1,3 +1,5 @@
+import { PermissionProvider } from './Permissions'
+import { workspaceFor } from './permissionPolicy'
 import { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
@@ -179,13 +181,15 @@ function Login() {
 
   useEffect(() => {
     let active = true
-    apiRequest('/api/auth/me/')
+    const refreshSession = () => apiRequest('/api/auth/me/')
       .catch(() => null)
       .then((data) => {
         if (active && data?.user) setUser(data.user)
       })
       .catch(() => {})
-    return () => { active = false }
+    refreshSession()
+    window.addEventListener('focus', refreshSession)
+    return () => { active = false; window.removeEventListener('focus', refreshSession) }
   }, [])
 
   async function handleLogin(event) {
@@ -261,25 +265,22 @@ function Login() {
     if (documentId) setReaderDocumentId(documentId)
   }
 
-  const isAdministrator = user?.roles?.some((role) => role.code === 'ADMINISTRADOR')
-  const isEditor = user?.roles?.some((role) => role.code === 'EDITOR')
-  const isReviewer = user?.roles?.some((role) => ['REVISOR', 'REVIEWER'].includes(role.code))
-  const isReader = user?.roles?.some((role) => role.code === 'LECTOR')
+  const workspace = workspaceFor(user)
 
-  if (user && !user.must_change_password && isAdministrator) {
-    return <Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+  if (user && !user.must_change_password && workspace === 'management') {
+    return <PermissionProvider user={user}><Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
-  if (user && !user.must_change_password && isEditor) {
-    return <EditorDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+  if (user && !user.must_change_password && workspace === 'editor') {
+    return <PermissionProvider user={user}><EditorDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
-  if (user && !user.must_change_password && isReviewer) {
-    return <ReviewerDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} />
+  if (user && !user.must_change_password && workspace === 'reviewer') {
+    return <PermissionProvider user={user}><ReviewerDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
-  if (user && !user.must_change_password && isReader) {
-    return <><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} onNavigate={openReaderView} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}</>
+  if (user && !user.must_change_password && workspace === 'reader') {
+    return <PermissionProvider user={user}><><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} onNavigate={openReaderView} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}</></PermissionProvider>
   }
 
   return (

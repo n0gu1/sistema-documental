@@ -1,3 +1,4 @@
+import { PermissionButton, PermissionForm } from './Permissions'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
   apiRequest,
@@ -364,20 +365,20 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
             {today}
           </div>
           <div className="documents-toolbar">
-            <button
+            <PermissionButton permission="documentos.crear"
               className="documents-button documents-button--primary"
               type="button"
               onClick={() => openCreate("create")}
             >
               <DocumentViewIcon name="plus" size={19} /> Nuevo documento
-            </button>
-            <button
+            </PermissionButton>
+            <PermissionButton permission="documentos.crear"
               className="documents-button"
               type="button"
               onClick={() => openCreate("upload")}
             >
               <DocumentViewIcon name="upload" size={19} /> Subir documento
-            </button>
+            </PermissionButton>
             <button
               className="documents-button"
               type="button"
@@ -684,7 +685,7 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
           aria-modal="true"
           aria-labelledby="documents-modal-title"
         >
-          <form onSubmit={createDocument}>
+          <PermissionForm permission="documentos.crear" onSubmit={createDocument}>
             <header>
               <h2 id="documents-modal-title">
                 {modal === "upload" ? "Subir documento" : "Nuevo documento"}
@@ -780,7 +781,7 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
                 {saving ? "Guardando..." : "Guardar"}
               </button>
             </footer>
-          </form>
+          </PermissionForm>
         </div>
       )}
     </div>

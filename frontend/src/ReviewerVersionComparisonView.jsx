@@ -1,3 +1,4 @@
+import { PermissionButton, PermissionForm } from './Permissions'
 import { useEffect, useRef, useState } from 'react'
 import { apiRequest, downloadFile, formatDate, reviewStatusName } from './documentApi'
 import './ReviewerVersionComparisonView.css'
@@ -147,9 +148,9 @@ function ReviewerVersionComparisonView({ onAction }) {
         </dl>
       </div>
       <div className="reviewer-comparison-summary-actions">
-        {current?.download_url && <button type="button" onClick={() => downloadFile(current.download_url)}><CompareIcon name="download" size={17} />Descargar</button>}
+        {current?.download_url && <PermissionButton permission="documentos.descargar" type="button" onClick={() => downloadFile(current.download_url)}><CompareIcon name="download" size={17} />Descargar</PermissionButton>}
         <button type="button" onClick={openCommentComposer}><CompareIcon name="comment" size={17} />Emitir observación</button>
-        <button className="is-primary" type="button" disabled={!canApprove} onClick={approve}><CompareIcon name="check" size={17} />Aprobar cambios</button>
+        <PermissionButton permission="revisiones.aprobar" className="is-primary" type="button" disabled={!canApprove} onClick={approve}><CompareIcon name="check" size={17} />Aprobar cambios</PermissionButton>
       </div>
     </section>
     <div className="reviewer-comparison-layout">
@@ -167,7 +168,7 @@ function ReviewerVersionComparisonView({ onAction }) {
       </main>
       <aside className="reviewer-comparison-sidebar">
         <section className="reviewer-comparison-card reviewer-comparison-findings"><header><h2>Hallazgos del revisor</h2><span>{changeCount}</span></header>{comparison?.changed_fields?.length ? <div className="reviewer-findings-list">{comparison.changed_fields.map((change) => <article key={change.field}><b>Cambio</b><div><strong>{changedFieldLabels[change.field] || change.field}</strong><p>{formatChangedValue(change.from, change.field)} → {formatChangedValue(change.to, change.field)}</p></div></article>)}</div> : <p className="reviewer-comparison-empty">No hay cambios registrados entre estas versiones.</p>}</section>
-        <section className="reviewer-comparison-card reviewer-comparison-comments"><header><h2>Comentarios y notas</h2><span>{comments.length}</span></header><div className="reviewer-comments-list">{comments.length ? comments.map((item) => <article key={item.id}><div className="reviewer-comment-avatar">{(item.author?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div><div><strong>{item.author?.name || 'Usuario'}</strong><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></div></article>) : <p className="reviewer-comparison-empty">No hay comentarios registrados.</p>}</div>{commentOpen && <form className="reviewer-comparison-comment-form" onSubmit={addComment}><textarea ref={commentInput} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Escribe una observación..." /><button type="submit">Enviar observación</button></form>}</section>
+        <section className="reviewer-comparison-card reviewer-comparison-comments"><header><h2>Comentarios y notas</h2><span>{comments.length}</span></header><div className="reviewer-comments-list">{comments.length ? comments.map((item) => <article key={item.id}><div className="reviewer-comment-avatar">{(item.author?.name || 'U').split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</div><div><strong>{item.author?.name || 'Usuario'}</strong><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></div></article>) : <p className="reviewer-comparison-empty">No hay comentarios registrados.</p>}</div>{commentOpen && <PermissionForm permission="revisiones.consultar" className="reviewer-comparison-comment-form" onSubmit={addComment}><textarea ref={commentInput} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Escribe una observación..." /><button type="submit">Enviar observación</button></PermissionForm>}</section>
       </aside>
     </div>
   </div>

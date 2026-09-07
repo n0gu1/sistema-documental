@@ -17,7 +17,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
-from .auth_utils import get_client_ip, record_auth_event, serialize_user
+from .auth_utils import get_client_ip, record_auth_event, serialize_authenticated_user
 from .authentication import hash_session_token
 from .config_service import security_policy_for
 from .models import SesionDocumental, UsuarioDocumental
@@ -185,7 +185,7 @@ class LoginView(APIView):
         )
         response = Response(
             {
-                'user': serialize_user(user),
+                'user': serialize_authenticated_user(user),
                 'session': {'expires_at': session.expira_en},
             },
             status=status.HTTP_200_OK,
@@ -198,7 +198,7 @@ class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        return Response({'user': serialize_user(request.user)})
+        return Response({'user': serialize_authenticated_user(request.user)})
 
 
 class LogoutView(APIView):
@@ -295,7 +295,7 @@ class ChangePasswordView(APIView):
             successful=True,
             result='Contraseña modificada',
         )
-        response = Response({'user': serialize_user(user)})
+        response = Response({'user': serialize_authenticated_user(user)})
         set_auth_cookie(response, raw_token, remember)
         return response
 

@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "same_role_download_allowed": true,
+  "same_role_download_denied": true,
+  "permissions_refreshed_on_focus": true,
+  "custom_permissions_open_management": true,
+  "consultation_does_not_enable_user_creation": true,
+  "administrator_preserved": true,
+  "roles_alone_do_not_grant_access": true,
+  "frontend_page_errors": [],
+  "editor_and_reviewer_workspaces": true,
+  "manual_backend_denial": 403,
+  "method": "Navegador con respuestas API de ensayo; autorización real probada por separado en Neon"
+}

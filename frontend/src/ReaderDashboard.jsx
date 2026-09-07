@@ -1,3 +1,4 @@
+import { PermissionButton } from './Permissions'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { apiRequest, downloadFile, formatDate, normalizeDocument } from './documentApi'
 import './EditorDashboard.css'
@@ -143,7 +144,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error, onNavigate }) {
                 <button type="button" onClick={() => navigate('library')}><ReaderIcon name="folder" size={30} /><strong>Abrir biblioteca</strong><small>Explora los documentos disponibles</small></button>
                 <button type="button" onClick={focusSearch}><ReaderIcon name="search" size={30} /><strong>Buscar documento</strong><small>Filtra por código o título</small></button>
                 <button type="button" onClick={() => navigate('favorites')}><ReaderIcon name="favorite" size={30} /><strong>Ver favoritos</strong><small>Accede a tus documentos marcados</small></button>
-                <button type="button" onClick={downloadFirstDocument}><ReaderIcon name="download" size={30} /><strong>Descargar archivo</strong><small>Descarga una versión publicada</small></button>
+                <PermissionButton permission="documentos.descargar" type="button" onClick={downloadFirstDocument}><ReaderIcon name="download" size={30} /><strong>Descargar archivo</strong><small>Descarga una versión publicada</small></PermissionButton>
               </div>
             </ReaderCard>
           </section>

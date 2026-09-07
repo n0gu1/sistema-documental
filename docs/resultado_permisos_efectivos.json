@@ -1,0 +1,145 @@
+{
+  "allowed": {
+    "id": "3284288e-1d0a-4963-836c-3f037743c6f5",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "username": "prueba.lector",
+    "email": "prueba.lector@test.local",
+    "first_name": "Usuario",
+    "last_name": "Prueba Lector",
+    "full_name": "Usuario Prueba Lector",
+    "must_change_password": false,
+    "roles": [
+      {
+        "code": "LECTOR",
+        "name": "Lector"
+      }
+    ],
+    "permissions": [
+      "documentos.buscar",
+      "documentos.consultar",
+      "documentos.descargar",
+      "versiones.consultar"
+    ],
+    "has_all_permissions": false
+  },
+  "denied": {
+    "id": "3284288e-1d0a-4963-836c-3f037743c6f5",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "username": "prueba.lector",
+    "email": "prueba.lector@test.local",
+    "first_name": "Usuario",
+    "last_name": "Prueba Lector",
+    "full_name": "Usuario Prueba Lector",
+    "must_change_password": false,
+    "roles": [
+      {
+        "code": "LECTOR",
+        "name": "Lector"
+      }
+    ],
+    "permissions": [
+      "documentos.buscar",
+      "documentos.consultar",
+      "versiones.consultar"
+    ],
+    "has_all_permissions": false
+  },
+  "administrator": {
+    "id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "username": "prueba.admin",
+    "email": "prueba.admin@test.local",
+    "first_name": "Usuario",
+    "last_name": "Prueba Admin",
+    "full_name": "Usuario Prueba Admin",
+    "must_change_password": false,
+    "roles": [
+      {
+        "code": "ADMINISTRADOR",
+        "name": "Administrador"
+      }
+    ],
+    "permissions": [
+      "auditoria.consultar",
+      "auditoria.seguridad",
+      "documentos.buscar",
+      "documentos.consultar",
+      "documentos.crear",
+      "documentos.descargar",
+      "documentos.eliminar",
+      "documentos.modificar",
+      "reportes.generar",
+      "respaldos.ejecutar",
+      "respaldos.restaurar",
+      "revisiones.aprobar",
+      "revisiones.consultar",
+      "revisiones.enviar",
+      "revisiones.rechazar",
+      "roles.gestionar",
+      "usuarios.consultar",
+      "usuarios.gestionar",
+      "versiones.consultar",
+      "versiones.crear",
+      "versiones.restaurar"
+    ],
+    "has_all_permissions": true
+  },
+  "editor": {
+    "id": "77c8903a-7575-441b-896f-2154e5af773a",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "username": "prueba.editor",
+    "email": "prueba.editor@test.local",
+    "first_name": "Usuario",
+    "last_name": "Prueba Editor",
+    "full_name": "Usuario Prueba Editor",
+    "must_change_password": false,
+    "roles": [
+      {
+        "code": "EDITOR",
+        "name": "Editor"
+      }
+    ],
+    "permissions": [
+      "documentos.buscar",
+      "documentos.consultar",
+      "documentos.crear",
+      "documentos.descargar",
+      "documentos.modificar",
+      "revisiones.enviar",
+      "versiones.consultar",
+      "versiones.crear"
+    ],
+    "has_all_permissions": false
+  },
+  "reviewer": {
+    "id": "ee41aabd-9216-42d1-8be5-6e6c55e6504f",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "username": "prueba.revisor",
+    "email": "prueba.revisor@test.local",
+    "first_name": "Usuario",
+    "last_name": "Prueba Revisor",
+    "full_name": "Usuario Prueba Revisor",
+    "must_change_password": false,
+    "roles": [
+      {
+        "code": "REVISOR",
+        "name": "Revisor"
+      }
+    ],
+    "permissions": [
+      "auditoria.consultar",
+      "documentos.buscar",
+      "documentos.consultar",
+      "documentos.descargar",
+      "reportes.generar",
+      "revisiones.aprobar",
+      "revisiones.consultar",
+      "revisiones.rechazar",
+      "versiones.consultar"
+    ],
+    "has_all_permissions": false
+  },
+  "manual_request_status": 403,
+  "rolled_back": true,
+  "status": "PASS"
+}

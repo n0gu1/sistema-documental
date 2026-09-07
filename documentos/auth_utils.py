@@ -75,6 +75,22 @@ def serialize_user(user):
     }
 
 
+def serialize_authenticated_user(user):
+    """Expose global UI permissions, including the existing administrator bypass.
+
+    Resource scope, ACL and workflow checks remain the responsibility of each API.
+    """
+    data = serialize_user(user)
+    has_all_permissions = any(role['code'] == 'ADMINISTRADOR' for role in data['roles'])
+    if has_all_permissions:
+        from .models import PermisoDocumental
+
+        permissions = list(PermisoDocumental.objects.filter(activo=True).order_by('codigo').values_list('codigo', flat=True))
+    else:
+        permissions = get_user_permission_codes(user.id)
+    return {**data, 'permissions': sorted(set(permissions)), 'has_all_permissions': has_all_permissions}
+
+
 def record_auth_event(
     *,
     action_code,

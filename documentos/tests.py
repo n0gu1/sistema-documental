@@ -2169,7 +2169,7 @@ class AuthApiTests(SimpleTestCase):
 
     @patch('documentos.views.transaction.atomic', return_value=nullcontext())
     @patch('documentos.views.record_auth_event')
-    @patch('documentos.views.serialize_user')
+    @patch('documentos.views.serialize_authenticated_user')
     @patch('documentos.views.check_password', return_value=True)
     def test_successful_login_sets_http_only_cookie(
         self,
@@ -2288,7 +2288,7 @@ class AuthApiTests(SimpleTestCase):
 
     @patch('documentos.views.transaction.atomic', return_value=nullcontext())
     @patch('documentos.views.record_auth_event')
-    @patch('documentos.views.serialize_user')
+    @patch('documentos.views.serialize_authenticated_user')
     @patch('documentos.views.make_password', return_value='new-encoded-password')
     @patch('documentos.views.check_password', return_value=True)
     def test_password_change_rotates_current_session_token(

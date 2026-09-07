@@ -1,3 +1,4 @@
+import { PermissionButton } from './Permissions'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
   apiRequest,
@@ -452,21 +453,21 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
                   <td>{document.reviewer}</td>
                   <td>
                     <div className="editor-doc-actions">
-                      <button
+                      <PermissionButton permission="documentos.consultar"
                         type="button"
                         aria-label={`Ver ${document.title}`}
                         onClick={() => onEditDocument(document)}
                       >
                         <DocumentsIcon name="eye" size={16} />
-                      </button>
-                      <button
+                      </PermissionButton>
+                      <PermissionButton permission="documentos.modificar"
                         type="button"
                         aria-label={`Editar ${document.title}`}
                         onClick={() => onEditDocument(document)}
                       >
                         <DocumentsIcon name="edit" size={16} />
-                      </button>
-                      <button
+                      </PermissionButton>
+                      <PermissionButton permission="documentos.descargar"
                         type="button"
                         aria-label={`Descargar ${document.title}`}
                         onClick={() =>
@@ -476,7 +477,7 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
                         }
                       >
                         <DocumentsIcon name="download" size={16} />
-                      </button>
+                      </PermissionButton>
                       <button
                         type="button"
                         aria-label={`Más acciones de ${document.title}`}

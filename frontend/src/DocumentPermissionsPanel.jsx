@@ -1,3 +1,5 @@
+import { PermissionGate } from './Permissions'
+import { PermissionButton } from './Permissions'
 import { useCallback, useEffect, useState } from 'react'
 import { apiRequest } from './documentApi'
 import './DocumentPermissionsPanel.css'
@@ -61,7 +63,7 @@ function DocumentPermissionsPanel({ documentId, onAction }) {
   const assignedCount = Object.values(grants).reduce((total, roleGrants) => total + roleGrants.size, 0)
 
   return <section className="editor-permissions-panel" aria-labelledby="document-permissions-title">
-    <header><div><p>Control de acceso</p><h2 id="document-permissions-title">Permisos explícitos del documento</h2><span>Asigne permisos específicos a los roles activos de la organización.</span></div><div className="editor-permissions-panel__actions"><button type="button" onClick={reloadPermissions} disabled={loading}>Recargar</button><button className="is-primary" type="button" onClick={savePermissions} disabled={loading || saving || !catalog.roles.length}>{saving ? 'Guardando...' : 'Guardar permisos'}</button></div></header>
+    <header><div><p>Control de acceso</p><h2 id="document-permissions-title">Permisos explícitos del documento</h2><span>Asigne permisos específicos a los roles activos de la organización.</span></div><div className="editor-permissions-panel__actions"><button type="button" onClick={reloadPermissions} disabled={loading}>Recargar</button><PermissionButton permission="roles.gestionar" className="is-primary" type="button" onClick={savePermissions} disabled={loading || saving || !catalog.roles.length}>{saving ? 'Guardando...' : 'Guardar permisos'}</PermissionButton></div></header>
     {error && <p className="editor-error" role="alert">{error}</p>}
     {!loading && !error && <p className="editor-permissions-panel__summary">{assignedCount} asignaciones activas</p>}
     {loading && <p className="editor-empty">Cargando catálogo de permisos...</p>}
@@ -70,4 +72,6 @@ function DocumentPermissionsPanel({ documentId, onAction }) {
   </section>
 }
 
-export default DocumentPermissionsPanel
+export default function AuthorizedDocumentPermissionsPanel(props) {
+  return <PermissionGate permission="roles.gestionar"><DocumentPermissionsPanel {...props} /></PermissionGate>
+}
