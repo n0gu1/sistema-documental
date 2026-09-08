@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "matrix": [
+    {
+      "case": "Sin ACL, permiso global y misma area",
+      "expected": true,
+      "obtained": true
+    },
+    {
+      "case": "ACL PERMITIR con rol incluido",
+      "expected": true,
+      "obtained": true
+    },
+    {
+      "case": "ACL DENEGAR aunque tiene permiso global",
+      "expected": false,
+      "obtained": false
+    },
+    {
+      "case": "Eliminar concesiones sin pedir HEREDAR",
+      "expected": false,
+      "obtained": false
+    },
+    {
+      "case": "HEREDAR seleccionado expresamente",
+      "expected": true,
+      "obtained": true
+    },
+    {
+      "case": "HEREDAR, usuario de otra area",
+      "expected": false,
+      "obtained": false
+    },
+    {
+      "case": "HEREDAR, usuario del area permitida",
+      "expected": true,
+      "obtained": true
+    },
+    {
+      "case": "Concesion explicita permite otra area (politica conservada)",
+      "expected": true,
+      "obtained": true
+    },
+    {
+      "case": "DENEGAR bloquea tambien otra area",
+      "expected": false,
+      "obtained": false
+    }
+  ],
+  "administrator_exception_preserved": true,
+  "rolled_back": true
+}

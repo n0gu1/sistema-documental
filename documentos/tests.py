@@ -272,12 +272,14 @@ class UserDeletionTests(SimpleTestCase):
         get_user.return_value = user
         now.return_value = disabled_at
 
-        response = UserDetailView().delete(request, user_id)
+        with patch('documentos.user_status.UsuarioDocumental.objects.select_for_update') as lock:
+            response = UserDetailView().delete(request, user_id)
+            lock.return_value.get.assert_called_once_with(pk=user_id)
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(user.activo)
         self.assertEqual(user.deshabilitado_en, disabled_at)
-        user_filter.assert_called_once_with(pk=user_id, activo=True)
+        user_filter.assert_called_once_with(pk=user_id)
         user_filter.return_value.update.assert_called_once_with(
             activo=False,
             deshabilitado_en=disabled_at,
@@ -286,7 +288,7 @@ class UserDeletionTests(SimpleTestCase):
         session_filter.assert_called_once_with(usuario_id=user_id, revocada_en__isnull=True)
         session_filter.return_value.update.assert_called_once_with(
             revocada_en=disabled_at,
-            motivo_revocacion='Cuenta dada de baja logicamente por un administrador',
+            motivo_revocacion='Cuenta deshabilitada por un administrador',
         )
         record_event.assert_called_once_with(
             request,
@@ -2513,7 +2515,7 @@ class DocumentPermissionsTests(SimpleTestCase):
         )
         cursor = connection_mock.cursor.return_value.__enter__.return_value
 
-        with patch.object(DocumentPermissionsView, 'get_document', return_value=document):
+        with patch.object(DocumentPermissionsView, 'get_document', return_value=document), patch('documentos.document_views.validate_policies'), patch('documentos.document_views.save_policies'), patch('documentos.document_views.Documento.objects'):
             response = DocumentPermissionsView().put(request, document_id)
 
         self.assertEqual(response.status_code, 200)
@@ -2553,7 +2555,7 @@ class ReaderAccessTests(SimpleTestCase):
     @patch('documentos.reader_access.user_has_permission', return_value=True)
     @patch('documentos.reader_access.connection')
     def test_document_acl_overrides_global_permission_when_document_is_restricted(self, cursor, user_has_permission_mock, roles_mock):
-        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (True, False)
+        cursor.cursor.return_value.__enter__.return_value.fetchone.side_effect = [None, (True, False)]
         user = SimpleNamespace(id=uuid4())
 
         self.assertFalse(has_document_permission(user, uuid4(), 'documentos.consultar'))
@@ -2564,7 +2566,7 @@ class ReaderAccessTests(SimpleTestCase):
     @patch('documentos.reader_access.user_has_permission', return_value=True)
     @patch('documentos.reader_access.connection')
     def test_administrator_bypasses_explicit_document_acl_denial(self, cursor, user_has_permission_mock, roles_mock):
-        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (True, False)
+        cursor.cursor.return_value.__enter__.return_value.fetchone.side_effect = [None, (True, False)]
         user = SimpleNamespace(id=uuid4())
 
         self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
@@ -2573,7 +2575,7 @@ class ReaderAccessTests(SimpleTestCase):
     @patch('documentos.reader_access.user_has_permission', return_value=True)
     @patch('documentos.reader_access.connection')
     def test_global_permission_applies_when_document_has_no_acl(self, cursor, user_has_permission_mock):
-        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (False, False)
+        cursor.cursor.return_value.__enter__.return_value.fetchone.side_effect = [None, (False, False)]
         user = SimpleNamespace(id=uuid4())
 
         self.assertTrue(has_document_permission(user, uuid4(), 'documentos.consultar'))
@@ -2584,7 +2586,7 @@ class ReaderAccessTests(SimpleTestCase):
     @patch('documentos.reader_access.connection')
     @patch('documentos.reader_access.Documento.objects')
     def test_area_scope_blocks_global_permission_outside_assigned_area(self, documents, cursor, user_has_permission_mock, roles_mock):
-        cursor.cursor.return_value.__enter__.return_value.fetchone.return_value = (False, False)
+        cursor.cursor.return_value.__enter__.return_value.fetchone.side_effect = [None, (False, False)]
         documents.filter.return_value.only.return_value.first.return_value = SimpleNamespace(
             area_id=uuid4(),
             creado_por_id=uuid4(),

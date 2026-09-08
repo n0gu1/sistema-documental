@@ -135,7 +135,13 @@ class DocumentRolePermissionSerializer(serializers.Serializer):
     )
 
 
+class DocumentAclPolicySerializer(serializers.Serializer):
+    permission_id = serializers.UUIDField()
+    mode = serializers.ChoiceField(choices=['HEREDAR', 'PERMITIR', 'DENEGAR'])
+
+
 class DocumentPermissionsSerializer(serializers.Serializer):
+    policies = DocumentAclPolicySerializer(many=True, required=False)
     assignments = serializers.ListField(
         child=DocumentRolePermissionSerializer(),
         allow_empty=True,

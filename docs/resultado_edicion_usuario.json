@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "patch": 200,
+  "persisted_after_reload": [
+    "email",
+    "first_name",
+    "last_name",
+    "area_id"
+  ],
+  "roles_unchanged": true,
+  "active_unchanged": true,
+  "original_data_restored": true
+}

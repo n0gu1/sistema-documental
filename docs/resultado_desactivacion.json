@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "cases": [
+    {
+      "path": "UserDetailView.patch",
+      "initial_session": 200,
+      "after_disable": 401,
+      "old_after_reactivate": 401,
+      "unused_old_after_reactivate": 401,
+      "new_login": 200,
+      "new_session": 200
+    },
+    {
+      "path": "UserDetailView.delete",
+      "initial_session": 200,
+      "after_disable": 401,
+      "old_after_reactivate": 401,
+      "unused_old_after_reactivate": 401,
+      "new_login": 200,
+      "new_session": 200
+    },
+    {
+      "path": "UserStatusView.post",
+      "initial_session": 200,
+      "after_disable": 401,
+      "old_after_reactivate": 401,
+      "unused_old_after_reactivate": 401,
+      "new_login": 200,
+      "new_session": 200
+    }
+  ],
+  "rolled_back": true
+}

@@ -45,6 +45,7 @@ from .reader_access import (
 )
 from .security_utils import sanitize_text
 from .serializers import DocumentPermissionsSerializer
+from .acl_policy import read_policies, save_policies, validate_policies
 
 
 READ_PERMISSION = 'documentos.consultar'
@@ -315,6 +316,7 @@ def document_permissions_payload(document):
     for role_id, permission_id in assignment_rows:
         assignments.setdefault(str(role_id), []).append(str(permission_id))
     return {
+        'policies': read_policies(document.id),
         'document': {
             'id': str(document.id),
             'code': document.codigo,
@@ -696,6 +698,8 @@ class DocumentPermissionsView(APIView):
         serializer = DocumentPermissionsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         assignments = serializer.validated_data['assignments']
+        policies = serializer.validated_data.get('policies', [])
+        validate_policies(policies, assignments)
         validate_document_permission_assignments(assignments, document.organizacion_id)
         rows = [
             (document.id, item['role_id'], permission_id, request.user.id)
@@ -705,6 +709,8 @@ class DocumentPermissionsView(APIView):
 
         with transaction.atomic():
             with connection.cursor() as cursor:
+                Documento.objects.select_for_update().get(pk=document.id)
+                save_policies(cursor, document.id, policies, assignments)
                 cursor.execute(
                     'DELETE FROM gestion_documental.documentos_roles_permisos WHERE documento_id = %s',
                     [document.id],
@@ -712,7 +718,7 @@ class DocumentPermissionsView(APIView):
                 cursor.executemany(
                     '''
                     INSERT INTO gestion_documental.documentos_roles_permisos (
-                        documento_id, rol_id, permiso_id, asignado_por_id, asignado_en
+                        documento_id, rol_id, permiso_id, concedido_por_id, concedido_en
                     ) VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
                     ''',
                     rows,

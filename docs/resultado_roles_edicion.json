@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "role_id": "a5866225-8474-4985-8e9a-2fc86205fe53",
+  "test_role_code": "REQ13_1788827583889",
+  "create": 201,
+  "duplicate_code": 409,
+  "duplicate_name": 409,
+  "duplicate_name_patch": 409,
+  "edit": 200,
+  "persisted_after_reload": true,
+  "test_role_inactive_without_permissions": true
+}

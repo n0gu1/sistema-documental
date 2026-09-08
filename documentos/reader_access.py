@@ -36,6 +36,13 @@ def has_area_permission(user, area_id):
 def has_document_permission(user, document_id, permission_code):
     global_permission = user_has_permission(user, permission_code)
     with connection.cursor() as cursor:
+        cursor.execute('''SELECT a.modo
+            FROM gestion_documental.documentos_politicas_acl a
+            JOIN gestion_documental.permisos p ON p.id=a.permiso_id
+            WHERE a.documento_id=%s AND p.codigo=%s AND p.activo''',
+            [document_id, permission_code])
+        policy = cursor.fetchone()
+        mode = policy[0] if policy else None
         cursor.execute(
             '''
             SELECT
@@ -64,7 +71,9 @@ def has_document_permission(user, document_id, permission_code):
             [document_id, permission_code, document_id, user.id, permission_code],
         )
         has_document_roles, role_allowed = cursor.fetchone()
-    if has_document_roles:
+    if mode == 'DENEGAR':
+        return any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+    if mode == 'PERMITIR' or (mode is None and has_document_roles):
         is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
         if is_admin:
             return True

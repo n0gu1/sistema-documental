@@ -14,6 +14,8 @@ from rest_framework.views import APIView
 
 from .auth_utils import get_client_ip, record_access_denied, record_auth_event, serialize_user, user_has_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .user_status import update_user_state
+from .role_validation import role_write, validate_role_name
 from .models import (
     PermisoDocumental,
     RolDocumental,
@@ -375,6 +377,9 @@ class UserListCreateView(APIView):
                 'count': total,
                 'next_offset': offset + limit if offset + limit < total else None,
                 'results': [serialize_management_user(user) for user in users],
+                'areas': list(AreaCatalogo.objects.filter(
+                    organizacion_id=request.user.organizacion_id, activa=True,
+                ).order_by('nombre').values('id', 'nombre')),
             },
         )
 
@@ -477,15 +482,8 @@ class UserDetailView(APIView):
         for key, field in field_mapping.items():
             if key in data:
                 updates[field] = data[key]
-        if 'active' in data and data['active']:
-            updates['deshabilitado_en'] = None
-        if 'active' in data and not data['active']:
-            updates['deshabilitado_en'] = timezone.now()
         if updates:
-            updates['actualizado_en'] = timezone.now()
-            UsuarioDocumental.objects.filter(pk=user.pk).update(**updates)
-            for field, value in updates.items():
-                setattr(user, field, value)
+            update_user_state(user, updates)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado')
         return Response({'user': serialize_management_user(user)})
 
@@ -503,20 +501,7 @@ class UserDetailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        now = timezone.now()
-        with transaction.atomic():
-            UsuarioDocumental.objects.filter(pk=user.pk, activo=True).update(
-                activo=False,
-                deshabilitado_en=now,
-                actualizado_en=now,
-            )
-            SesionDocumental.objects.filter(usuario_id=user.pk, revocada_en__isnull=True).update(
-                revocada_en=now,
-                motivo_revocacion='Cuenta dada de baja logicamente por un administrador',
-            )
-
-        user.activo = False
-        user.deshabilitado_en = now
+        update_user_state(user, {'activo': False})
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario dado de baja logicamente')
         return Response({'user': serialize_management_user(user)})
 
@@ -532,19 +517,7 @@ class UserStatusView(APIView):
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         active = serializer.validated_data['active']
-        now = timezone.now()
-        UsuarioDocumental.objects.filter(pk=user.pk).update(
-            activo=active,
-            deshabilitado_en=None if active else now,
-            actualizado_en=now,
-        )
-        if not active:
-            SesionDocumental.objects.filter(usuario_id=user.pk, revocada_en__isnull=True).update(
-                revocada_en=now,
-                motivo_revocacion='Cuenta deshabilitada por un administrador',
-            )
-        user.activo = active
-        user.deshabilitado_en = None if active else now
+        update_user_state(user, {'activo': active})
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Estado de usuario actualizado')
         return Response({'user': serialize_management_user(user)})
 
@@ -742,7 +715,7 @@ class RoleListCreateView(APIView):
         roles = []
         for role in RolDocumental.objects.filter(
             organizacion_id=request.user.organizacion_id,
-            activo=True,
+            **({} if request.query_params.get('include_inactive') == 'true' else {'activo': True}),
         ).values('id', 'codigo', 'nombre', 'descripcion', 'activo'):
             role['users_count'] = UsuarioRolDocumental.objects.filter(
                 rol_id=role['id'],
@@ -768,16 +741,18 @@ class RoleListCreateView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
         now = timezone.now()
-        role = RolDocumental.objects.create(
-            id=uuid.uuid4(),
-            organizacion_id=request.user.organizacion_id,
-            codigo=data['code'],
-            nombre=data['name'],
-            descripcion=data.get('description', ''),
-            activo=True,
-            creado_en=now,
-            actualizado_en=now,
-        )
+        validate_role_name(request.user.organizacion_id, data['name'])
+        with role_write():
+            role = RolDocumental.objects.create(
+                id=uuid.uuid4(),
+                organizacion_id=request.user.organizacion_id,
+                codigo=data['code'],
+                nombre=data['name'],
+                descripcion=data.get('description', ''),
+                activo=True,
+                creado_en=now,
+                actualizado_en=now,
+            )
         record_management_event(
             request,
             request.user,
@@ -816,12 +791,15 @@ class RoleDetailView(APIView):
         data = serializer.validated_data
         updates = {}
         field_mapping = {'name': 'nombre', 'description': 'descripcion', 'active': 'activo'}
+        if 'name' in data:
+            validate_role_name(request.user.organizacion_id, data['name'], role.id)
         for key, field in field_mapping.items():
             if key in data:
                 updates[field] = data[key]
         if updates:
             updates['actualizado_en'] = timezone.now()
-            RolDocumental.objects.filter(pk=role.pk).update(**updates)
+            with role_write():
+                RolDocumental.objects.filter(pk=role.pk).update(**updates)
             for field, value in updates.items():
                 setattr(role, field, value)
         record_management_event(

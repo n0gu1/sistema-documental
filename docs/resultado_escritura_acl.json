@@ -1,0 +1,25 @@
+{
+  "scope": "Backend local contra BD configurada; transaccion revertida",
+  "columns": [
+    "documento_id",
+    "rol_id",
+    "permiso_id",
+    "concedido_por_id",
+    "concedido_en"
+  ],
+  "create": {
+    "put": 200,
+    "get": 200,
+    "permission": "documentos.consultar",
+    "sql_row_verified": true
+  },
+  "modify": {
+    "put": 200,
+    "get": 200,
+    "permission": "documentos.descargar",
+    "sql_row_verified": true
+  },
+  "status": "PASS",
+  "sql_errors": 0,
+  "rolled_back": true
+}
