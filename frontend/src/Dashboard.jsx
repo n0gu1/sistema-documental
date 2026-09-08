@@ -4,6 +4,8 @@ import { useDeferredValue, useEffect, useState } from 'react'
 import AuditView from './AuditView'
 import BackupsView from './BackupsView'
 import DocumentsView from './DocumentsView'
+import DocumentDetailsDialog from './DocumentDetailsDialog'
+import EditorDocumentEditView from './EditorDocumentEditView'
 import ReportsView from './ReportsView'
 import RolesView from './RolesView'
 import SettingsView from './SettingsView'
@@ -80,6 +82,9 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const [activeView, setActiveView] = useState(() => Object.keys(managementViews).find((view) => can(managementViews[view])) || 'dashboard')
   const [query, setQuery] = useState('')
+  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
+  const [documentMode, setDocumentMode] = useState('list')
+  const [documentNotice, setDocumentNotice] = useState('')
   const [data, setData] = useState(emptyDashboard)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -104,6 +109,18 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
 
   function navigate(view) {
     if (!can(managementViews[view])) return
+    if (view === 'document') setDocumentMode('list')
+    setDocumentNotice('')
+    setActiveView(view)
+    setSidebarOpen(false)
+  }
+
+  function openDocument(documentId, mode) {
+    const view = mode === 'history' ? 'layers' : 'document'
+    if (!documentId || !can(managementViews[view]) || (mode === 'edit' && !can('documentos.modificar'))) return
+    setSelectedDocumentId(documentId)
+    setDocumentMode(mode)
+    setDocumentNotice('')
     setActiveView(view)
     setSidebarOpen(false)
   }
@@ -122,7 +139,17 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
       <header className="dashboard-topbar"><button className="dashboard-menu" type="button" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><Icon name="menu" size={24} /></button><label className="dashboard-search"><Icon name="search" size={19} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar documentos, versiones, usuarios..." aria-label="Buscar" /><kbd>⌘ K</kbd></label><div className="dashboard-topbar__actions"><button className="dashboard-notification" type="button" aria-label="Notificaciones"><Icon name="bell" size={22} /></button><div className="dashboard-profile"><button className="dashboard-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((open) => !open)}><span className="dashboard-avatar">{initials}</span><span className="dashboard-profile__text"><strong>{user.full_name}</strong><small>{role}</small></span><Icon name="chevron" size={17} /></button>{profileOpen && <div className="dashboard-profile__menu"><span>{user.email}</span><button type="button" onClick={onLogout} disabled={logoutPending}><Icon name="logout" size={18} /> {logoutPending ? 'Cerrando...' : 'Cerrar sesión'}</button></div>}</div></div></header>
       <div className="dashboard-content"><PermissionGate permission={managementViews[activeView]} fallback={<p>No tiene permiso para esta función.</p>}>
         {(error || loadError) && <p className="dashboard-error" role="alert">{error || loadError}</p>}
-        {activeView === 'document' ? <DocumentsView globalQuery={query} today={today} onOpenVersions={() => navigate('layers')} /> : activeView === 'layers' ? <VersionsView onBack={() => navigate('document')} /> : activeView === 'users' ? <UsersView globalQuery={query} organizationId={user.organization_id} /> : activeView === 'shield' ? <RolesView globalQuery={query} /> : activeView === 'clipboard' ? <AuditView globalQuery={query} /> : activeView === 'chart' ? <ReportsView globalQuery={query} /> : activeView === 'cloud' ? <BackupsView globalQuery={query} /> : activeView === 'settings' ? <SettingsView globalQuery={query} /> : <>
+        {selectedDocumentId && (activeView === 'layers' || (activeView === 'document' && documentMode === 'edit')) && <nav className="versions-toolbar" aria-label="Documento seleccionado" data-document-id={selectedDocumentId}>
+          <PermissionButton permission="documentos.consultar" type="button" onClick={() => openDocument(selectedDocumentId, 'detail')}>Ver detalle</PermissionButton>
+          <PermissionButton permission="documentos.modificar" type="button" onClick={() => openDocument(selectedDocumentId, 'edit')}>Editar documento</PermissionButton>
+          <PermissionButton permission="versiones.consultar" type="button" onClick={() => openDocument(selectedDocumentId, 'history')}>Ver historial</PermissionButton>
+        </nav>}
+        {documentNotice && <p role="status">{documentNotice}</p>}
+        {activeView === 'document' ? documentMode === 'edit' && selectedDocumentId ?
+          <EditorDocumentEditView key={selectedDocumentId} document={{ id: selectedDocumentId }} onBack={() => navigate('document')} onAction={setDocumentNotice} /> : <>
+            <DocumentsView globalQuery={query} today={today} onViewDocument={id => openDocument(id, 'detail')} onEditDocument={id => openDocument(id, 'edit')} onOpenVersions={id => openDocument(id, 'history')} />
+            {documentMode === 'detail' && selectedDocumentId && <DocumentDetailsDialog key={selectedDocumentId} documentId={selectedDocumentId} onClose={() => setDocumentMode('list')} onEdit={() => openDocument(selectedDocumentId, 'edit')} onHistory={() => openDocument(selectedDocumentId, 'history')} />}
+          </> : activeView === 'layers' ? <VersionsView key={selectedDocumentId || 'unselected'} documentId={selectedDocumentId} onBack={() => navigate('document')} /> : activeView === 'users' ? <UsersView globalQuery={query} organizationId={user.organization_id} /> : activeView === 'shield' ? <RolesView globalQuery={query} /> : activeView === 'clipboard' ? <AuditView globalQuery={query} /> : activeView === 'chart' ? <ReportsView globalQuery={query} /> : activeView === 'cloud' ? <BackupsView globalQuery={query} /> : activeView === 'settings' ? <SettingsView globalQuery={query} /> : <>
           <div className="dashboard-heading"><div><p>Vista general</p><h1>Panel de administración</h1><span>Supervise la actividad documental y el estado de la organización.</span></div><div className="dashboard-date"><Icon name="calendar" size={18} /><span>{today}</span></div></div>
            <section className="dashboard-welcome"><div><span className="dashboard-welcome__eyebrow"><Icon name="check" size={16} /> Datos de la organización</span><h2>Bienvenido, {user.first_name}</h2><p>{loading ? 'Cargando indicadores...' : `Hay ${data.metrics.pending_reviews} solicitudes de revisión pendientes y ${data.metrics.pending_activation} usuarios que deben activar su acceso.`}</p></div><PermissionButton permission={'documentos.crear'} type="button" onClick={() => navigate('document')}><Icon name="plus" size={19} /> Nuevo documento</PermissionButton></section>
            <section className="dashboard-metrics" aria-label="Indicadores principales">{metricItems(data.metrics).map((metric) => <article className="dashboard-metric" key={metric.label}><span className={`dashboard-metric__icon dashboard-tone--${metric.tone}`}><Icon name={metric.icon} size={22} /></span><div><p>{metric.label}</p><strong>{loading ? '...' : metric.value}</strong><span>{metric.detail}</span></div></article>)}</section>

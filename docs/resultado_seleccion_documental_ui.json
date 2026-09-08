@@ -1,0 +1,476 @@
+{
+  "documents": [
+    {
+      "id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "code": "REQ2021-ADMIN-1788877205368",
+      "title": "Campos documentales REQ2021-ADMIN-1788877205368",
+      "description": "",
+      "date": "2026-09-07",
+      "area": {
+        "id": "c9199109-6028-4004-9d89-ed50c48421d1",
+        "name": "Administración"
+      },
+      "type": {
+        "id": 6,
+        "code": "COMUNICADO",
+        "name": "Comunicado"
+      },
+      "status": null,
+      "responsible": {
+        "id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+        "username": "prueba.admin",
+        "name": "Usuario Prueba Admin"
+      },
+      "created_at": "2026-09-08T14:20:11.919991Z",
+      "updated_at": "2026-09-08T14:20:11.919991Z",
+      "archived_at": null
+    },
+    {
+      "id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "code": "REQ2021-EDITOR-1788877113398",
+      "title": "Campos documentales REQ2021-EDITOR-1788877113398",
+      "description": "",
+      "date": "2026-09-07",
+      "area": {
+        "id": "c9199109-6028-4004-9d89-ed50c48421d1",
+        "name": "Administración"
+      },
+      "type": {
+        "id": 6,
+        "code": "COMUNICADO",
+        "name": "Comunicado"
+      },
+      "status": null,
+      "responsible": {
+        "id": "77c8903a-7575-441b-896f-2154e5af773a",
+        "username": "prueba.editor",
+        "name": "Usuario Prueba Editor"
+      },
+      "created_at": "2026-09-08T14:18:40.139051Z",
+      "updated_at": "2026-09-08T14:18:40.139051Z",
+      "archived_at": null
+    }
+  ],
+  "tests": [
+    {
+      "test": "Historial sin selección no elige el primer documento",
+      "result": "PASS"
+    },
+    {
+      "test": "Detalle del documento pulsado",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Edición y PATCH conservan el ID",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/permissions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/permissions/",
+          "query": ""
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Detalle, versiones y timeline del mismo ID",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Editar desde fila conserva el ID",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/permissions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/permissions/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Historial desde fila conserva el ID",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Menú Versiones conserva la última selección",
+      "document_id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/92cc09f9-aa5b-488d-8cd5-1653bf9d50ba/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Detalle del documento pulsado",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Edición y PATCH conservan el ID",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/permissions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/permissions/",
+          "query": ""
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Detalle, versiones y timeline del mismo ID",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Editar desde fila conserva el ID",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/permissions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/reviews/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/permissions/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Historial desde fila conserva el ID",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    },
+    {
+      "test": "Menú Versiones conserva la última selección",
+      "document_id": "0639a648-f999-4694-a549-d4400c9777d5",
+      "requests": [
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/versions/",
+          "query": ""
+        },
+        {
+          "method": "GET",
+          "path": "/api/documents/0639a648-f999-4694-a549-d4400c9777d5/timeline/",
+          "query": ""
+        }
+      ],
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS",
+  "versions_created": 0
+}

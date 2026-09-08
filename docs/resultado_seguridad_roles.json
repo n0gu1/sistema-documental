@@ -1,0 +1,156 @@
+{
+  "environment": "Backend local y BD Neon, DRF APIRequestFactory sin mocks",
+  "rolled_back": true,
+  "tests": [
+    {
+      "test": "Administrador crea gestor limitado",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador crea Editor",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador crea Revisor",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador crea Lector",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador crea Administrador",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador cambia Editor a Revisor",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador otorga Administrador",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no puede degradar Administrador",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador cambia a Lector",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor crea Lector dentro de su autoridad",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no crea ADMINISTRADOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no otorga ADMINISTRADOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no crea EDITOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no otorga EDITOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no crea REVISOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no otorga REVISOR fuera de su autoridad",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Lista mixta no permite escalar",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no se eleva a Administrador",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor asigna Lector dentro de su autoridad",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Preparar destinatario de autoridad superior",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Gestor no elimina roles de usuario superior",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "EDITOR sin gestionar no crea Administrador",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "EDITOR sin gestionar no reasigna",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "REVISOR sin gestionar no crea Administrador",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "REVISOR sin gestionar no reasigna",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "LECTOR sin gestionar no crea Administrador",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "LECTOR sin gestionar no reasigna",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "UUID inexistente rechazado",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Rol inactivo rechazado incluso a Administrador",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Administrador vencido no conserva autoridad",
+      "status": 403,
+      "result": "PASS"
+    }
+  ]
+}

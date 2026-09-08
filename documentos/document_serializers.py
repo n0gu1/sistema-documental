@@ -16,6 +16,16 @@ class DocumentCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         if attrs.get('metadata') is not None and not isinstance(attrs['metadata'], dict):
             raise serializers.ValidationError({'metadata': 'Los metadatos deben ser un objeto JSON.'})
+        metadata = attrs.get('metadata', {})
+        for key, limit in (('classification', 100), ('observations', 5000)):
+            if key in metadata:
+                value = metadata[key]
+                if not isinstance(value, str):
+                    raise serializers.ValidationError({'metadata': f'{key} debe ser texto.'})
+                value = sanitize_text(value)
+                if len(value) > limit:
+                    raise serializers.ValidationError({'metadata': f'{key} admite hasta {limit} caracteres.'})
+                metadata[key] = value
         return attrs
 
     def validate_title(self, value):

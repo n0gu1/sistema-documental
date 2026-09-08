@@ -8,7 +8,7 @@ function VersionIcon({ name, size = 18 }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
-function VersionsView({ onBack }) {
+function VersionsView({ documentId, onBack }) {
   const [document, setDocument] = useState(null)
   const [versions, setVersions] = useState([])
   const [timeline, setTimeline] = useState([])
@@ -22,13 +22,11 @@ function VersionsView({ onBack }) {
   const [publishNotice, setPublishNotice] = useState('')
 
   useEffect(() => {
+    if (!documentId) return
     let active = true
     async function load() {
       try {
-        const list = await apiRequest('/api/documents/?limit=1')
-        const first = list.results?.[0]
-        if (!first) throw new Error('No hay documentos disponibles.')
-        const [detail, versionData, timelineData] = await Promise.all([apiRequest(`/api/documents/${first.id}/`), apiRequest(`/api/documents/${first.id}/versions/`), apiRequest(`/api/documents/${first.id}/timeline/`)] )
+        const [detail, versionData, timelineData] = await Promise.all([apiRequest(`/api/documents/${documentId}/`), apiRequest(`/api/documents/${documentId}/versions/`), apiRequest(`/api/documents/${documentId}/timeline/`)] )
         if (!active) return
         const loadedVersions = versionData.versions || []
         setDocument(detail.document); setVersions(loadedVersions); setTimeline(timelineData.events || []); setCurrentId(loadedVersions[0]?.id || ''); setPreviousId(loadedVersions[1]?.id || '')
@@ -36,7 +34,7 @@ function VersionsView({ onBack }) {
     }
     load()
     return () => { active = false }
-  }, [])
+  }, [documentId])
 
   async function compare() {
     if (!document?.id || !previousId || !currentId) return
@@ -63,7 +61,8 @@ function VersionsView({ onBack }) {
   function swapVersions() { setPreviousId(currentId); setCurrentId(previousId); setComparison(null) }
   const current = versions.find((version) => version.id === currentId) || versions[0]
 
-  if (error && !document) return <div className="versions-view"><p className="versions-error" role="alert">{error}</p></div>
+  if (!documentId) return <div className="versions-view"><p>Seleccione un documento para consultar su historial.</p><button type="button" onClick={onBack}>Volver a documentos</button></div>
+  if (error && !document) return <div className="versions-view"><p className="versions-error" role="alert">{error}</p><button type="button" onClick={onBack}>Volver a documentos</button></div>
   if (!document) return <div className="versions-view"><p>Cargando versiones...</p></div>
   const approvedVersions = versions.filter((version) => version.status?.code === 'APROBADO')
   return <div className="versions-view"><header className="versions-heading"><div><p>Control documental</p><h1>Gestión de versiones</h1><span>Administre el historial y la trazabilidad de versiones documentales.</span></div><button type="button" onClick={onBack}><VersionIcon name="back" size={17} /> Volver a documentos</button></header>

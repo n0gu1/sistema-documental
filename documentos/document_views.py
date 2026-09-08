@@ -2,12 +2,13 @@ import csv
 import json
 import logging
 from datetime import datetime, time
+from functools import wraps
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from django.core.files import File
 from django.core.files.storage import default_storage
-from django.db import connection, transaction
+from django.db import IntegrityError, connection, transaction
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -497,6 +498,20 @@ def record_document_event(request, document, action_code, resource_code='DOCUMEN
     )
 
 
+def document_code_conflict(view):
+    """Keep uniqueness failures, including concurrent requests, consistent with the DB."""
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        try:
+            with transaction.atomic():
+                return view(*args, **kwargs)
+        except IntegrityError as error:
+            if getattr(getattr(error.__cause__, 'diag', None), 'constraint_name', None) != 'uq_documentos_organizacion_codigo':
+                raise
+            return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe, incluso si el documento esta archivado.'}, status=status.HTTP_409_CONFLICT)
+    return wrapped
+
+
 class DocumentListCreateView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
@@ -541,17 +556,20 @@ class DocumentListCreateView(APIView):
             'results': [serialize_document(document, request) for document in page],
         })
 
+    @document_code_conflict
     def post(self, request):
         require_permission(request, CREATE_PERMISSION)
         serializer = DocumentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        if 'metadata' in data:
+            validate_metadata(data['metadata'])
         organization_id = request.user.organizacion_id
         area = get_reference_or_error(AreaCatalogo, data['area_id'], organization_id, 'area_id')
         ensure_area_authorized(request.user, area.id, request=request)
         document_type = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], organization_id, 'type_id')
-        if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code'], eliminado_en__isnull=True).exists():
-            return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
+        if Documento.objects.filter(organizacion_id=organization_id, codigo=data['code']).exists():
+            return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe, incluso si el documento esta archivado.'}, status=status.HTTP_409_CONFLICT)
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
             validate_uploaded_file(uploaded_file, organization_id)
@@ -626,6 +644,7 @@ class DocumentDetailView(APIView):
             return Response({'document': serialize_reader_document(document, request, include_details=True)})
         return Response({'document': serialize_document(document, request, include_details=True)})
 
+    @document_code_conflict
     def patch(self, request, document_id):
         require_permission(request, UPDATE_PERMISSION)
         document = get_document_or_404(request, document_id, permission=UPDATE_PERMISSION)
@@ -633,14 +652,16 @@ class DocumentDetailView(APIView):
         serializer = DocumentUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        if 'metadata' in data:
+            validate_metadata(data['metadata'])
         uploaded_file = request.FILES.get('file')
         if uploaded_file:
             require_permission(request, VERSION_CREATE_PERMISSION)
             validate_uploaded_file(uploaded_file, document.organizacion_id)
         updates = {}
         if 'code' in data:
-            if Documento.objects.filter(organizacion_id=document.organizacion_id, codigo=data['code'], eliminado_en__isnull=True).exclude(pk=document.pk).exists():
-                return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe.'}, status=status.HTTP_409_CONFLICT)
+            if Documento.objects.filter(organizacion_id=document.organizacion_id, codigo=data['code']).exclude(pk=document.pk).exists():
+                return Response({'code': 'DOCUMENT_ALREADY_EXISTS', 'detail': 'El codigo ya existe, incluso si el documento esta archivado.'}, status=status.HTTP_409_CONFLICT)
             updates['codigo'] = data['code']
         if 'title' in data:
             updates['nombre'] = data['title']
@@ -656,7 +677,7 @@ class DocumentDetailView(APIView):
             updates['tipo_documento'] = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], document.organizacion_id, 'type_id')
         for field, value in updates.items():
             setattr(document, field, value)
-        if updates:
+        if updates or 'metadata' in data:
             document.actualizado_en = timezone.now()
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))

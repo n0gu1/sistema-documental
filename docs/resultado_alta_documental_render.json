@@ -1,0 +1,26 @@
+[
+  {
+    "base": "https://sistema-documental-nw05.onrender.com",
+    "role": "admin",
+    "create_enabled": true,
+    "status": 400
+  },
+  {
+    "base": "https://sistema-documental-nw05.onrender.com",
+    "role": "editor",
+    "create_enabled": false,
+    "status": 400
+  },
+  {
+    "base": "https://sistema-documental-nw05.onrender.com",
+    "role": "revisor",
+    "create_enabled": false,
+    "status": 403
+  },
+  {
+    "base": "https://sistema-documental-nw05.onrender.com",
+    "role": "lector",
+    "create_enabled": false,
+    "status": 403
+  }
+]

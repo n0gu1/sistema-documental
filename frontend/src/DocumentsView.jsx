@@ -1,3 +1,4 @@
+import DocumentMetadataFields from './DocumentMetadataFields'
 import { PermissionButton, PermissionForm } from './Permissions'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
@@ -167,7 +168,7 @@ function SelectFilter({ label, value, onChange, options }) {
   );
 }
 
-function DocumentsView({ globalQuery, today, onOpenVersions }) {
+function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onOpenVersions }) {
   const [documents, setDocuments] = useState([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
@@ -196,6 +197,9 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
     area_id: "",
     type_id: "",
     file: null,
+    date: "",
+    classification: "",
+    observations: "",
   });
   const [saving, setSaving] = useState(false);
   const deferredSearch = useDeferredValue(
@@ -322,8 +326,9 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
     setError("");
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => {
-      if (value) body.append(key, value);
+      if (value && !["classification", "observations"].includes(key)) body.append(key, value);
     });
+    body.append("metadata", JSON.stringify({ classification: form.classification || "", observations: form.observations || "" }));
     try {
       const data = await apiRequest("/api/documents/", {
         method: "POST",
@@ -340,6 +345,9 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
         area_id: "",
         type_id: "",
         file: null,
+        date: "",
+        classification: "",
+        observations: "",
       });
     } catch (requestError) {
       setError(requestError.message);
@@ -596,14 +604,14 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
                         <button
                           type="button"
                           aria-label={`Ver ${document.title}`}
-                          onClick={() => onOpenVersions?.(document.id)}
+                          onClick={() => onViewDocument?.(document.id)}
                         >
                           <DocumentViewIcon name="eye" size={16} />
                         </button>
                         <button
                           type="button"
                           aria-label={`Editar ${document.title}`}
-                          onClick={() => onOpenVersions?.(document.id)}
+                          onClick={() => onEditDocument?.(document.id)}
                         >
                           <DocumentViewIcon name="edit" size={16} />
                         </button>
@@ -757,6 +765,7 @@ function DocumentsView({ globalQuery, today, onOpenVersions }) {
                 ))}
               </select>
             </label>
+            <DocumentMetadataFields values={form} onChange={(name, value) => setForm(current => ({ ...current, [name]: value }))} />
             <label>
               Archivo {modal === "upload" && <em>*</em>}
               <input

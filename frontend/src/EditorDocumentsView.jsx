@@ -1,4 +1,5 @@
 import { PermissionButton } from './Permissions'
+import CreateDocumentDialog from './CreateDocumentDialog'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
   apiRequest,
@@ -135,6 +136,9 @@ function statusTone(status) {
 function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
   const [documents, setDocuments] = useState([]);
   const [total, setTotal] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const [notice, setNotice] = useState("");
   const [catalogs, setCatalogs] = useState({
     areas: [],
     types: [],
@@ -209,6 +213,7 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
     ordering,
     page,
     catalogs,
+    refresh,
   ]);
 
   const statuses = catalogs.statuses?.length
@@ -299,10 +304,20 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
         </p>
       )}
       <div className="editor-documents-toolbar">
+        <PermissionButton permission="documentos.crear" type="button" onClick={() => setCreating(true)}>
+          <DocumentsIcon name="plus" size={19} /> Crear documento
+        </PermissionButton>
         <button type="button" onClick={exportList}>
           <DocumentsIcon name="download" size={19} /> Exportar listado
         </button>
       </div>
+      {notice && <p role="status">{notice}</p>}
+      {creating && <CreateDocumentDialog catalogs={catalogs} onClose={() => setCreating(false)} onCreated={(document) => {
+        setCreating(false);
+        setNotice(`Documento ${document.code} creado correctamente.`);
+        setPage(1);
+        setRefresh(value => value + 1);
+      }} />}
       <section
         className="editor-document-stats"
         aria-label="Resumen de documentos"

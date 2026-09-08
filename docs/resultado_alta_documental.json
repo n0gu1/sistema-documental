@@ -1,0 +1,30 @@
+[
+  {
+    "base": "http://127.0.0.1:5173",
+    "role": "admin",
+    "create_enabled": true,
+    "status": 201,
+    "document_id": "ff52f656-b2ab-4161-af1c-dad5493bfa04",
+    "persisted": true
+  },
+  {
+    "base": "http://127.0.0.1:5173",
+    "role": "editor",
+    "create_enabled": true,
+    "status": 201,
+    "document_id": "9846dde5-df2f-4c8b-9fff-69a387466b9a",
+    "persisted": true
+  },
+  {
+    "base": "http://127.0.0.1:5173",
+    "role": "revisor",
+    "create_enabled": false,
+    "status": 403
+  },
+  {
+    "base": "http://127.0.0.1:5173",
+    "role": "lector",
+    "create_enabled": false,
+    "status": 403
+  }
+]

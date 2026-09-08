@@ -1,0 +1,24 @@
+[
+  {
+    "id": "92cc09f9-aa5b-488d-8cd5-1653bf9d50ba",
+    "codigo": "REQ2021-ADMIN-1788877205368",
+    "fecha_documento": "2026-09-07T00:00:00.000Z",
+    "metadata": {
+      "observations": "Observación inicial de prueba",
+      "classification": "Interno"
+    },
+    "versiones": "0"
+  },
+  {
+    "id": "2330b93f-4af9-4410-8543-bcaa83779174",
+    "codigo": "REQ2021-EDITOR-1788877225325",
+    "fecha_documento": "2026-08-31T00:00:00.000Z",
+    "metadata": {
+      "scope": "",
+      "keywords": "",
+      "observations": "Observación editada y consultada",
+      "classification": "Confidencial"
+    },
+    "versiones": "0"
+  }
+]

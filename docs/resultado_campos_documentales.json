@@ -1,0 +1,86 @@
+{
+  "tests": [
+    {
+      "test": "Alta con fecha y metadatos",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Modificar campos",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar campos persistidos",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Actualizar solo metadatos",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Fecha imposible",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Observaciones no textuales",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Clasificación no textual",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Clasificación demasiado larga",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Observaciones demasiado largas",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Metadatos inválidos no guardan fecha parcialmente",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Mantener código propio",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Vaciar campos opcionales",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "test": "Código archivado no reutilizable en alta",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "test": "UNIQUE real sin prevalidación devuelve 409 y revierte escritura",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "test": "Documento alternativo",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "test": "Código archivado no reutilizable en edición",
+      "status": 409,
+      "result": "PASS"
+    }
+  ],
+  "rolled_back": true,
+  "versions_created": 0
+}

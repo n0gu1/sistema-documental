@@ -1,0 +1,30 @@
+[
+  {
+    "name": "no-permitido.txt",
+    "status": 400,
+    "error": {
+      "file": "Extension no permitida: .txt."
+    }
+  },
+  {
+    "name": "mime-incorrecto.png",
+    "status": 400,
+    "error": {
+      "file": "El tipo MIME no coincide con la extension del archivo."
+    }
+  },
+  {
+    "name": "contenido-incorrecto.png",
+    "status": 400,
+    "error": {
+      "file": "El contenido no coincide con el tipo de archivo declarado."
+    }
+  },
+  {
+    "name": "demasiado-grande.png",
+    "status": 400,
+    "error": {
+      "file": "El archivo supera el limite de 50 MB."
+    }
+  }
+]

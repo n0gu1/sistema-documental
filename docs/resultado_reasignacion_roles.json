@@ -1,0 +1,16 @@
+{
+  "email": "req11.editor.1788791057409@test.local",
+  "id": "c9fb4e31-1ac7-4387-a498-78bfc86240e8",
+  "before": [
+    "EDITOR"
+  ],
+  "after": [
+    "REVISOR"
+  ],
+  "create_status": 201,
+  "update_status": 200,
+  "get_status": 200,
+  "ui_after_save": "Revisor",
+  "ui_after_reload": "Revisor",
+  "status": "PASS"
+}

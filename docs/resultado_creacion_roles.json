@@ -1,0 +1,38 @@
+[
+  {
+    "email": "req6.editor.20260907141658@test.local",
+    "id": "52d44db0-4a63-4ebc-989e-d9598a6dd05c",
+    "selected_role_id": "524f3b04-5951-4d42-979a-8c5f9c842b5d",
+    "api_roles": [
+      "EDITOR"
+    ],
+    "db_roles": [
+      "EDITOR"
+    ],
+    "status": "PASS"
+  },
+  {
+    "email": "req6.revisor.20260907141658@test.local",
+    "id": "938e39f2-c57c-48ed-b358-5b5060d90214",
+    "selected_role_id": "bee37a33-5b98-4fca-ab34-ce43d1db6e67",
+    "api_roles": [
+      "REVISOR"
+    ],
+    "db_roles": [
+      "REVISOR"
+    ],
+    "status": "PASS"
+  },
+  {
+    "email": "req6.lector.20260907141658@test.local",
+    "id": "bab97661-ab1d-4868-a39a-fcd23a37deeb",
+    "selected_role_id": "b8561284-72db-472f-b8ca-20f107ccc1cf",
+    "api_roles": [
+      "LECTOR"
+    ],
+    "db_roles": [
+      "LECTOR"
+    ],
+    "status": "PASS"
+  }
+]

@@ -1,0 +1,257 @@
+{
+  "catalog": [
+    {
+      "codigo": "auditoria.consultar",
+      "activo": true
+    },
+    {
+      "codigo": "auditoria.seguridad",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.buscar",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.consultar",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.crear",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.descargar",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.eliminar",
+      "activo": true
+    },
+    {
+      "codigo": "documentos.modificar",
+      "activo": true
+    },
+    {
+      "codigo": "reportes.generar",
+      "activo": true
+    },
+    {
+      "codigo": "respaldos.ejecutar",
+      "activo": true
+    },
+    {
+      "codigo": "respaldos.restaurar",
+      "activo": true
+    },
+    {
+      "codigo": "revisiones.aprobar",
+      "activo": true
+    },
+    {
+      "codigo": "revisiones.consultar",
+      "activo": true
+    },
+    {
+      "codigo": "revisiones.enviar",
+      "activo": true
+    },
+    {
+      "codigo": "revisiones.rechazar",
+      "activo": true
+    },
+    {
+      "codigo": "roles.gestionar",
+      "activo": true
+    },
+    {
+      "codigo": "usuarios.consultar",
+      "activo": true
+    },
+    {
+      "codigo": "usuarios.gestionar",
+      "activo": true
+    },
+    {
+      "codigo": "versiones.consultar",
+      "activo": true
+    },
+    {
+      "codigo": "versiones.crear",
+      "activo": true
+    },
+    {
+      "codigo": "versiones.restaurar",
+      "activo": true
+    }
+  ],
+  "backend_codes": {
+    "documentos.consultar": [
+      "documentos/document_views.py:50",
+      "documentos/reader_access.py:86",
+      "documentos/reader_access.py:110",
+      "documentos/reader_views.py:150",
+      "documentos/reader_views.py:160",
+      "documentos/reader_views.py:261",
+      "documentos/reader_views.py:266",
+      "documentos/reader_views.py:285",
+      "documentos/reports_views.py:42",
+      "documentos/reports_views.py:78",
+      "documentos/workflow_views.py:41"
+    ],
+    "documentos.crear": [
+      "documentos/document_views.py:51",
+      "documentos/reader_access.py:9"
+    ],
+    "documentos.descargar": [
+      "documentos/document_views.py:54",
+      "documentos/document_views.py:1119",
+      "documentos/document_views.py:1136",
+      "documentos/reader_views.py:285"
+    ],
+    "documentos.eliminar": [
+      "documentos/document_views.py:53",
+      "documentos/reader_access.py:11"
+    ],
+    "documentos.modificar": [
+      "documentos/document_views.py:52",
+      "documentos/reader_access.py:10"
+    ],
+    "reportes.generar": [
+      "documentos/reports_views.py:41",
+      "documentos/reports_views.py:77",
+      "documentos/reports_views.py:77"
+    ],
+    "revisiones.aprobar": [
+      "documentos/reader_access.py:19",
+      "documentos/workflow_views.py:39"
+    ],
+    "revisiones.consultar": [
+      "documentos/reader_access.py:18",
+      "documentos/reports_views.py:43",
+      "documentos/reports_views.py:79",
+      "documentos/workflow_views.py:37"
+    ],
+    "revisiones.enviar": [
+      "documentos/reader_access.py:17",
+      "documentos/workflow_views.py:38"
+    ],
+    "revisiones.rechazar": [
+      "documentos/reader_access.py:20",
+      "documentos/workflow_views.py:40"
+    ],
+    "roles.gestionar": [
+      "documentos/document_views.py:58",
+      "documentos/management_views.py:741",
+      "documentos/management_views.py:758",
+      "documentos/management_views.py:807",
+      "documentos/management_views.py:842",
+      "documentos/management_views.py:862",
+      "documentos/management_views.py:901",
+      "documentos/management_views.py:939",
+      "documentos/management_views.py:966",
+      "documentos/reader_access.py:16"
+    ],
+    "usuarios.consultar": [
+      "documentos/management_views.py:252",
+      "documentos/management_views.py:353",
+      "documentos/management_views.py:441",
+      "documentos/management_views.py:616",
+      "documentos/management_views.py:664",
+      "documentos/reader_access.py:14",
+      "documentos/settings_views.py:17"
+    ],
+    "usuarios.gestionar": [
+      "documentos/backup_views.py:29",
+      "documentos/management_views.py:85",
+      "documentos/management_views.py:382",
+      "documentos/management_views.py:448",
+      "documentos/management_views.py:493",
+      "documentos/management_views.py:528",
+      "documentos/management_views.py:556",
+      "documentos/management_views.py:585",
+      "documentos/management_views.py:634",
+      "documentos/management_views.py:684",
+      "documentos/management_views.py:717",
+      "documentos/reader_access.py:15",
+      "documentos/settings_views.py:18"
+    ],
+    "versiones.consultar": [
+      "documentos/document_views.py:55"
+    ],
+    "versiones.crear": [
+      "documentos/document_views.py:56",
+      "documentos/reader_access.py:12"
+    ],
+    "versiones.restaurar": [
+      "documentos/document_views.py:57",
+      "documentos/reader_access.py:13"
+    ]
+  },
+  "missing_codes": [],
+  "catalog_codes_not_referenced": [
+    "auditoria.consultar",
+    "auditoria.seguridad",
+    "documentos.buscar",
+    "respaldos.ejecutar",
+    "respaldos.restaurar"
+  ],
+  "tests": [
+    {
+      "test": "Editor con documentos.crear llega a validación del formulario",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "test": "Mismo Editor sin documentos.crear recibe 403",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite modificar",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Lector no autorizado: DocumentArchiveView",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Lector no autorizado: DocumentUnarchiveView",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Lector no autorizado: DocumentVersionRestoreView",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite gestionar permisos",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite crear versiones: DocumentFileListCreateView",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite crear versiones: DocumentVersionListView",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite descargar archivo",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "test": "Consultar no permite descargar versión",
+      "status": 403,
+      "result": "PASS"
+    }
+  ],
+  "rolled_back": true
+}
