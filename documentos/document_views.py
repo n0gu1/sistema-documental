@@ -145,6 +145,9 @@ def current_version(document):
 
 
 def archive_document(document, user, reason='Archivado por el usuario'):
+    if reason is not None and not isinstance(reason, str):
+        raise ValidationError({'reason': 'El motivo debe ser texto.'})
+    reason = sanitize_text(reason or '').strip() or 'Archivado por el usuario'
     now = timezone.now()
     document.eliminado_en = now
     document.eliminado_por_id = user.id
@@ -271,11 +274,16 @@ def serialize_document(document, request, include_details=False):
     return result
 
 
-def get_document_or_404(request, document_id, include_archived=False, permission=READ_PERMISSION):
+def get_document_or_404(request, document_id, include_archived=False, permission=READ_PERMISSION, for_update=False):
     queryset = Documento.objects.filter(organizacion_id=request.user.organizacion_id)
     if not include_archived:
         queryset = queryset.filter(eliminado_en__isnull=True)
-    document = queryset.select_related('area', 'tipo_documento', 'creado_por').filter(pk=document_id).first()
+    if for_update:
+        # Lock only the document, without joining its shared reference catalogs.
+        queryset = queryset.select_for_update()
+    else:
+        queryset = queryset.select_related('area', 'tipo_documento', 'creado_por')
+    document = queryset.filter(pk=document_id).first()
     if not document:
         record_access_denied(request, 'DOCUMENT_NOT_FOUND_OR_UNAUTHORIZED', resource_code='DOCUMENTO', resource_id=document_id)
         raise Http404
@@ -647,17 +655,13 @@ class DocumentDetailView(APIView):
     @document_code_conflict
     def patch(self, request, document_id):
         require_permission(request, UPDATE_PERMISSION)
-        document = get_document_or_404(request, document_id, permission=UPDATE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=UPDATE_PERMISSION, for_update=True)
         ensure_document_directly_editable(document)
         serializer = DocumentUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         if 'metadata' in data:
             validate_metadata(data['metadata'])
-        uploaded_file = request.FILES.get('file')
-        if uploaded_file:
-            require_permission(request, VERSION_CREATE_PERMISSION)
-            validate_uploaded_file(uploaded_file, document.organizacion_id)
         updates = {}
         if 'code' in data:
             if Documento.objects.filter(organizacion_id=document.organizacion_id, codigo=data['code']).exclude(pk=document.pk).exists():
@@ -675,28 +679,23 @@ class DocumentDetailView(APIView):
             updates['area'] = area
         if 'type_id' in data:
             updates['tipo_documento'] = get_reference_or_error(TipoDocumentoCatalogo, data['type_id'], document.organizacion_id, 'type_id')
+            if not updates['tipo_documento'].activo:
+                raise ValidationError({'type_id': 'El tipo de documento debe estar activo.'})
         for field, value in updates.items():
             setattr(document, field, value)
         if updates or 'metadata' in data:
             document.actualizado_en = timezone.now()
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
-        if uploaded_file:
-            save_document_file(
-                document,
-                uploaded_file,
-                request.user,
-                data.get('file_comment', ''),
-                data.get('version_type', 'minor'),
-            )
         record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
         return Response({'document': serialize_document(document, request, include_details=True)})
 
+    @transaction.atomic
     def delete(self, request, document_id):
         require_permission(request, DELETE_PERMISSION)
-        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION, for_update=True)
         archive_document(document, request.user, request.data.get('reason'))
-        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
+        record_document_event(request, document, 'DOCUMENTO_ELIMINADO', details={'reason': document.motivo_eliminacion})
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -756,11 +755,12 @@ class DocumentPermissionsView(APIView):
 class DocumentArchiveView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, document_id):
         require_permission(request, DELETE_PERMISSION)
-        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION)
+        document = get_document_or_404(request, document_id, permission=DELETE_PERMISSION, for_update=True)
         archive_document(document, request.user, request.data.get('reason'))
-        record_document_event(request, document, 'DOCUMENTO_ARCHIVADO', details={'reason': request.data.get('reason', '')})
+        record_document_event(request, document, 'DOCUMENTO_ELIMINADO', details={'reason': document.motivo_eliminacion})
         return Response({'document': serialize_document(document, request)})
 
 
@@ -968,6 +968,7 @@ TIMELINE_ACTIONS = {
     'DOCUMENTO_CREADO': ('document_created', 'Documento creado'),
     'DOCUMENTO_MODIFICADO': ('document_updated', 'Documento modificado'),
     'DOCUMENTO_ARCHIVADO': ('document_archived', 'Documento archivado'),
+    'DOCUMENTO_ELIMINADO': ('document_archived', 'Documento archivado'),
     'DOCUMENTO_RESTAURADO': ('document_restored', 'Documento restaurado'),
     'VERSION_RESTAURADA': ('version_restored', 'Version restaurada'),
     'REVISION_SOLICITADA': ('review_submitted', 'Revision enviada'),

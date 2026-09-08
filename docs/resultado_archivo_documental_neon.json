@@ -1,0 +1,13 @@
+[
+  {
+    "id": "1d12f2a7-e9f5-49ca-b39d-24c40213d165",
+    "codigo": "REQ24-UI-1788895937311",
+    "eliminado_en": "2026-09-08T19:33:02.325Z",
+    "eliminado_por_id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+    "motivo_eliminacion": "Fin de vigencia: prueba UI requisito 24",
+    "metadata": {
+      "observations": "Historia conservada requisito 24"
+    },
+    "eventos_baja": "1"
+  }
+]

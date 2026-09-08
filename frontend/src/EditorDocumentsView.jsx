@@ -10,6 +10,7 @@ import {
   normalizeDocument,
 } from "./documentApi";
 import "./EditorDocumentsView.css";
+import ArchiveDocumentButton from './ArchiveDocumentButton'
 
 const PAGE_SIZE = 10;
 
@@ -468,6 +469,7 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
                   <td>{document.reviewer}</td>
                   <td>
                     <div className="editor-doc-actions">
+                      <ArchiveDocumentButton document={document} onArchived={() => { setDocuments(current => current.filter(item => item.id !== document.id)); setNotice(`Documento ${document.code} archivado.`); setPage(1); setRefresh(value => value + 1); }} />
                       <PermissionButton permission="documentos.consultar"
                         type="button"
                         aria-label={`Ver ${document.title}`}

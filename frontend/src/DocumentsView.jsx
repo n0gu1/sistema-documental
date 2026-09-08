@@ -1,4 +1,5 @@
 import DocumentMetadataFields from './DocumentMetadataFields'
+import ArchiveDocumentButton from './ArchiveDocumentButton'
 import { PermissionButton, PermissionForm } from './Permissions'
 import { useDeferredValue, useEffect, useState } from "react";
 import {
@@ -170,6 +171,8 @@ function SelectFilter({ label, value, onChange, options }) {
 
 function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onOpenVersions }) {
   const [documents, setDocuments] = useState([]);
+  const [refresh, setRefresh] = useState(0);
+  const [notice, setNotice] = useState('');
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [type, setType] = useState("Todas");
@@ -252,7 +255,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
     return () => {
       active = false;
     };
-  }, [deferredSearch, type, area, status, owner, from, until, classification, page, catalogs]);
+  }, [deferredSearch, type, area, status, owner, from, until, classification, page, catalogs, refresh]);
 
   const visibleDocuments = documents;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -358,6 +361,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
 
   return (
     <div className="documents-view">
+      {notice && <p role="status">{notice}</p>}
       <div className="documents-hero">
         <div className="documents-title">
           <div>
@@ -601,6 +605,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
                     </td>
                     <td>
                       <div className="documents-row-actions">
+                        <ArchiveDocumentButton document={document} onArchived={() => { setDocuments(current => current.filter(item => item.id !== document.id)); setNotice(`Documento ${document.code} archivado.`); setPage(1); setRefresh(value => value + 1); }} />
                         <button
                           type="button"
                           aria-label={`Ver ${document.title}`}

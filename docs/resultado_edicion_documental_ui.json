@@ -1,0 +1,42 @@
+{
+  "document": {
+    "id": "4a88fac7-242f-4e3c-a3a2-31b42c665034",
+    "code": "REQ23-UI-1788895132750-EDIT",
+    "title": "Modificado REQ23-UI-1788895132750-EDIT",
+    "description": "Descripción modificada desde UI",
+    "date": "2026-08-31",
+    "area": {
+      "id": "b6c17c09-96cb-44ec-a54b-44573c9320e5",
+      "name": "Finanzas"
+    },
+    "type": {
+      "id": 5,
+      "code": "FORMATO",
+      "name": "Formato"
+    },
+    "status": null,
+    "responsible": {
+      "id": "77c8903a-7575-441b-896f-2154e5af773a",
+      "username": "prueba.editor",
+      "name": "Usuario Prueba Editor"
+    },
+    "created_at": "2026-09-08T19:18:54.902453Z",
+    "updated_at": "2026-09-08T19:19:51.467164Z",
+    "archived_at": null,
+    "metadata": {
+      "classification": "Confidencial",
+      "custom": "Conservar clave existente",
+      "keywords": "edición, prueba",
+      "observations": "Observaciones modificadas desde UI",
+      "scope": "Alcance modificado"
+    },
+    "files": []
+  },
+  "checks": [
+    "Error de guardado visible sin mensaje de éxito ni cambios persistidos",
+    "Un PATCH con los siete campos autorizados y formulario bloqueado durante el guardado",
+    "Recargar y reabrir conserva datos, metadatos y clave adicional, sin versiones nuevas"
+  ],
+  "versions_created": 0,
+  "result": "PASS"
+}

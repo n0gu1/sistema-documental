@@ -1,0 +1,19 @@
+[
+  {
+    "id": "4a88fac7-242f-4e3c-a3a2-31b42c665034",
+    "codigo": "REQ23-UI-1788895132750-EDIT",
+    "nombre": "Modificado REQ23-UI-1788895132750-EDIT",
+    "descripcion": "Descripción modificada desde UI",
+    "fecha_documento": "2026-08-31T00:00:00.000Z",
+    "area_id": "b6c17c09-96cb-44ec-a54b-44573c9320e5",
+    "tipo_documento_id": 5,
+    "metadata": {
+      "scope": "Alcance modificado",
+      "custom": "Conservar clave existente",
+      "keywords": "edición, prueba",
+      "observations": "Observaciones modificadas desde UI",
+      "classification": "Confidencial"
+    },
+    "versiones": "0"
+  }
+]

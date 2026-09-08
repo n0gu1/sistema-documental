@@ -1,0 +1,59 @@
+{
+  "tests": [
+    {
+      "test": "Editor dispone de documentos.modificar sin documentos.gestionar",
+      "result": "PASS"
+    },
+    {
+      "test": "Lista exacta de siete campos documentales admitidos",
+      "result": "PASS"
+    },
+    {
+      "test": "Modificar siete campos y recargar conserva datos y metadatos",
+      "result": "PASS"
+    },
+    {
+      "test": "Campos protegidos, desconocidos y de archivo/versión se rechazan sin cambios",
+      "result": "PASS"
+    },
+    {
+      "test": "Validación de texto, fecha, metadatos y referencias sin éxito parcial",
+      "result": "PASS"
+    },
+    {
+      "test": "lector: edición denegada con 403",
+      "result": "PASS"
+    },
+    {
+      "test": "revisor: edición denegada con 403",
+      "result": "PASS"
+    },
+    {
+      "test": "Se respetan autorización documental y autorización del área destino",
+      "result": "PASS"
+    },
+    {
+      "test": "Fallo tras escritura y borrado de metadatos revierte documento y metadatos completos",
+      "result": "PASS"
+    },
+    {
+      "test": "Fallo propagado al final revierte también las escrituras anteriores",
+      "result": "PASS"
+    },
+    {
+      "test": "PATCH multipart con archivo devuelve 400 sin tocar almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "test": "Omitir metadata conserva las claves existentes",
+      "result": "PASS"
+    },
+    {
+      "test": "Vaciar fecha y metadata respeta el contrato existente",
+      "result": "PASS"
+    }
+  ],
+  "result": "PASS",
+  "rolled_back": true,
+  "versions_created": 0
+}

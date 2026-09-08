@@ -1,4 +1,4 @@
-import { PermissionInput } from './Permissions'
+import { PermissionInput, usePermissions } from './Permissions'
 import { PermissionButton, PermissionForm } from './Permissions'
 import { useEffect, useRef, useState } from 'react'
 import { apiRequest, formatDate } from './documentApi'
@@ -28,7 +28,15 @@ function ReviewAssignmentPanel({ open, reviews, reviewers, reviewId, form, error
 }
 
 function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
+  const { can } = usePermissions()
   const [loadedDocument, setLoadedDocument] = useState(document || {})
+  const [isLoading, setIsLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const saveInFlight = useRef(false)
+  const [catalogs, setCatalogs] = useState({ areas: [], types: [] })
+  const [code, setCode] = useState('')
+  const [areaId, setAreaId] = useState('')
+  const [typeId, setTypeId] = useState('')
   const [loadError, setLoadError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [title, setTitle] = useState(document?.title || '')
@@ -61,10 +69,16 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   useEffect(() => {
     if (!document?.id) return undefined
     let active = true
-    apiRequest(`/api/documents/${document.id}/`)
-      .then((data) => {
+    setIsLoading(true)
+    setLoadError('')
+    Promise.all([apiRequest(`/api/documents/${document.id}/`), apiRequest('/api/documents/catalogs/')])
+      .then(([data, catalogData]) => {
         if (!active) return
         const value = data.document || {}
+        setCatalogs(catalogData)
+        setCode(value.code || '')
+        setAreaId(value.area?.id || '')
+        setTypeId(String(value.type?.id || ''))
         setLoadedDocument(value)
         setTitle(value.title || '')
         setDescription(value.description || '')
@@ -75,6 +89,7 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
         setScope(value.metadata?.scope || '')
       })
       .catch((requestError) => { if (active) setLoadError(requestError.message) })
+      .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
   }, [document?.id])
 
@@ -110,14 +125,35 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   }
 
   async function saveDraft() {
+    if (isLoading || loadError || saveInFlight.current || !can('documentos.modificar')) return
     if (!document?.id) return onAction('No se encontró el documento seleccionado.')
     if (directEditLocked(loadedDocument.status)) return onAction('La versión actual no permite modificaciones directas. Cree una nueva versión en borrador.')
     setSaveError('')
+    onAction('')
+    saveInFlight.current = true
+    setSaving(true)
     try {
-      const data = await apiRequest(`/api/documents/${document.id}/`, { method: 'PATCH', body: { title, description, date: date || null, metadata: { ...(loadedDocument.metadata || {}), classification, observations, keywords, scope } } })
-      setLoadedDocument(data.document || loadedDocument)
+      const data = await apiRequest(`/api/documents/${document.id}/`, { method: 'PATCH', body: {
+        code, title, description, date: date || null,
+        ...(areaId !== loadedDocument.area?.id ? { area_id: areaId } : {}),
+        ...(typeId !== String(loadedDocument.type?.id || '') ? { type_id: Number(typeId) } : {}),
+        metadata: { ...(loadedDocument.metadata || {}), classification, observations, keywords, scope },
+      } })
+      const value = data.document
+      setLoadedDocument(value)
+      setCode(value.code || '')
+      setTitle(value.title || '')
+      setDescription(value.description || '')
+      setDate(value.date || '')
+      setAreaId(value.area?.id || '')
+      setTypeId(String(value.type?.id || ''))
+      setClassification(value.metadata?.classification || '')
+      setObservations(value.metadata?.observations || '')
+      setKeywords(value.metadata?.keywords || '')
+      setScope(value.metadata?.scope || '')
       onAction('El borrador se guardó correctamente.')
     } catch (requestError) { setSaveError(requestError.message) }
+    finally { saveInFlight.current = false; setSaving(false) }
   }
 
   async function openReviewForm() {
@@ -228,12 +264,40 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   const currentVersionLabel = typeof currentVersion === 'string' ? currentVersion : currentVersion?.version || '—'
   const responsible = loadedDocument.responsible?.name || '—'
   const status = loadedDocument.status?.name || '—'
+  const editingDisabled = isLoading || saving || Boolean(loadError) || !can('documentos.modificar') || directEditLocked(loadedDocument.status)
 
   return <div className="editor-edit-view"><header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>{(loadError || saveError || reviewError) && <p className="editor-error" role="alert">{loadError || saveError || reviewError}</p>}
     <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title || 'Sin título'}</h2><span>Versión {currentVersionLabel}</span></div><dl><div><dt>Código</dt><dd>{loadedDocument.code || '—'}</dd></div><div><dt>Área</dt><dd>{loadedDocument.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{loadedDocument.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{currentVersionLabel}</dd></div><div><dt>Estado</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}<br />por {responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl></section>
-    <div className="editor-edit-layout"><main className="editor-edit-main"><nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map((item) => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'document' : item === 'Anexos' ? 'document' : 'flow'} size={17} /> {item}</button>)}</nav>{tab === 'Información general' ? <section className="editor-edit-form"><div className="editor-edit-fields"><div><label>Título del documento <em>*</em><input value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>Descripción<textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} /><small>{description.length}/500</small></label><label>Área responsable<span className="editor-responsible"><i>{(loadedDocument.area?.name || '—').slice(0, 2).toUpperCase()}</i><b>{loadedDocument.area?.name || '—'}</b></span></label><label>Responsable del documento<span className="editor-responsible"><i>{responsible.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'}</i><b>{responsible}</b></span></label></div><div><label>Código <input value={loadedDocument.code || ''} readOnly /></label><label>Fecha documental<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label><label>Clasificación<input maxLength={100} value={classification} onChange={(event) => setClassification(event.target.value)} placeholder="Sin clasificación registrada" /></label><label>Tipo de documento<input value={loadedDocument.type?.name || ''} readOnly /></label><label>Palabras clave<input value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Sin palabras clave registradas" /></label><label>Alcance<textarea value={scope} onChange={(event) => setScope(event.target.value)} maxLength={300} placeholder="Sin alcance registrado" /><small>{scope.length}/300</small></label></div></div></section> : tab === 'Observaciones' ? <section className="editor-edit-form"><label className="editor-document-observations">Observaciones<textarea value={observations} onChange={(event) => setObservations(event.target.value)} maxLength={5000} /></label></section> : <section className="editor-edit-form"><p className="editor-empty">Esta sección no tiene datos disponibles en el backend.</p></section>}</main>
+    <div className="editor-edit-layout"><main className="editor-edit-main">
+      <nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map(item => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'document' : item === 'Anexos' ? 'document' : 'flow'} size={17} /> {item}</button>)}</nav>
+      {isLoading && <p role="status">Cargando datos del documento...</p>}
+      <fieldset className="editor-document-fields" disabled={editingDisabled}>
+        {tab === 'Información general' ? <section className="editor-edit-form"><div className="editor-edit-fields">
+          <div>
+            <label>Título del documento <em>*</em><input value={title} maxLength={200} required onChange={event => setTitle(event.target.value)} /></label>
+            <label>Descripción<textarea value={description} onChange={event => setDescription(event.target.value)} /></label>
+            <label>Área responsable<select value={areaId} onChange={event => setAreaId(event.target.value)}>
+              {!catalogs.areas.some(area => area.id === areaId) && <option value={areaId}>{loadedDocument.area?.name || 'Seleccione un área'}</option>}
+              {catalogs.areas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
+            </select></label>
+            <label>Responsable del documento<span className="editor-responsible"><i>{responsible.split(' ').map(part => part[0]).join('').slice(0, 2) || '—'}</i><b>{responsible}</b></span></label>
+          </div>
+          <div>
+            <label>Código<input value={code} maxLength={64} required onChange={event => setCode(event.target.value.toUpperCase())} /></label>
+            <label>Fecha documental<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label>
+            <label>Clasificación<input maxLength={100} value={classification} onChange={event => setClassification(event.target.value)} placeholder="Sin clasificación registrada" /></label>
+            <label>Tipo de documento<select value={typeId} onChange={event => setTypeId(event.target.value)}>
+              {!catalogs.types.some(type => String(type.id) === typeId) && <option value={typeId}>{loadedDocument.type?.name || 'Seleccione un tipo'}</option>}
+              {catalogs.types.map(type => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select></label>
+            <label>Palabras clave<input value={keywords} onChange={event => setKeywords(event.target.value)} placeholder="Sin palabras clave registradas" /></label>
+            <label>Alcance<textarea value={scope} onChange={event => setScope(event.target.value)} maxLength={300} placeholder="Sin alcance registrado" /><small>{scope.length}/300</small></label>
+          </div>
+        </div></section> : tab === 'Observaciones' ? <section className="editor-edit-form"><label className="editor-document-observations">Observaciones<textarea value={observations} onChange={event => setObservations(event.target.value)} maxLength={5000} /></label></section> : <section className="editor-edit-form"><p className="editor-empty">Esta sección no tiene datos disponibles en el backend.</p></section>}
+      </fieldset>
+    </main>
        <aside className="editor-edit-sidebar"><section className="editor-edit-side-card"><h2>Estado del documento</h2><dl><div><dt>Estado actual</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}</dd></div><div><dt>Responsable</dt><dd>{responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || documentReviews.find((review) => review.status?.code === 'PENDIENTE')?.reviewer?.name || '—'}</dd></div></dl><button type="button" onClick={() => onAction('El flujo del documento no está disponible en el backend actual.')}><EditIcon name="flow" size={16} /> Ver flujo del documento</button><PermissionButton permission="revisiones.enviar" type="button" onClick={openAssignmentForm} disabled={!documentReviews.some((review) => review.status?.code === 'PENDIENTE')}><EditIcon name="flow" size={16} /> Asignar o reasignar revisor</PermissionButton></section><ReviewAssignmentPanel open={assignmentOpen} reviews={documentReviews} reviewers={reviewers} reviewId={assignmentReviewId} form={assignmentForm} error={assignmentError} submitting={assignmentSubmitting} onClose={() => setAssignmentOpen(false)} onSubmit={assignReview} onReviewChange={selectAssignmentReview} onChange={setAssignmentForm} /><section className="editor-edit-side-card"><header><h2>Checklist de revisión interna</h2><span>Sin datos registrados</span></header><div className="editor-check-progress"><i style={{ width: '0%' }} /></div><p className="editor-empty">No hay checklist asociado a este documento.</p></section><section className="editor-edit-side-card editor-edit-comments"><h2>Comentarios del revisor</h2><p className="editor-empty">No hay comentarios registrados.</p></section></aside></div>
-    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><PermissionButton permission="documentos.modificar" type="button" onClick={saveDraft}><EditIcon name="save" size={17} /> Guardar borrador</PermissionButton><PermissionInput permission="versiones.crear" ref={versionFileInput} className="editor-version-file-input" type="file" onChange={selectVersionFile} /><button type="button" onClick={() => versionFileInput.current?.click()} disabled={uploadSubmitting}><EditIcon name="document" size={17} /> Subir nueva versión</button><PermissionButton permission="revisiones.enviar" className="is-primary" type="button" onClick={openReviewForm} disabled={reviewSubmitting}><EditIcon name="flow" size={17} /> Enviar a revisión</PermissionButton></div></footer>
+    <footer className="editor-edit-actions"><span><EditIcon name="check" size={21} /><b>Estado sincronizado<small>{formatDate(loadedDocument.updated_at)}</small></b></span><div><button type="button" onClick={() => loadedDocument.files?.find((file) => file.is_current)?.preview_url && window.open(loadedDocument.files.find((file) => file.is_current).preview_url, '_blank', 'noopener,noreferrer')}><EditIcon name="eye" size={17} /> Vista previa</button><PermissionButton permission="documentos.modificar" type="button" disabled={editingDisabled} onClick={saveDraft}><EditIcon name="save" size={17} /> {saving ? 'Guardando...' : 'Guardar borrador'}</PermissionButton><PermissionInput permission="versiones.crear" ref={versionFileInput} className="editor-version-file-input" type="file" onChange={selectVersionFile} /><button type="button" onClick={() => versionFileInput.current?.click()} disabled={uploadSubmitting}><EditIcon name="document" size={17} /> Subir nueva versión</button><PermissionButton permission="revisiones.enviar" className="is-primary" type="button" onClick={openReviewForm} disabled={reviewSubmitting}><EditIcon name="flow" size={17} /> Enviar a revisión</PermissionButton></div></footer>
     {uploadOpen && <section className="editor-review-form editor-version-upload-form" aria-labelledby="editor-version-upload-title"><header><div><h2 id="editor-version-upload-title">Cargar nueva versión</h2><p>{uploadFile?.name || 'Seleccione un archivo documental.'}</p></div><button type="button" onClick={() => setUploadOpen(false)} aria-label="Cerrar formulario">×</button></header><PermissionForm permission="versiones.crear" onSubmit={uploadNewVersion}><label>Comentario de cambio<textarea value={uploadForm.comment} onChange={(event) => setUploadForm((current) => ({ ...current, comment: event.target.value }))} maxLength={1000} placeholder="Describa los cambios de esta versión." disabled={uploadSubmitting} /></label><label>Tipo de versión<select value={uploadForm.versionType} onChange={(event) => setUploadForm((current) => ({ ...current, versionType: event.target.value }))} disabled={uploadSubmitting}><option value="minor">Versión menor</option><option value="major">Versión mayor</option></select></label>{uploadError && <p className="editor-error" role="alert">{uploadError}</p>}<footer><button type="button" onClick={() => setUploadOpen(false)} disabled={uploadSubmitting}>Cancelar</button><button className="is-primary" type="submit" disabled={uploadSubmitting}>{uploadSubmitting ? 'Cargando...' : 'Cargar versión'}</button></footer></PermissionForm></section>}
     {reviewOpen && <section className="editor-review-form" aria-labelledby="editor-review-form-title"><header><div><h2 id="editor-review-form-title">Enviar a revisión</h2><p>Asigne revisores y deje las instrucciones para esta versión.</p></div><button type="button" onClick={() => setReviewOpen(false)} aria-label="Cerrar formulario">×</button></header><PermissionForm permission="revisiones.enviar" onSubmit={submitReview}><label>Revisores<select multiple value={reviewForm.reviewerIds} onChange={(event) => setReviewForm((current) => ({ ...current, reviewerIds: Array.from(event.target.selectedOptions, (option) => option.value) }))} disabled={reviewLoading || reviewSubmitting}>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.name} · {reviewer.username}</option>)}</select><small>{reviewLoading ? 'Cargando revisores...' : 'Puede seleccionar uno o varios revisores.'}</small></label><div className="editor-review-form-grid"><label>Fecha límite<input type="datetime-local" value={reviewForm.deadline} onChange={(event) => setReviewForm((current) => ({ ...current, deadline: event.target.value }))} disabled={reviewSubmitting} /></label><label>Prioridad<select value={reviewForm.priority} onChange={(event) => setReviewForm((current) => ({ ...current, priority: event.target.value }))} disabled={reviewSubmitting}><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option></select></label></div><label>Instrucciones<textarea value={reviewForm.comment} onChange={(event) => setReviewForm((current) => ({ ...current, comment: event.target.value }))} maxLength={2000} placeholder="Indique qué debe revisar el equipo." disabled={reviewSubmitting} /></label><label>Checklist inicial<textarea value={reviewForm.checklist} onChange={(event) => setReviewForm((current) => ({ ...current, checklist: event.target.value }))} placeholder="Un punto por línea" disabled={reviewSubmitting} /></label><footer><button type="button" onClick={() => setReviewOpen(false)} disabled={reviewSubmitting}>Cancelar</button><button className="is-primary" type="submit" disabled={reviewLoading || reviewSubmitting}>{reviewSubmitting ? 'Enviando...' : 'Enviar a revisión'}</button></footer></PermissionForm></section>}
    </div>

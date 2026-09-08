@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from rest_framework import serializers
 
 from .security_utils import sanitize_text
@@ -39,11 +41,28 @@ class DocumentCreateSerializer(serializers.Serializer):
 
 
 class DocumentUpdateSerializer(DocumentCreateSerializer):
+    # Normal editing only accepts document data; file/version operations have their own routes.
+    file_comment = None
     code = serializers.RegexField(r'^[A-Z0-9_-]+$', max_length=64, required=False)
     title = serializers.CharField(max_length=200, trim_whitespace=True, required=False)
     area_id = serializers.UUIDField(required=False)
     type_id = serializers.IntegerField(min_value=1, required=False)
-    version_type = serializers.ChoiceField(choices=['minor', 'major'], default='minor', required=False)
+
+    def to_internal_value(self, data):
+        if isinstance(data, Mapping):
+            unknown_fields = set(data) - set(self.fields)
+            if unknown_fields:
+                raise serializers.ValidationError({
+                    field: ['Este campo no se puede modificar en la edición de datos documentales.']
+                    for field in sorted(unknown_fields)
+                })
+        return super().to_internal_value(data)
+
+    def validate_title(self, value):
+        value = super().validate_title(value)
+        if not value:
+            raise serializers.ValidationError('El título no puede quedar vacío.')
+        return value
 
 
 class DocumentFileSerializer(serializers.Serializer):

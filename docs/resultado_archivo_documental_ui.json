@@ -1,0 +1,13 @@
+{
+  "result": "PASS",
+  "document_id": "1d12f2a7-e9f5-49ca-b39d-24c40213d165",
+  "code": "REQ24-UI-1788895937311",
+  "reason": "Fin de vigencia: prueba UI requisito 24",
+  "checks": [
+    "Alta real por API",
+    "Cancelar conserva documento activo",
+    "Motivo requerido en UI",
+    "Archivar mediante POST con ID seleccionado",
+    "Recargar: ausente del listado normal, presente al incluir archivados"
+  ]
+}

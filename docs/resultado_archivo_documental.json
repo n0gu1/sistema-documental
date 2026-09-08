@@ -1,0 +1,12 @@
+{
+  "checks": [
+    "Lector y Revisor sin documentos.eliminar: 403",
+    "Motivo inválido y fallo propagado no dejan baja parcial",
+    "Crear, archivar, ocultar del listado normal y conservar actor/fecha/motivo",
+    "Fila documental, archivo, bytes, historial y metadatos conservados íntegros",
+    "Bitácora registra la baja lógica con el motivo guardado"
+  ],
+  "result": "PASS",
+  "rolled_back": true,
+  "storage": "Archivo temporal real; no se prueba S3"
+}
