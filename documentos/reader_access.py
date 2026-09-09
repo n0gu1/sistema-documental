@@ -107,6 +107,23 @@ def published_document_queryset(organization_id):
     ).select_related('area', 'tipo_documento', 'creado_por').distinct()
 
 
+def get_download_document(request, document_id, *, published_only=False):
+    """Autoriza descarga de forma independiente a consulta, en todas las rutas."""
+    from rest_framework.exceptions import PermissionDenied
+    from .management_views import require_permission
+
+    require_permission(request, 'documentos.descargar')
+    queryset = (published_document_queryset(request.user.organizacion_id) if published_only
+                else Documento.objects.filter(organizacion_id=request.user.organizacion_id, eliminado_en__isnull=True))
+    document = queryset.filter(pk=document_id).first()
+    if document is None:
+        raise Http404
+    if not has_document_permission(request.user, document.id, 'documentos.descargar'):
+        record_access_denied(request, 'DOCUMENT_DOWNLOAD_REQUIRED', resource_code='DOCUMENTO', resource_id=document.id)
+        raise PermissionDenied({'code': 'DOCUMENT_DOWNLOAD_REQUIRED', 'detail': 'No tiene permiso para descargar este documento.'})
+    return document
+
+
 def published_version(document, version_id=None):
     versions = document.archivos.select_related('estado_version', 'creada_por').filter(
         estado_version__codigo='PUBLICADO',

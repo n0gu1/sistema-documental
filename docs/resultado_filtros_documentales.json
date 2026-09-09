@@ -1,0 +1,251 @@
+{
+  "result": "PASS",
+  "checks": [
+    {
+      "route": "general administrador",
+      "filter": "nombre",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "nombre vacío",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "tipo",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "tipo inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "área",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "área inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "estado publicado",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "estado borrador",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "estado inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "fecha documental desde",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "fecha documental hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "fecha vacía",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "actualización desde",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "actualización hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "Identificadores, fechas e intervalos inválidos: 400",
+      "result": "PASS"
+    },
+    {
+      "route": "general administrador",
+      "filter": "documentos.buscar requerido para cada filtro; consulta básica permitida",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "nombre",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "nombre vacío",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "tipo",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "tipo inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "área",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "área inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "estado publicado",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "estado borrador",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "estado inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "fecha documental desde",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "fecha documental hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "fecha vacía",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "actualización desde",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "actualización hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "Identificadores, fechas e intervalos inválidos: 400",
+      "result": "PASS"
+    },
+    {
+      "route": "general lector",
+      "filter": "documentos.buscar requerido para cada filtro; consulta básica permitida",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "nombre",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "nombre vacío",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "tipo",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "tipo inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "área",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "área inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "estado publicado",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "estado borrador",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "estado inexistente",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "fecha documental desde",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "fecha documental hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "fecha vacía",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "actualización desde",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "actualización hasta",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "Identificadores, fechas e intervalos inválidos: 400",
+      "result": "PASS"
+    },
+    {
+      "route": "lector dedicado",
+      "filter": "documentos.buscar requerido para cada filtro; consulta básica permitida",
+      "result": "PASS"
+    },
+    {
+      "filter": "Área ajena no amplía acceso del lector en ninguna ruta",
+      "result": "PASS"
+    }
+  ],
+  "rolled_back": true,
+  "note": "Cada filtro se prueba individualmente; solo las validaciones de intervalos envían sus dos límites. Versiones son fixtures SQL sin objetos de almacenamiento."
+}

@@ -71,6 +71,7 @@
 }
 
 .reader-library-filters select,
+.reader-library-filters input[type="date"],
 .reader-library-filter-search input {
   width: 100%;
   height: 37px;
@@ -84,6 +85,7 @@
 }
 
 .reader-library-filters select:focus,
+.reader-library-filters input[type="date"]:focus,
 .reader-library-filter-search input:focus {
   border-color: #70a9ef;
   box-shadow: 0 0 0 3px rgba(29, 116, 224, .08);

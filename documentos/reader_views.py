@@ -11,9 +11,12 @@ from rest_framework.views import APIView
 
 from .models import FavoritoDocumento, RegistroAccesoDocumento
 from .permissions import IsAuthenticatedAndPasswordCurrent
+from .document_filters import apply_document_filters, require_search_permission
+from .management_views import require_permission
 from .reader_access import (
     filter_accessible_documents,
     get_accessible_published_document,
+    get_download_document,
     published_document_queryset,
     published_version,
     record_reader_access,
@@ -101,34 +104,10 @@ class ReaderDocumentListView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request):
-        documents = accessible_reader_documents(request.user)
-        search = request.query_params.get('search', '').strip().lower()
-        if search:
-            documents = [document for document in documents if search in ' '.join(filter(None, [document.codigo, document.nombre, document.descripcion or ''])).lower()]
-        if request.query_params.get('type_id'):
-            documents = [document for document in documents if str(document.tipo_documento_id) == request.query_params['type_id']]
-        if request.query_params.get('area_id'):
-            documents = [document for document in documents if str(document.area_id) == request.query_params['area_id']]
-        if request.query_params.get('status_code') and request.query_params['status_code'] != 'PUBLICADO':
-            documents = []
-        date_from = parse_reader_date(request.query_params.get('date_from'), 'date_from')
-        date_to = parse_reader_date(request.query_params.get('date_to'), 'date_to', end=True)
-        if date_from:
-            documents = [document for document in documents if document.actualizado_en >= date_from]
-        if date_to:
-            documents = [document for document in documents if document.actualizado_en <= date_to]
-        if request.query_params.get('favorite') == 'true':
-            favorite_ids = set(FavoritoDocumento.objects.filter(usuario_id=request.user.id).values_list('documento_id', flat=True))
-            documents = [document for document in documents if document.id in favorite_ids]
-        ordering = request.query_params.get('ordering', '-updated_at')
-        ordering_key = ordering.lstrip('-')
-        ordering_fields = {
-            'updated_at': lambda item: item.actualizado_en,
-            'code': lambda item: item.codigo,
-            'title': lambda item: item.nombre,
-        }
-        key = ordering_fields.get(ordering_key, ordering_fields['updated_at'])
-        documents.sort(key=lambda item: (key(item), item.codigo), reverse=ordering.startswith('-'))
+        require_permission(request, 'documentos.consultar')
+        require_search_permission(request)
+        queryset = apply_document_filters(published_document_queryset(request.user.organizacion_id), request.query_params, reader=True, user=request.user)
+        documents = filter_accessible_documents(request.user, queryset)
         total = len(documents)
         try:
             limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
@@ -282,7 +261,8 @@ class ReaderVersionFileView(APIView):
     inline = False
 
     def get(self, request, document_id, version_id):
-        document = get_accessible_published_document(request.user, document_id, 'documentos.descargar' if not self.inline else 'documentos.consultar', request=request)
+        document = (get_accessible_published_document(request.user, document_id, 'documentos.consultar', request=request)
+                    if self.inline else get_download_document(request, document_id, published_only=True))
         version = published_version(document, version_id)
         if not version:
             raise Http404

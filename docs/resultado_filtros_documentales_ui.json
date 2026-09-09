@@ -1,0 +1,42 @@
+{
+  "result": "PASS",
+  "checks": [
+    {
+      "filter": "nombre",
+      "parameter": "search",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "filter": "tipo",
+      "parameter": "type_id",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "filter": "área",
+      "parameter": "area_id",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "filter": "estado",
+      "parameter": "status_code",
+      "result": "PASS",
+      "count": 1
+    },
+    {
+      "filter": "fecha desde",
+      "parameter": "date_from",
+      "result": "PASS",
+      "count": 0
+    },
+    {
+      "filter": "fecha hasta",
+      "parameter": "date_to",
+      "result": "PASS",
+      "count": 0
+    }
+  ],
+  "sample_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe"
+}

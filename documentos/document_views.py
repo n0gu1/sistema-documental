@@ -1,7 +1,6 @@
 import csv
 import json
 import logging
-from datetime import datetime, time
 from functools import wraps
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -21,6 +20,7 @@ from .auth_utils import record_access_denied, record_auth_event
 from .audit_views import audit_timestamp_column
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer, VersionRestoreSerializer
 from .file_validation import validate_uploaded_file
+from .document_filters import apply_document_filters, require_search_permission
 from .management_views import require_permission
 from .models import (
     ArchivoDocumento,
@@ -39,10 +39,10 @@ from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import (
     filter_accessible_documents,
     get_accessible_published_document,
+    get_download_document,
     has_area_permission,
     has_document_permission,
     is_reader_user,
-    published_document_queryset,
 )
 from .security_utils import sanitize_text
 from .serializers import DocumentPermissionsSerializer
@@ -72,60 +72,6 @@ def document_queryset(organization_id, include_archived=False):
     return queryset
 
 
-def parse_filter_date(value, field_name, end=False):
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value)
-    except ValueError as error:
-        raise ValidationError({field_name: 'Use una fecha ISO valida.'}) from error
-    if parsed.tzinfo is None:
-        parsed = timezone.make_aware(datetime.combine(parsed.date(), time.max if end else time.min))
-    return parsed
-
-
-def apply_document_filters(queryset, params):
-    search = params.get('search', '').strip()
-    if search:
-        queryset = queryset.filter(
-            codigo__icontains=search,
-        ) | queryset.filter(
-            nombre__icontains=search,
-        ) | queryset.filter(
-            descripcion__icontains=search,
-        )
-    if params.get('type_id'):
-        queryset = queryset.filter(tipo_documento_id=params['type_id'])
-    if params.get('area_id'):
-        queryset = queryset.filter(area_id=params['area_id'])
-    if params.get('responsible_id'):
-        queryset = queryset.filter(creado_por_id=params['responsible_id'])
-    if params.get('date_from'):
-        queryset = queryset.filter(fecha_documento__gte=params['date_from'])
-    if params.get('date_to'):
-        queryset = queryset.filter(fecha_documento__lte=params['date_to'])
-    if params.get('status_code'):
-        queryset = queryset.filter(
-            archivos__es_vigente=True,
-            archivos__estado_version__codigo=params['status_code'],
-        )
-    date_from = parse_filter_date(params.get('updated_from'), 'updated_from')
-    date_to = parse_filter_date(params.get('updated_to'), 'updated_to', end=True)
-    if date_from:
-        queryset = queryset.filter(actualizado_en__gte=date_from)
-    if date_to:
-        queryset = queryset.filter(actualizado_en__lte=date_to)
-    ordering_fields = {
-        'code': 'codigo',
-        'title': 'nombre',
-        'created_at': 'creado_en',
-        'updated_at': 'actualizado_en',
-        'document_date': 'fecha_documento',
-    }
-    ordering = params.get('ordering', '-updated_at')
-    field = ordering_fields.get(ordering.lstrip('-'), 'actualizado_en')
-    queryset = queryset.order_by(f'-{field}' if ordering.startswith('-') else field, 'codigo')
-    return queryset.distinct()
 
 
 def page_queryset(queryset, params):
@@ -526,29 +472,16 @@ class DocumentListCreateView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
+        require_search_permission(request)
         if is_reader_user(request.user):
-            from .reader_views import serialize_reader_document
+            from .reader_views import ReaderDocumentListView
 
-            documents = [
-                document for document in published_document_queryset(request.user.organizacion_id)
-                if has_document_permission(request.user, document.id, READ_PERMISSION)
-            ]
-            total = len(documents)
-            try:
-                limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
-                offset = max(int(request.query_params.get('offset', 0)), 0)
-            except (TypeError, ValueError) as error:
-                raise ValidationError({'code': 'INVALID_PAGINATION', 'detail': 'La paginacion no es valida.'}) from error
-            page = documents[offset:offset + limit]
-            return Response({
-                'count': total,
-                'next_offset': offset + limit if offset + limit < total else None,
-                'results': [serialize_reader_document(document, request) for document in page],
-            })
+            return ReaderDocumentListView().get(request)
         include_archived = request.query_params.get('include_archived') == 'true'
         queryset = apply_document_filters(
             document_queryset(request.user.organizacion_id, include_archived=include_archived),
             request.query_params,
+            user=request.user,
         )
         documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
         total = len(documents)
@@ -1142,14 +1075,14 @@ class DocumentFileDownloadView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
     def get(self, request, document_id, file_id):
-        require_permission(request, DOWNLOAD_PERMISSION)
-        if is_reader_user(request.user):
-            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
-            document_file = document.archivos.filter(pk=file_id, estado_version__codigo='PUBLICADO').first()
-            if not document_file:
-                raise Http404
-        else:
-            document, document_file = get_document_file_or_404(request, document_id, file_id, permission=DOWNLOAD_PERMISSION)
+        reader = is_reader_user(request.user)
+        document = get_download_document(request, document_id, published_only=reader)
+        files = document.archivos.filter(pk=file_id)
+        if reader:
+            files = files.filter(estado_version__codigo='PUBLICADO')
+        document_file = files.first()
+        if document_file is None:
+            raise Http404
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
@@ -1159,19 +1092,7 @@ class DocumentFileDownloadView(APIView):
 
 class DocumentVersionDownloadView(DocumentFileDownloadView):
     def get(self, request, document_id, version_id):
-        require_permission(request, DOWNLOAD_PERMISSION)
-        if is_reader_user(request.user):
-            document = get_accessible_published_document(request.user, document_id, 'documentos.descargar', request=request)
-            document_file = document.archivos.filter(pk=version_id, estado_version__codigo='PUBLICADO').first()
-            if not document_file:
-                raise Http404
-        else:
-            document, document_file = get_document_version_or_404(request, document_id, version_id, permission=DOWNLOAD_PERMISSION)
-        response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
-        filename = document_file.nombre_archivo_original.replace('"', '')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        record_document_event(request, document, 'ARCHIVO_DESCARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
-        return response
+        return super().get(request, document_id, version_id)
 
 
 class DocumentFilePreviewView(APIView):
@@ -1200,10 +1121,11 @@ class DocumentExportView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
+        require_search_permission(request)
         if is_reader_user(request.user):
             record_access_denied(request, 'READER_ENDPOINT_REQUIRED', resource_code='DOCUMENTO')
             raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})
-        queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params)
+        queryset = apply_document_filters(document_queryset(request.user.organizacion_id), request.query_params, user=request.user)
         documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
         record_auth_event(
             action_code='DOCUMENTO_EXPORTADO',

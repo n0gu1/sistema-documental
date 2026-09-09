@@ -1,0 +1,10 @@
+[
+  {
+    "codigo": "documentos.consultar",
+    "activo": true
+  },
+  {
+    "codigo": "documentos.descargar",
+    "activo": true
+  }
+]

@@ -72,6 +72,8 @@ function ReaderLibraryView({ onAction, onNavigate }) {
   const [area, setArea] = useState("Todas las áreas");
   const [type, setType] = useState("Todos los tipos");
   const [status, setStatus] = useState("Todos los estados");
+  const [from, setFrom] = useState('');
+  const [until, setUntil] = useState('');
   const [page, setPage] = useState(1);
   const [ordering, setOrdering] = useState("-updated_at");
   const [loading, setLoading] = useState(true);
@@ -100,6 +102,8 @@ function ReaderLibraryView({ onAction, onNavigate }) {
       area: area === "Todas las áreas" ? "" : area,
       type: type === "Todos los tipos" ? "" : type,
       status: status === "Todos los estados" ? "" : status,
+      from,
+      until,
       ordering,
       catalogs,
       limit: PAGE_SIZE,
@@ -110,10 +114,15 @@ function ReaderLibraryView({ onAction, onNavigate }) {
         if (active) {
           setDocuments((data.results || []).map(normalizeDocument));
           setTotal(data.count || 0);
+          setError('');
         }
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message);
+        if (active) {
+          setError(requestError.message);
+          setDocuments([]);
+          setTotal(0);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -121,7 +130,7 @@ function ReaderLibraryView({ onAction, onNavigate }) {
     return () => {
       active = false;
     };
-  }, [deferredQuery, area, type, status, ordering, page, catalogs]);
+  }, [deferredQuery, area, type, status, from, until, ordering, page, catalogs]);
 
   const visibleDocuments = documents;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -166,6 +175,8 @@ function ReaderLibraryView({ onAction, onNavigate }) {
     setArea("Todas las áreas");
     setType("Todos los tipos");
     setStatus("Todos los estados");
+    setFrom('');
+    setUntil('');
     setOrdering("-updated_at");
     setPage(1);
     onAction("Se limpiaron los filtros.");
@@ -246,6 +257,8 @@ function ReaderLibraryView({ onAction, onNavigate }) {
                 ))}
               </select>
             </label>
+            <label><span>Fecha documental desde</span><input type="date" value={from} onChange={event => updateFilter(setFrom)(event.target.value)} /></label>
+            <label><span>Fecha documental hasta</span><input type="date" value={until} onChange={event => updateFilter(setUntil)(event.target.value)} /></label>
             <div className="reader-library-filter-actions">
               <button
                 className="is-primary"

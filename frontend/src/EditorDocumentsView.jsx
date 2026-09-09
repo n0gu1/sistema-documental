@@ -193,10 +193,15 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
         if (active) {
           setDocuments((data.results || []).map(normalizeDocument));
           setTotal(data.count || 0);
+          setError('');
         }
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message);
+        if (active) {
+          setError(requestError.message);
+          setDocuments([]);
+          setTotal(0);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -400,11 +405,11 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
             placeholder="Ordenar"
           />
           <label className="editor-doc-filter editor-doc-filter--date">
-            <span>Fecha</span>
+            <span>Fecha documental</span>
             <div>
               <DocumentsIcon name="calendar" size={16} />
               <input
-                aria-label="Fecha desde"
+                aria-label="Fecha documental desde"
                 type="date"
                 value={from}
                 onChange={(event) => {
@@ -414,7 +419,7 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
               />
               <em>Hasta</em>
               <input
-                aria-label="Fecha hasta"
+                aria-label="Fecha documental hasta"
                 type="date"
                 value={until}
                 onChange={(event) => {

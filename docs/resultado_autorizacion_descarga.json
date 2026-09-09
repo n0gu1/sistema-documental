@@ -1,0 +1,179 @@
+{
+  "result": "PASS",
+  "checks": [
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentFileDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentVersionDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "ReaderVersionDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentFileDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentVersionDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "ReaderVersionDownloadView",
+      "download_permission": false,
+      "consult": 200,
+      "download": 403,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentFileDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentVersionDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "ReaderVersionDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentFileDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentVersionDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "ReaderVersionDownloadView",
+      "download_permission": true,
+      "consult": 200,
+      "download": 200,
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentFileDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentVersionDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "ReaderVersionDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentFileDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentVersionDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "ReaderVersionDownloadView",
+      "test": "Versión de otro documento: 404 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentFileDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "DocumentVersionDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.editor@test.local",
+      "route": "ReaderVersionDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentFileDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "DocumentVersionDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "user": "prueba.lector@test.local",
+      "route": "ReaderVersionDownloadView",
+      "test": "ACL deniega descarga, mantiene consulta: 403 sin abrir almacenamiento",
+      "result": "PASS"
+    },
+    {
+      "test": "Lector no descarga versiones no publicadas por ninguna ruta",
+      "result": "PASS"
+    }
+  ],
+  "rolled_back": true,
+  "storage": "FileSystemStorage temporal real; bytes verificados. No acredita conectividad S3."
+}

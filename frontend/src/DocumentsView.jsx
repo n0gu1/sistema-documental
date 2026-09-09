@@ -244,10 +244,15 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
         if (active) {
           setDocuments((data.results || []).map(normalizeDocument));
           setTotal(data.count || 0);
+          setError('');
         }
       })
       .catch((requestError) => {
-        if (active) setError(requestError.message);
+        if (active) {
+          setError(requestError.message);
+          setDocuments([]);
+          setTotal(0);
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -482,7 +487,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
           ]}
         />
         <label className="documents-filter documents-filter--date">
-          <span>Desde</span>
+          <span>Fecha documental desde</span>
           <div>
             <DocumentViewIcon name="calendar" size={17} />
             <input
@@ -496,7 +501,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
           </div>
         </label>
         <label className="documents-filter documents-filter--date">
-          <span>Hasta</span>
+          <span>Fecha documental hasta</span>
           <div>
             <DocumentViewIcon name="calendar" size={17} />
             <input

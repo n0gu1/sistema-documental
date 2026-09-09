@@ -41,8 +41,8 @@ export function buildDocumentQuery({ search = '', type = '', area = '', status =
   if (areaId) params.set('area_id', areaId)
   if (statusCode) params.set('status_code', statusCode)
   if (responsibleId) params.set('responsible_id', responsibleId)
-  if (from) params.set('updated_from', from)
-  if (until) params.set('updated_to', until)
+  if (from) params.set('date_from', from)
+  if (until) params.set('date_to', until)
   return params.toString()
 }
 
