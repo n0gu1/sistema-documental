@@ -1,0 +1,12 @@
+{
+  "environment": "Backend local contra Neon, archivos temporales, rollback total",
+  "document_id_rolled_back": "2a65461c-06b4-49e7-b6cf-0a0d0f8f5098",
+  "review_id_rolled_back": "cade2fe1-f6c6-4c85-9f6f-b74561deda15",
+  "requested_version_id": "97afc63c-63e8-46e1-b894-87ccd475e12b",
+  "global_current_version_id": "397528db-6cc1-4b5a-85f2-2433dc91e247",
+  "checks": [
+    "Solicitud creada por Editor para 1.0 no vigente; búsqueda global devuelve 1.1",
+    "Preview y descarga por Revisor contienen exactamente los bytes de 1.0",
+    "Decisión aprueba solo 1.0; 1.1 conserva BORRADOR y vigencia"
+  ]
+}

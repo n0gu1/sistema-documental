@@ -1,0 +1,51 @@
+{
+  "result": "PASS",
+  "environment": "Componentes reales con snapshots de la secuencia Neon",
+  "checks": [
+    {
+      "role": "editor",
+      "stage": "BORRADOR",
+      "result": "PASS"
+    },
+    {
+      "role": "editor",
+      "stage": "EN_REVISION",
+      "result": "PASS"
+    },
+    {
+      "role": "editor",
+      "stage": "APROBADO",
+      "result": "PASS"
+    },
+    {
+      "role": "editor",
+      "stage": "PUBLICADO",
+      "result": "PASS"
+    },
+    {
+      "role": "editor",
+      "stage": "PUBLICADA_ANTERIOR_BORRADOR_VIGENTE",
+      "result": "PASS"
+    },
+    {
+      "role": "reviewer",
+      "stage": "EN_REVISION",
+      "result": "PASS"
+    },
+    {
+      "role": "reviewer",
+      "stage": "APROBADO",
+      "result": "PASS"
+    },
+    {
+      "role": "reviewer",
+      "stage": "PUBLICADO",
+      "result": "PASS"
+    },
+    {
+      "role": "reviewer",
+      "stage": "PUBLICADA_ANTERIOR_BORRADOR_VIGENTE",
+      "result": "PASS"
+    }
+  ]
+}

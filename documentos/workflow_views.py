@@ -10,7 +10,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .auth_utils import get_user_roles, record_access_denied, record_auth_event
-from .document_views import get_document_or_404, get_document_version_or_404, record_document_event
+from .document_views import get_document_or_404, get_document_version_or_404, record_document_event, serialize_version, serialize_version_state
 from .management_views import require_permission
 from .models import (
     ArchivoDocumento,
@@ -153,6 +153,9 @@ def serialize_review(review):
         detail = None
     return {
         'id': str(review.id),
+        'status_scope': 'review_request',
+        'review_status': {'id': review.estado_revision_id, 'code': review.estado_revision.codigo, 'name': review.estado_revision.nombre},
+        'version': serialize_version_state(review.version_documento),
         'status': {
             'id': review.estado_revision_id,
             'code': review.estado_revision.codigo,
@@ -206,6 +209,15 @@ def get_review_or_404(request, review_id):
         record_access_denied(request, 'REVIEW_ACCESS_REQUIRED', resource_code='REVISION', resource_id=review.id)
         raise Http404
     return review
+
+
+def get_locked_review(request, review_id):
+    """Inside atomic: version -> reviews -> checklist, never decide from the lookup."""
+    reference = get_review_or_404(request, review_id)
+    ArchivoDocumento.objects.select_for_update().get(pk=reference.version_documento_id)
+    SolicitudRevision.objects.select_for_update().get(pk=reference.pk)
+    # Re-read authorization, assignment and states after any competing writer commits.
+    return get_review_or_404(request, review_id)
 
 
 def get_catalog_state(model, code):
@@ -318,9 +330,11 @@ def require_review_observation(action, comment):
 class ReviewSubmitView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, document_id, version_id):
         require_permission(request, REVIEW_SEND)
         document, version = get_document_version_or_404(request, document_id, version_id)
+        version = ArchivoDocumento.objects.select_for_update().get(pk=version.pk)
         serializer = SubmitReviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -335,6 +349,8 @@ class ReviewSubmitView(APIView):
         with transaction.atomic():
             if SolicitudRevision.objects.filter(version_documento=version, estado_revision=pending_state).exists():
                 return Response({'code': 'REVIEW_ALREADY_PENDING', 'detail': 'La version ya tiene una revision pendiente.'}, status=status.HTTP_409_CONFLICT)
+            if SolicitudRevision.objects.filter(version_documento=version, revisor_id__in=data['reviewer_ids']).exists():
+                return Response({'code': 'REVIEW_VERSION_ALREADY_ASSIGNED', 'detail': 'Esta version ya tuvo una solicitud para uno de los revisores. Cree una nueva version corregida para iniciar otra revision.'}, status=status.HTTP_409_CONFLICT)
             transition_version(version, 'EN_REVISION', request.user, data.get('comment', 'Enviada a revision'))
             reviews = []
             for reviewer in reviewers:
@@ -466,9 +482,10 @@ class ReviewDocumentListView(APIView):
 class ReviewAssignmentView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, review_id):
         require_permission(request, REVIEW_SEND)
-        review = get_review_or_404(request, review_id)
+        review = get_locked_review(request, review_id)
         if not is_admin(request.user) and review.solicitada_por_id != request.user.id:
             raise serializers.ValidationError({'code': 'REQUESTER_NOT_ALLOWED', 'detail': 'Solo quien solicito la revision puede reasignarla.'})
         if review.estado_revision.codigo != 'PENDIENTE':
@@ -519,21 +536,30 @@ class ReviewDecisionView(APIView):
 
     def post(self, request, review_id):
         require_permission(request, self.permission)
-        review = get_review_or_404(request, review_id)
-        if not is_admin(request.user) and review.revisor_id != request.user.id:
-            record_access_denied(request, 'REVIEWER_NOT_ASSIGNED', resource_code='REVISION', resource_id=review.id)
-            raise serializers.ValidationError({'code': 'REVIEWER_NOT_ASSIGNED', 'detail': 'Solo el revisor asignado puede resolver esta solicitud.'})
         decision = ReviewDecisionSerializer(data=request.data)
         decision.is_valid(raise_exception=True)
-        if review.estado_revision.codigo != 'PENDIENTE':
-            return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'La solicitud ya fue resuelta.'}, status=status.HTTP_409_CONFLICT)
         require_review_observation(self.action, decision.validated_data.get('comment'))
-        document = review.version_documento.documento
-        version = review.version_documento
         pending = get_revision_state('PENDIENTE')
         new_review_state = get_revision_state('APROBADA' if self.action == 'approve' else 'RECHAZADA' if self.action == 'reject' else 'CANCELADA')
-        now = timezone.now()
         with transaction.atomic():
+            review = get_locked_review(request, review_id)
+            if not is_admin(request.user) and review.revisor_id != request.user.id:
+                record_access_denied(request, 'REVIEWER_NOT_ASSIGNED', resource_code='REVISION', resource_id=review.id)
+                raise serializers.ValidationError({'code': 'REVIEWER_NOT_ASSIGNED', 'detail': 'Solo el revisor asignado puede resolver esta solicitud.'})
+            document = review.version_documento.documento
+            version = review.version_documento
+            if review.estado_revision.codigo != 'PENDIENTE':
+                return Response({'code': 'REVIEW_NOT_PENDING', 'detail': 'La solicitud ya fue resuelta.'}, status=status.HTTP_409_CONFLICT)
+            if version.estado_version.codigo != 'EN_REVISION':
+                return Response({'code': 'VERSION_NOT_IN_REVIEW', 'detail': 'La version ya no esta en revision.'}, status=status.HTTP_409_CONFLICT)
+            # Materialize locked rows; checking only the target permits lost consensus.
+            pending_ids = list(SolicitudRevision.objects.select_for_update().filter(
+                version_documento=version, estado_revision=pending,
+            ).order_by('id').values_list('id', flat=True))
+            checklist = list(review.checklist.select_for_update().order_by('id'))
+            if self.action == 'approve' and any(not item.completada for item in checklist):
+                raise serializers.ValidationError({'code': 'CHECKLIST_INCOMPLETE', 'detail': 'Complete el checklist antes de aprobar.'})
+            now = timezone.now()
             review.estado_revision = new_review_state
             review.comentario_resolucion = decision.validated_data.get('comment') or None
             review.resuelta_en = now
@@ -545,9 +571,7 @@ class ReviewDecisionView(APIView):
                 'OBSERVACION' if self.action in {'return', 'reject'} else 'RESOLUCION',
             )
             if self.action == 'approve':
-                if review.checklist.filter(completada=False).exists():
-                    raise serializers.ValidationError({'code': 'CHECKLIST_INCOMPLETE', 'detail': 'Complete el checklist antes de aprobar.'})
-                if not SolicitudRevision.objects.filter(version_documento=version, estado_revision=pending).exists():
+                if len(pending_ids) == 1:
                     transition_version(version, 'APROBADO', request.user, decision.validated_data.get('comment', 'Revision aprobada'))
             else:
                 target = 'RECHAZADO' if self.action == 'reject' else 'BORRADOR'
@@ -557,6 +581,14 @@ class ReviewDecisionView(APIView):
                     comentario_resolucion='Cerrada por decision de la revision',
                     resuelta_en=now,
                 )
+            approval = {
+                'individual_approved': review.estado_revision.codigo == 'APROBADA',
+                'version_approved': version.estado_version.codigo == 'APROBADO',
+                'pending_count': len(pending_ids) - 1 if self.action == 'approve' else 0,
+                'version_id': str(version.id),
+                'version_status': version.estado_version.codigo,
+            }
+            response_data = {'review': serialize_review(review), 'approval': approval}
         if self.action == 'approve':
             action_code = 'DOCUMENTO_APROBADO'
         elif self.action == 'reject':
@@ -572,7 +604,7 @@ class ReviewDecisionView(APIView):
             details={'comment': decision.validated_data.get('comment', '')},
         )
         notify_review_decision(review, self.action)
-        return Response({'review': serialize_review(review)})
+        return Response(response_data)
 
 
 class ReviewApproveView(ReviewDecisionView):
@@ -670,9 +702,10 @@ class ReviewCommentResolveView(APIView):
 class ReviewChecklistCreateView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, review_id):
         require_permission(request, REVIEW_READ)
-        review = get_review_or_404(request, review_id)
+        review = get_locked_review(request, review_id)
         ensure_checklist_editable(request, review)
         serializer = ChecklistSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -695,6 +728,7 @@ class ReviewChecklistCreateView(APIView):
 class ReviewChecklistUpdateView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def patch(self, request, item_id):
         require_permission(request, REVIEW_READ)
         item = ElementoChecklistRevision.objects.select_related('solicitud').filter(
@@ -703,8 +737,9 @@ class ReviewChecklistUpdateView(APIView):
         ).first()
         if not item:
             raise Http404
-        review = get_review_or_404(request, item.solicitud_id)
+        review = get_locked_review(request, item.solicitud_id)
         ensure_checklist_editable(request, review)
+        item = ElementoChecklistRevision.objects.select_for_update().get(pk=item.pk)
         serializer = ChecklistUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         item.completada = serializer.validated_data['completed']
@@ -750,4 +785,4 @@ class VersionPublishView(APIView):
             details={'comment': comment},
         )
         notify_document_publication(document, version, actor_id=request.user.id)
-        return Response({'version': {'id': str(version.id), 'status': 'PUBLICADO', 'is_current': True}})
+        return Response({'version': serialize_version(version, request)})

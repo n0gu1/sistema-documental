@@ -2,6 +2,7 @@ import { PermissionButton, PermissionForm } from './Permissions'
 import { useEffect, useState } from 'react'
 import { apiRequest, formatDate, reviewPriorityName, reviewStatusName } from './documentApi'
 import './ReviewerDocumentReviewView.css'
+import VersionStateSummary from './VersionStateSummary'
 
 function ReviewIcon({ name, size = 18 }) {
   const content = name === 'check' ? <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.7 2.7L16.5 9" /></> : name === 'pending' ? <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></> : name === 'close' ? <><path d="m6 6 12 12M18 6 6 18" /></> : name === 'comment' ? <><path d="M4 5h16v11H8l-4 4V5Z" /><path d="M8 9h8m-8 3h5" /></> : name === 'paperclip' ? <path d="m20.5 11.5-8.9 8.9a5 5 0 0 1-7.1-7.1l9.6-9.6a3.5 3.5 0 0 1 5 5l-9.6 9.6a2 2 0 1 1-2.8-2.8l8.9-8.9" /> : name === 'layers' ? <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></> : name === 'download' ? <><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 20h16" /></> : name === 'eye' ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : <><path d="M6 2.8h8.6L19 7.2V21H6z" /><path d="M14.5 3v4.5H19M9 12h7M9 16h7" /></>
@@ -26,6 +27,7 @@ function fileLabel(file) {
 
 function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
   const [review, setReview] = useState(null)
+  const [refresh, setRefresh] = useState(0)
   const [activeTab, setActiveTab] = useState('Contenido')
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
@@ -38,6 +40,11 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
   useEffect(() => {
     let active = true
     async function load() {
+      setLoading(true)
+      setReview(null)
+      setError('')
+      setPreviewUrl('')
+      setPreviewError('')
       try {
         let selectedId = reviewId
         if (!selectedId) {
@@ -47,7 +54,10 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
         if (!selectedId) throw new Error('No hay revisiones asignadas.')
         const reviewData = await apiRequest(`/api/reviews/${selectedId}/`)
         const documentData = await apiRequest(`/api/documents/${reviewData.review.document.id}/`)
-        if (active) setReview({ ...reviewData.review, document: { ...reviewData.review.document, ...documentData.document }, files: documentData.document.files || [] })
+        const versionId = reviewData.review.document.version_id
+        const files = (documentData.document.files || []).filter((file) => file.id === versionId)
+        if (!versionId || !files.length) throw new Error('No se encontró el archivo de la versión solicitada para revisión.')
+        if (active) setReview({ ...reviewData.review, document: { ...documentData.document, ...reviewData.review.document }, files })
       } catch (requestError) {
         if (active) setError(requestError.message)
       } finally {
@@ -56,11 +66,13 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
     }
     load()
     return () => { active = false }
-  }, [reviewId])
+  }, [reviewId, refresh])
 
   useEffect(() => {
     if (!review) return undefined
-    const file = review.files.find((item) => item.is_current) || review.files[0]
+    setPreviewUrl('')
+    setPreviewError('')
+    const file = review.files.find((item) => item.id === review.document.version_id)
     if (!file?.preview_url) {
       return undefined
     }
@@ -99,7 +111,13 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
         setRejectionComment('')
         setRejectionOpen(false)
       } else setComment('')
-      onAction(`Revisión ${action === 'approve' ? 'aprobada' : action === 'reject' ? 'rechazada' : 'devuelta'}.`)
+      onAction(action === 'approve'
+        ? data.approval?.version_approved
+          ? 'Revisión aprobada. La versión cuenta con la aprobación de todos los revisores.'
+          : data.approval
+            ? `Aprobación individual registrada. Revisiones pendientes: ${data.approval.pending_count}. La versión sigue en revisión.`
+            : 'Revisión aprobada.'
+        : `Revisión ${action === 'reject' ? 'rechazada' : 'devuelta'}.`)
     } catch (requestError) { setError(requestError.message) }
   }
 
@@ -125,15 +143,17 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
   if (!review) return null
 
   const statusCode = review.status?.code
-  const currentFile = review.files.find((file) => file.is_current) || review.files[0]
+  const currentFile = review.files.find((file) => file.id === review.document.version_id)
   const canDecide = statusCode === 'PENDIENTE'
   const comments = review.comments || []
 
   return <div className="reviewer-document-review">
+    <button type="button" onClick={() => setRefresh(value => value + 1)}>Actualizar estados</button>
+    <VersionStateSummary version={review.version || currentFile} />
     <header className="reviewer-review-heading"><div><h1>Revisar documento</h1><p>Analiza el contenido, registra observaciones y emite una decisión.</p></div><time><ReviewIcon name="calendar" size={18} />{new Intl.DateTimeFormat('es-ES', { dateStyle: 'long' }).format(new Date())}</time></header>
     <section className="reviewer-document-summary">
       <span className="reviewer-document-icon"><ReviewIcon size={39} /></span>
-      <div className="reviewer-document-title"><h2>{review.document.code} {review.document.title}</h2><dl><div><dt>Código</dt><dd>{review.document.code || '—'}</dd></div><div><dt>Área</dt><dd>{review.document.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{review.document.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{review.document.version || '—'}</dd></div><div><dt>Estado</dt><dd><b className={`is-${statusTone(statusCode)}`}>{reviewStatusName(review)}</b></dd></div><div><dt>Autor</dt><dd>{review.document.responsible?.name || review.requested_by?.name || '—'}</dd></div></dl></div>
+      <div className="reviewer-document-title"><h2>{review.document.code} {review.document.title}</h2><dl><div><dt>Código</dt><dd>{review.document.code || '—'}</dd></div><div><dt>Área</dt><dd>{review.document.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{review.document.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{review.document.version || '—'}</dd></div><div><dt>Estado de solicitud</dt><dd><b className={`is-${statusTone(statusCode)}`}>{reviewStatusName(review)}</b></dd></div><div><dt>Autor</dt><dd>{review.document.responsible?.name || review.requested_by?.name || '—'}</dd></div></dl></div>
       <dl className="reviewer-document-extra"><div><dt>Enviado por</dt><dd>{review.requested_by?.name || '—'}</dd></div><div><dt>Fecha de envío</dt><dd>{formatDate(review.requested_at, 'Sin fecha')}</dd></div><div><dt>Fecha límite</dt><dd>{formatDate(review.deadline, 'Sin fecha')}</dd></div><div><dt>Revisor asignado</dt><dd>{review.reviewer?.name || '—'}</dd></div></dl>
     </section>
     <div className="reviewer-review-body">
@@ -145,7 +165,7 @@ function ReviewerDocumentReviewView({ reviewId, onAction, onNavigate }) {
         {activeTab === 'Observaciones' && <article className="reviewer-document-content"><h3>Observaciones y comentarios</h3><div className="reviewer-observation-list">{comments.length ? comments.map((item) => <div key={item.id}><strong>{item.author?.name || 'Usuario'}</strong><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></div>) : <p className="reviewer-review-empty">No hay observaciones registradas.</p>}</div><PermissionForm permission="revisiones.consultar" className="reviewer-comment-form" onSubmit={addComment}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Escribe una observación..." /><button type="submit"><ReviewIcon name="comment" size={17} />Guardar observación</button></PermissionForm></article>}
       </main>
       <aside className="reviewer-review-sidebar">
-        <section><h2><ReviewIcon name="pending" size={20} />Estado de revisión</h2><dl className="reviewer-status-data"><div><dt>Etapa actual</dt><dd><b className={`is-${statusTone(statusCode)}`}>{reviewStatusName(review)}</b></dd></div><div><dt>Tiempo restante</dt><dd>{daysRemaining(review.deadline, statusCode)}</dd></div><div><dt>Nivel de prioridad</dt><dd><i className={`reviewer-priority-dot is-${review.priority?.toLowerCase() || 'media'}`} />{reviewPriorityName(review.priority)}</dd></div><div><dt>Asignado a</dt><dd>{review.reviewer?.name || '—'}</dd></div></dl></section>
+        <section><h2><ReviewIcon name="pending" size={20} />Estado de solicitud</h2><dl className="reviewer-status-data"><div><dt>Etapa actual</dt><dd><b className={`is-${statusTone(statusCode)}`}>{reviewStatusName(review)}</b></dd></div><div><dt>Tiempo restante</dt><dd>{daysRemaining(review.deadline, statusCode)}</dd></div><div><dt>Nivel de prioridad</dt><dd><i className={`reviewer-priority-dot is-${review.priority?.toLowerCase() || 'media'}`} />{reviewPriorityName(review.priority)}</dd></div><div><dt>Asignado a</dt><dd>{review.reviewer?.name || '—'}</dd></div></dl></section>
         <section><h2><ReviewIcon name="check" size={20} />Checklist de revisión</h2><ul className="reviewer-checklist">{review.checklist.length ? review.checklist.map((item) => <li key={item.id}><PermissionButton permission="revisiones.consultar" type="button" className={item.completed ? 'is-complete' : ''} onClick={() => updateChecklist(item)}><ReviewIcon name={item.completed ? 'check' : 'pending'} size={16} /></PermissionButton><span>{item.title}</span></li>) : <li className="reviewer-side-empty">No hay checklist asociado.</li>}</ul></section>
         <section><h2><ReviewIcon name="comment" size={20} />Observaciones del revisor</h2><div className="reviewer-side-comments">{comments.length ? comments.slice(-3).map((item) => <article key={item.id}><span>{item.author?.name || 'Usuario'}</span><time>{formatDate(item.created_at, 'Sin fecha')}</time><p>{item.content}</p></article>) : <p className="reviewer-side-empty">No hay observaciones registradas.</p>}</div></section>
       </aside>

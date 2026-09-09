@@ -1,0 +1,21 @@
+{
+  "environment": "UI local con API controlada",
+  "checks": [
+    {
+      "case": "exact",
+      "result": "PASS"
+    },
+    {
+      "case": "missing",
+      "result": "PASS"
+    },
+    {
+      "case": "preview-error",
+      "result": "PASS"
+    },
+    {
+      "case": "switch",
+      "result": "PASS"
+    }
+  ]
+}

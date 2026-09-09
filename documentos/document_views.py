@@ -122,8 +122,22 @@ def ensure_document_directly_editable(document):
         })
 
 
+def serialize_version_state(version):
+    state = {'id': version.estado_version_id, 'code': version.estado_version.codigo, 'name': version.estado_version.nombre}
+    return {
+        'id': str(version.id),
+        'version': f'{version.numero_mayor}.{version.numero_menor}',
+        'status': state,
+        'version_status': state,
+        'status_scope': 'version',
+        'is_current': version.es_vigente,
+        'is_published': version.estado_version.codigo == 'PUBLICADO',
+    }
+
+
 def serialize_version(document_file, request):
     return {
+        **serialize_version_state(document_file),
         'id': str(document_file.id),
         'name': document_file.nombre_archivo_original,
         'mime_type': document_file.tipo_mime,
@@ -192,8 +206,14 @@ def compare_versions(first, second, request):
 
 
 def serialize_document(document, request, include_details=False):
-    version = current_version(document)
+    # A missing current flag must not silently promote an arbitrary version.
+    version = document.archivos.select_related('estado_version').filter(es_vigente=True).first()
     result = {
+        'status_scope': 'current_version',
+        'current_version_id': str(version.id) if version else None,
+        'current_version': serialize_version_state(version) if version else None,
+        'current_version_status': serialize_version_state(version)['status'] if version else None,
+        'publication': {'published_version_ids': [str(pk) for pk in document.archivos.filter(estado_version__codigo='PUBLICADO').values_list('id', flat=True)], 'requires_explicit_action': True},
         'id': str(document.id),
         'code': document.codigo,
         'title': document.nombre,

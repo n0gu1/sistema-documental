@@ -1,0 +1,16 @@
+{
+  "checks": [
+    {
+      "case": "individual",
+      "result": "PASS"
+    },
+    {
+      "case": "total",
+      "result": "PASS"
+    },
+    {
+      "case": "conflict",
+      "result": "PASS"
+    }
+  ]
+}

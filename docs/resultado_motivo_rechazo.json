@@ -1,0 +1,120 @@
+{
+  "result": "PASS",
+  "environment": "Navegador local, vistas reales, Neon, autenticación de prueba, rollback total",
+  "motive": "RECHAZO-47-48-NEON: Falta la firma del responsable.\nCorregir la fecha del anexo 7.",
+  "documents_rolled_back": [
+    "fdb28780-5903-48fc-8023-f11141ce657e",
+    "f2bd8575-8690-4bae-b5f0-95f500419413"
+  ],
+  "review_rolled_back": "fb0e40fb-e5d0-4db8-bb3f-999943fc4f18",
+  "requests": [
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/reviews/fb0e40fb-e5d0-4db8-bb3f-999943fc4f18/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/reviews/fb0e40fb-e5d0-4db8-bb3f-999943fc4f18/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/files/612b0300-85b6-4fd3-9fc5-2bf91248346e/preview/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "POST",
+      "path": "/api/reviews/fb0e40fb-e5d0-4db8-bb3f-999943fc4f18/reject/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/files/612b0300-85b6-4fd3-9fc5-2bf91248346e/preview/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/permissions/",
+      "status": 403
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/fdb28780-5903-48fc-8023-f11141ce657e/permissions/",
+      "status": 403
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/f2bd8575-8690-4bae-b5f0-95f500419413/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/f2bd8575-8690-4bae-b5f0-95f500419413/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/f2bd8575-8690-4bae-b5f0-95f500419413/permissions/",
+      "status": 403
+    }
+  ]
+}

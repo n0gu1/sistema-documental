@@ -1,0 +1,206 @@
+{
+  "result": "PASS",
+  "environment": "Navegador local, vistas reales, Neon, autenticación de prueba, rollback total",
+  "motive": "REQ48: Corregir firma y enviar archivo nuevo.",
+  "document_rolled_back": "266c297b-2d0f-444a-b90a-45375ba98165",
+  "old_review_id": "a84a1fd1-063c-4d2b-8f75-5436e3fcc6a4",
+  "new_review_id": "469e5946-1cfe-446d-814a-ccc227e9e900",
+  "old_version_id": "6227fe5f-fa76-44c8-8d78-57d51c326c80",
+  "new_version_id": "de9e5469-67c2-4484-9b60-8e91d2ee8bdc",
+  "checks": [
+    "1.0 enviada desde UI",
+    "Rechazo con motivo conservado",
+    "1.1 con archivo corregido y bytes distintos",
+    "Envío de 1.1 al mismo revisor sin violar UNIQUE",
+    "Bandeja del Revisor contiene nueva solicitud PENDIENTE 1.1",
+    "Reintentos no duplican solicitudes; pareja anterior devuelve 409"
+  ],
+  "requests": [
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/permissions/",
+      "status": 403
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/reviews/reviewers/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "POST",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/versions/6227fe5f-fa76-44c8-8d78-57d51c326c80/submit-review/",
+      "status": 201
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/reviews/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/reviews/a84a1fd1-063c-4d2b-8f75-5436e3fcc6a4/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/files/6227fe5f-fa76-44c8-8d78-57d51c326c80/preview/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "POST",
+      "path": "/api/reviews/a84a1fd1-063c-4d2b-8f75-5436e3fcc6a4/reject/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/files/6227fe5f-fa76-44c8-8d78-57d51c326c80/preview/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/permissions/",
+      "status": 403
+    },
+    {
+      "role": "editor",
+      "method": "POST",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/versions/",
+      "status": 201
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/catalogs/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/reviews/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/permissions/",
+      "status": 403
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/reviews/reviewers/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "POST",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/versions/de9e5469-67c2-4484-9b60-8e91d2ee8bdc/submit-review/",
+      "status": 201
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "editor",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/reviews/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/reviews/469e5946-1cfe-446d-814a-ccc227e9e900/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/documents/266c297b-2d0f-444a-b90a-45375ba98165/files/de9e5469-67c2-4484-9b60-8e91d2ee8bdc/preview/",
+      "status": 200
+    },
+    {
+      "role": "reviewer",
+      "method": "GET",
+      "path": "/api/reviews/inbox/",
+      "status": 200
+    }
+  ]
+}

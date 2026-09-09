@@ -1,0 +1,48 @@
+{
+  "result": "PASS",
+  "environment": "Rama Neon aislada; conexiones reales y commits; sin correo ni S3",
+  "checks": [
+    "Aprobación individual conserva otra pendiente; última aprobación completa la versión",
+    "Dos aprobaciones concurrentes: espera PostgreSQL comprobada, consenso final y una transición",
+    "Misma solicitud: approve frente a approve, solo una decisión y segunda 409; bloqueo real",
+    "Misma solicitud: approve frente a reject, solo una decisión y segunda 409; bloqueo real",
+    "Misma solicitud: approve frente a return, solo una decisión y segunda 409; bloqueo real",
+    "Solicitudes distintas approve/reject: nunca aprobación total; filas conservadas con cierre explícito por rechazo",
+    "Checklist incompleto no escribe; edición concurrente no invalida una aprobación confirmada",
+    "Fallo durante transición revierte la decisión y conserva pendiente"
+  ],
+  "fixtures": [
+    {
+      "document_id": "e26fa894-e696-4b64-a9d9-daf58e17f018",
+      "version_id": "f56ac382-48c9-4935-8766-fad78857408c"
+    },
+    {
+      "document_id": "ad7b18dd-5217-4607-803e-58ab60ff8ee6",
+      "version_id": "d4367d91-3464-49fa-83ca-81f7b3de0df8"
+    },
+    {
+      "document_id": "1eb1bbf2-bb04-47f1-99db-c0b0e4e9d6ab",
+      "version_id": "1da787f0-486a-455e-8b01-300bb90a8f10"
+    },
+    {
+      "document_id": "b7e26a33-ed94-4169-b755-0aa640199aef",
+      "version_id": "e401c6ce-351d-4160-bad5-c87221ac45be"
+    },
+    {
+      "document_id": "b6085971-3b8d-4da0-91e2-8e7031b8b766",
+      "version_id": "61c308bd-babb-4b79-8687-d5fcbff02f6e"
+    },
+    {
+      "document_id": "b1caeae7-128d-4b66-afd4-7b16e56d1f20",
+      "version_id": "3960dfb8-1a74-490f-b1bc-94a8807ca7db"
+    },
+    {
+      "document_id": "790755a3-079b-46a1-abba-f2f9a13b0f43",
+      "version_id": "120d8d22-972e-4bba-a307-8ecd473eaaf7"
+    },
+    {
+      "document_id": "fe595381-9c98-4975-b2e5-47811addebd2",
+      "version_id": "7edbf3fd-69b9-45ba-84d2-f35bf9bc631e"
+    }
+  ]
+}

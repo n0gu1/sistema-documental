@@ -46,6 +46,10 @@ def parse_reader_date(value, field_name, end=False):
 
 def serialize_reader_version(version, request):
     return {
+        'status_scope': 'version',
+        'version_status': {'id': version.estado_version_id, 'code': version.estado_version.codigo, 'name': version.estado_version.nombre},
+        'is_current': version.es_vigente,
+        'is_published': version.estado_version.codigo == 'PUBLICADO',
         'id': str(version.id),
         'name': version.nombre_archivo_original,
         'mime_type': version.tipo_mime,
@@ -67,6 +71,8 @@ def serialize_reader_document(document, request, include_details=False):
     version = published_version(document)
     favorite = FavoritoDocumento.objects.filter(documento_id=document.id, usuario_id=request.user.id).exists()
     result = {
+        'status_scope': 'published_version',
+        'published_version_id': str(version.id) if version else None,
         'id': str(document.id),
         'code': document.codigo,
         'title': document.nombre,
