@@ -1,0 +1,18 @@
+{
+  "result": "PASS",
+  "sequence": [
+    "1.0",
+    "PATCH: 1.0",
+    "Carga menor: 1.1"
+  ],
+  "checks": [
+    "Crear con archivo: 1.0",
+    "PATCH y recarga: datos persistidos, versión 1.0 intacta",
+    "Operaciones ambiguas o sin archivo rechazadas sin crear versión",
+    "Carga menor: 1.1; conserva 1.0 y bytes de ambas versiones",
+    "Recarga final: ficha actual y versiones 1.1/1.0 coherentes",
+    "Alta sin archivo: ficha sin versión, sin inventar 1.0"
+  ],
+  "rolled_back": true,
+  "storage": "FileSystemStorage temporal real; no prueba S3"
+}

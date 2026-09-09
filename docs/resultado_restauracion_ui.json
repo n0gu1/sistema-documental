@@ -1,0 +1,25 @@
+{
+  "environment": "UI local con API controlada",
+  "checks": [
+    {
+      "view": "admin",
+      "case": "restaurar 1.2 recarga 1.4 y conserva anteriores",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "case": "error conserva historial y muestra fallo",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "case": "restaurar 1.2 recarga 1.4 y conserva anteriores",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "case": "error conserva historial y muestra fallo",
+      "result": "PASS"
+    }
+  ]
+}

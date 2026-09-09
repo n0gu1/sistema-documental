@@ -1,0 +1,131 @@
+{
+  "environment": "Componentes reales en Vite local; respuestas API controladas, sin escrituras en BD",
+  "checks": [
+    {
+      "view": "admin",
+      "persisted": "1.2",
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.2",
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.2",
+      "selected": "1.2",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.2",
+      "action": "intercambiar",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.1",
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.1",
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.1",
+      "selected": "1.2",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": "1.1",
+      "action": "intercambiar",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": null,
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": null,
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": null,
+      "selected": "1.2",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "persisted": null,
+      "action": "intercambiar",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.2",
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.2",
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.2",
+      "selected": "1.2",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.1",
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.1",
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": "1.1",
+      "selected": "1.2",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": null,
+      "selected": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": null,
+      "selected": "1.1",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "persisted": null,
+      "selected": "1.2",
+      "result": "PASS"
+    }
+  ]
+}

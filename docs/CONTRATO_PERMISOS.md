@@ -25,7 +25,7 @@ recibidos por las APIs de gestión se validan contra el catálogo activo.
 | documentos.descargar | Descarga de archivos/versiones y descarga de Lector |
 | documentos.buscar | Sin comprobación explícita; búsqueda permanece bajo consultar |
 | versiones.consultar | Listado, comparación y timeline de versiones |
-| versiones.crear | Carga de archivos/nuevas versiones y archivo adjunto al modificar |
+| versiones.crear | Carga de archivos/nuevas versiones por las rutas files/ y versions/ |
 | versiones.restaurar | Restaurar una versión |
 | usuarios.consultar | Consultas administrativas y configuración |
 | usuarios.gestionar | Gestión de usuarios, configuración y respaldos |
@@ -57,8 +57,9 @@ esta corrección no introduce un nuevo contrato para los filtros.
 | GET DocumentFileDownloadView; DocumentVersionDownloadView | documentos.consultar | documentos.descargar |
 | GET/PUT DocumentPermissionsView | documentos.gestionar | roles.gestionar |
 
-PATCH con archivo adicional también exige versiones.crear, porque genera una nueva
-versión. La versión inicial incluida en el alta queda amparada por documentos.crear.
+PATCH modifica exclusivamente datos y metadatos, sin crear versión y sin admitir
+archivos. La carga por files/ o versions/ exige versiones.crear. La versión inicial
+incluida en el alta queda amparada por documentos.crear.
 La reversión del archivo usa la misma autoridad que la baja lógica, sin inventar
 un permiso de restauración documental.
 

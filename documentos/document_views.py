@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import logging
 from functools import wraps
@@ -58,6 +59,7 @@ VERSION_READ_PERMISSION = 'versiones.consultar'
 VERSION_CREATE_PERMISSION = 'versiones.crear'
 VERSION_RESTORE_PERMISSION = 'versiones.restaurar'
 ROLE_PERMISSION = 'roles.gestionar'
+VERSION_POLICY = 'file_content'
 PREVIEWABLE_MIMES = {'application/pdf', 'image/jpeg', 'image/png'}
 DIRECT_EDIT_BLOCKED_STATES = {'EN_REVISION', 'APROBADO', 'PUBLICADO'}
 logger = logging.getLogger(__name__)
@@ -399,7 +401,13 @@ def save_document_file(document, uploaded_file, user, comment='', version_type='
     storage_key = None
     try:
         with transaction.atomic():
-            latest = document.archivos.select_for_update().order_by('-orden_version').first()
+            # Serializar por documento, incluso cuando todavía no tiene versiones.
+            # Consultar la última versión después de adquirir el bloqueo evita
+            # calcular desde una fila seleccionada antes de esperar otra carga.
+            Documento.objects.select_for_update().get(
+                pk=document.pk, organizacion_id=document.organizacion_id, eliminado_en__isnull=True,
+            )
+            latest = document.archivos.order_by('-orden_version').first()
             major, minor = next_version_numbers(latest, version_type)
             order = latest.orden_version + 1 if latest else 1
             document.archivos.filter(es_vigente=True).update(es_vigente=False)
@@ -538,7 +546,7 @@ class DocumentListCreateView(APIView):
                     data.get('version_type', 'minor'),
                 )
         record_document_event(request, document, 'DOCUMENTO_CREADO')
-        return Response({'document': serialize_document(document, request, include_details=True)}, status=status.HTTP_201_CREATED)
+        return Response({'document': serialize_document(document, request, include_details=True), 'version_policy': VERSION_POLICY, 'version_created': bool(uploaded_file)}, status=status.HTTP_201_CREATED)
 
 
 class DocumentCatalogView(APIView):
@@ -621,7 +629,7 @@ class DocumentDetailView(APIView):
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
         record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
-        return Response({'document': serialize_document(document, request, include_details=True)})
+        return Response({'document': serialize_document(document, request, include_details=True), 'version_policy': VERSION_POLICY, 'version_created': False})
 
     @transaction.atomic
     def delete(self, request, document_id):
@@ -745,7 +753,7 @@ class DocumentFileListCreateView(APIView):
             resource_id=document_file.id,
             details={'comment': serializer.validated_data.get('comment', '')},
         )
-        return Response({'file': serialize_file(document_file, request)}, status=status.HTTP_201_CREATED)
+        return Response({'file': serialize_file(document_file, request), 'version_policy': VERSION_POLICY, 'version_created': True}, status=status.HTTP_201_CREATED)
 
 
 class DocumentVersionListView(APIView):
@@ -783,7 +791,7 @@ class DocumentVersionListView(APIView):
             resource_id=document_file.id,
             details={'comment': serializer.validated_data.get('comment', '')},
         )
-        return Response({'version': serialize_version(document_file, request)}, status=status.HTTP_201_CREATED)
+        return Response({'version': serialize_version(document_file, request), 'version_policy': VERSION_POLICY, 'version_created': True}, status=status.HTTP_201_CREATED)
 
 
 class DocumentVersionRestoreView(APIView):
@@ -806,7 +814,8 @@ class DocumentVersionRestoreView(APIView):
         storage_key = None
         try:
             with transaction.atomic():
-                latest = document.archivos.select_for_update().order_by('-orden_version').first()
+                Documento.objects.select_for_update().get(pk=document.pk, eliminado_en__isnull=True)
+                latest = document.archivos.order_by('-orden_version').first()
                 if not latest or latest.id == source.id:
                     raise ValidationError({'code': 'VERSION_NOT_RESTORABLE', 'detail': 'La version seleccionada no puede restaurarse.'})
                 document.archivos.filter(es_vigente=True).update(es_vigente=False)
@@ -814,6 +823,14 @@ class DocumentVersionRestoreView(APIView):
                 storage_name = f'{document.organizacion_id}/{document.id}/{uuid4().hex}{Path(source.nombre_archivo_original).suffix.lower()}'
                 with open_stored_file(source) as source_file:
                     storage_key = default_storage.save(storage_name, File(source_file, name=storage_name))
+                digest = hashlib.sha256()
+                restored_size = 0
+                with default_storage.open(storage_key, 'rb') as copied_file:
+                    for chunk in iter(lambda: copied_file.read(64 * 1024), b''):
+                        digest.update(chunk)
+                        restored_size += len(chunk)
+                if digest.hexdigest() != source.sha256 or restored_size != source.tamano_bytes:
+                    raise ValidationError({'version': 'El contenido restaurado no coincide con la integridad registrada de la versión origen.'})
                 restored = ArchivoDocumento.objects.create(
                     id=uuid4(),
                     documento=document,
@@ -856,7 +873,7 @@ class DocumentVersionRestoreView(APIView):
             request,
             document,
             'VERSION_RESTAURADA',
-            resource_code='ARCHIVO',
+            resource_code='VERSION',
             resource_id=restored.id,
             details={
                 'source_version_id': str(source.id),
@@ -1022,14 +1039,14 @@ def fetch_document_timeline_events(document, reader_only=False):
                 JOIN gestion_documental.tipos_recurso_auditoria tr ON tr.id = ba.tipo_recurso_id
                 LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
                 LEFT JOIN gestion_documental.versiones_documento v
-                    ON tr.codigo = 'ARCHIVO' AND v.id = ba.recurso_id
+                    ON tr.codigo IN ('ARCHIVO', 'VERSION') AND v.id = ba.recurso_id
                 LEFT JOIN gestion_documental.estados_version ev ON ev.id = v.estado_version_id
                 WHERE ba.organizacion_id = %s
                   AND ba.exitoso
                   AND a.codigo IN ({placeholders})
                   AND (
                       (tr.codigo = 'DOCUMENTO' AND ba.recurso_id = %s)
-                      OR (tr.codigo = 'ARCHIVO' AND v.documento_id = %s)
+                      OR (tr.codigo IN ('ARCHIVO', 'VERSION') AND v.documento_id = %s)
                   )
                   AND a.codigo <> 'ARCHIVO_CARGADO'
                 ORDER BY ba.{timestamp_column} DESC, ba.id DESC

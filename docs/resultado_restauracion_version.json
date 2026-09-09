@@ -1,0 +1,11 @@
+{
+  "document_id_rolled_back": "1c58d94e-bdf9-4c5e-a17f-c7dc2c794ca3",
+  "environment": "Neon real, almacenamiento local temporal, rollback total",
+  "checks": [
+    "Restaurar 1.2 desde 1.3 crea fila nueva 1.4 BORRADOR, con autor y fecha",
+    "1.0, 1.1, 1.2 y 1.3 conservadas; bytes/hash de 1.4 idénticos a 1.2; solo 1.4 vigente",
+    "Evento VERSION_RESTAURADA persistido en bitácora y visible en timeline, con origen y nueva versión",
+    "Recarga confirma 1.4 vigente y todas las versiones anteriores",
+    "Contenido corrupto rechazado sin nueva fila, sin cambiar vigente y sin copia huérfana"
+  ]
+}

@@ -134,7 +134,7 @@ function statusTone(status) {
   return "draft";
 }
 
-function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
+function EditorDocumentsView({ globalQuery, onAction, onEditDocument, onHistory }) {
   const [documents, setDocuments] = useState([]);
   const [total, setTotal] = useState(0);
   const [creating, setCreating] = useState(false);
@@ -474,6 +474,7 @@ function EditorDocumentsView({ globalQuery, onAction, onEditDocument }) {
                   <td>{document.reviewer}</td>
                   <td>
                     <div className="editor-doc-actions">
+                      <PermissionButton permission="versiones.consultar" type="button" aria-label={`Historial de ${document.title}`} onClick={() => onHistory?.(document)}>Historial</PermissionButton>
                       <ArchiveDocumentButton document={document} onArchived={() => { setDocuments(current => current.filter(item => item.id !== document.id)); setNotice(`Documento ${document.code} archivado.`); setPage(1); setRefresh(value => value + 1); }} />
                       <PermissionButton permission="documentos.consultar"
                         type="button"

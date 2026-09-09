@@ -42,12 +42,8 @@ function ReaderVersionHistoryView({ documentId }) {
     let active = true
     async function load() {
       try {
-        let id = documentId
-        if (!id) {
-          const list = await apiRequest('/api/reader/documents/?limit=1')
-          id = list.results?.[0]?.id
-        }
-        if (!id) throw new Error('No hay documentos publicados disponibles.')
+        const id = documentId
+        if (!id) throw new Error('Seleccione un documento en la biblioteca para consultar su historial y contenido.')
         const [detail, versionData] = await Promise.all([
           apiRequest(`/api/reader/documents/${id}/`),
           apiRequest(`/api/documents/${id}/versions/`),

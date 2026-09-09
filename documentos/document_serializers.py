@@ -70,6 +70,13 @@ class DocumentFileSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
     version_type = serializers.ChoiceField(choices=['minor', 'major'], default='minor', required=False)
 
+    def to_internal_value(self, data):
+        if isinstance(data, Mapping):
+            unknown = set(data) - set(self.fields)
+            if unknown:
+                raise serializers.ValidationError({field: ['La carga crea una versión del archivo. Edite los datos documentales mediante PATCH.'] for field in sorted(unknown)})
+        return super().to_internal_value(data)
+
 
 class VersionRestoreSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)

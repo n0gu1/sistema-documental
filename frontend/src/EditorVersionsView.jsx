@@ -1,6 +1,7 @@
 import { PermissionInput } from './Permissions'
 import { PermissionButton } from './Permissions'
 import { useEffect, useRef, useState } from 'react'
+import RestoreVersionButton from './RestoreVersionButton'
 import { apiRequest, downloadFile, formatDate } from './documentApi'
 import './EditorVersionsView.css'
 
@@ -39,40 +40,43 @@ function displayChangedValue(value, field) {
   return field === 'size' ? formatSize(Number(value)) : String(value)
 }
 
-function EditorVersionsView({ onAction }) {
+function EditorVersionsView({ documentId, onBack, onAction }) {
   const fileInput = useRef(null)
   const compareRef = useRef(null)
   const [document, setDocument] = useState(null)
   const [versions, setVersions] = useState([])
+  const [refresh, setRefresh] = useState(0)
   const [previousId, setPreviousId] = useState('')
-  const [currentId, setCurrentId] = useState('')
+  const [selectedVersionId, setSelectedVersionId] = useState('')
+  const [currentVersionId, setCurrentVersionId] = useState(null)
   const [comparison, setComparison] = useState(null)
   const [loadingUpload, setLoadingUpload] = useState(false)
   const [loadingCompare, setLoadingCompare] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!documentId) return
     let active = true
     async function load() {
       try {
-        const list = await apiRequest('/api/documents/?limit=1')
-        const first = list.results?.[0]
-        if (!first) throw new Error('No hay documentos disponibles.')
+        const first = { id: documentId }
         const [detail, versionData] = await Promise.all([apiRequest(`/api/documents/${first.id}/`), apiRequest(`/api/documents/${first.id}/versions/`)] )
         if (!active) return
         const loadedVersions = versionData.versions || []
         const selectedCurrent = versionData.current_version_id || loadedVersions[0]?.id || ''
         setDocument(detail.document)
         setVersions(loadedVersions)
-        setCurrentId(selectedCurrent)
+        setCurrentVersionId(versionData.current_version_id || null)
+        setSelectedVersionId(selectedCurrent)
         setPreviousId(loadedVersions.find((version) => version.id !== selectedCurrent)?.id || '')
       } catch (requestError) { if (active) setError(requestError.message) }
     }
     load()
     return () => { active = false }
-  }, [])
+  }, [documentId, refresh])
 
-  const currentVersion = versions.find((version) => version.id === currentId) || versions[0]
+  const currentVersion = versions.find((version) => version.id === currentVersionId) || null
+  const selectedVersion = versions.find((version) => version.id === selectedVersionId) || null
 
   async function uploadVersion(event) {
     const file = event.target.files?.[0]
@@ -86,7 +90,8 @@ function EditorVersionsView({ onAction }) {
       const response = await apiRequest(`/api/documents/${document.id}/versions/`, { method: 'POST', body })
       const uploaded = response.version
       setVersions((current) => [uploaded, ...current.map((version) => ({ ...version, is_current: false }))])
-      setCurrentId(uploaded.id)
+      setCurrentVersionId(uploaded.is_current ? uploaded.id : null)
+      setSelectedVersionId(uploaded.id)
       setPreviousId(versions[0]?.id || '')
       onAction?.('La nueva versión se cargó correctamente.')
     } catch (requestError) { setError(requestError.message) }
@@ -94,21 +99,22 @@ function EditorVersionsView({ onAction }) {
   }
 
   async function compare() {
-    if (!document?.id || !previousId || !currentId || previousId === currentId) return
+    if (!document?.id || !previousId || !selectedVersionId || previousId === selectedVersionId) return
     setLoadingCompare(true)
     setError('')
     try {
-      const result = await apiRequest(`/api/documents/${document.id}/versions/compare/?from_version=${previousId}&to_version=${currentId}`)
+      const result = await apiRequest(`/api/documents/${document.id}/versions/compare/?from_version=${previousId}&to_version=${selectedVersionId}`)
       setComparison(result)
       compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     } catch (requestError) { setError(requestError.message) }
     finally { setLoadingCompare(false) }
   }
 
+  if (!documentId) return <div className="editor-versions-view"><p>Seleccione un documento para consultar su historial.</p><button type="button" onClick={onBack}>Volver a documentos</button></div>
   if (error && !document) return <div className="editor-versions-view"><p className="editor-error" role="alert">{error}</p></div>
   if (!document) return <div className="editor-versions-view"><p>Cargando versiones...</p></div>
   const versionStatus = currentVersion?.status
-  return <div className="editor-versions-view"><header className="editor-versions-heading"><div><h1>Mis versiones</h1><p>Consulta y gestiona el historial de versiones del documento seleccionado.</p></div></header>{error && <p className="editor-error" role="alert">{error}</p>}<section className="editor-versions-document"><span className="editor-versions-document-icon"><VersionIcon size={42} /></span><div className="editor-versions-document-info"><h2>{document.title}</h2><dl><div><dt>Código</dt><dd>{document.code}</dd></div><div><dt>Área</dt><dd>{document.area?.name || '—'}</dd></div><div><dt>Versión actual</dt><dd><b>{currentVersion?.version || '—'}</b></dd></div><div><dt>Estado</dt><dd><span className={`editor-versions-status editor-versions-status--${versionStatusTone(versionStatus)}`}><i />{versionStatus?.name || '—'}</span></dd></div><div><dt>Última actualización</dt><dd>{formatDate(document.updated_at)}</dd></div></dl></div><div className="editor-versions-document-actions"><PermissionInput permission="versiones.crear" ref={fileInput} className="editor-versions-file-input" type="file" onChange={uploadVersion} /><PermissionButton permission="versiones.crear" className="is-primary" type="button" disabled={loadingUpload} onClick={() => fileInput.current?.click()}><VersionIcon name="upload" size={17} />{loadingUpload ? 'Cargando...' : 'Subir nueva versión'}</PermissionButton><button type="button" onClick={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><VersionIcon name="compare" size={17} />Comparar versiones</button>{currentVersion?.download_url && <PermissionButton permission="documentos.descargar" type="button" onClick={() => downloadFile(currentVersion.download_url)}><VersionIcon name="download" size={17} />Descargar</PermissionButton>}</div></section><div className="editor-versions-layout"><main><section className="editor-versions-panel editor-versions-history"><header><h2>Historial de versiones</h2><span>{versions.length} versiones</span></header><div className="editor-versions-table-scroll"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Tamaño</th><th>Comentario</th><th>Acciones</th></tr></thead><tbody>{versions.map((version) => <tr key={version.id}><td><strong>{version.version}</strong>{version.is_current && <small>Actual</small>}</td><td>{formatDate(version.created_at)}</td><td><span className={`editor-versions-status editor-versions-status--${versionStatusTone(version.status)}`}><i />{version.status?.name || '—'}</span></td><td>{formatSize(version.size)}</td><td>{version.comment || '—'}</td><td><div className="editor-versions-row-actions">{version.preview_url && <button type="button" aria-label={`Previsualizar versión ${version.version}`} onClick={() => window.open(version.preview_url, '_blank', 'noopener,noreferrer')}><VersionIcon name="eye" size={16} /></button>}{version.download_url && <PermissionButton permission="documentos.descargar" type="button" aria-label={`Descargar versión ${version.version}`} onClick={() => downloadFile(version.download_url)}><VersionIcon name="download" size={16} /></PermissionButton>}</div></td></tr>)}</tbody></table>{!versions.length && <p className="editor-versions-empty">No hay versiones registradas.</p>}</div><footer>Mostrando {versions.length} versiones</footer></section><section ref={compareRef} className="editor-versions-panel editor-versions-compare"><header><div><h2>Comparar versiones</h2><p>Consulta los cambios registrados entre dos versiones.</p></div><VersionIcon name="compare" size={20} /></header><div className="editor-versions-compare-controls"><label><span>Versión anterior</span><select value={previousId} onChange={(event) => setPreviousId(event.target.value)}>{versions.map((version) => <option key={version.id} value={version.id}>{version.version} · {formatDate(version.created_at)}</option>)}</select></label><span className="editor-versions-compare-arrow">⇄</span><label><span>Versión actual</span><select value={currentId} onChange={(event) => setCurrentId(event.target.value)}>{versions.map((version) => <option key={version.id} value={version.id}>{version.version} · {formatDate(version.created_at)}</option>)}</select></label><button type="button" disabled={loadingCompare || previousId === currentId || !previousId || !currentId} onClick={compare}>{loadingCompare ? 'Comparando...' : 'Comparar'}</button></div>{comparison && <div className="editor-versions-comparison-result"><p>{comparison.same_content ? 'Las versiones tienen la misma huella de contenido.' : 'Las versiones tienen distinta huella de contenido.'}</p>{comparison.changed_fields.length ? <div className="editor-versions-changes">{comparison.changed_fields.map((change) => <article key={change.field}><strong>{fieldLabels[change.field] || change.field}</strong><span>{displayChangedValue(change.from, change.field)}</span><b>→</b><span>{displayChangedValue(change.to, change.field)}</span></article>)}</div> : <p className="editor-versions-no-changes">No hay campos de registro modificados.</p>}</div>}</section></main></div></div>
+  return <div className="editor-versions-view"><header className="editor-versions-heading"><div><h1>Mis versiones</h1><p>Consulta y gestiona el historial de versiones del documento seleccionado.</p></div></header>{error && <p className="editor-error" role="alert">{error}</p>}<section className="editor-versions-document"><span className="editor-versions-document-icon"><VersionIcon size={42} /></span><div className="editor-versions-document-info"><h2>{document.title}</h2><dl><div><dt>Código</dt><dd>{document.code}</dd></div><div><dt>Área</dt><dd>{document.area?.name || '—'}</dd></div><div><dt>Versión vigente</dt><dd><b>{currentVersion?.version || 'Sin versión vigente'}</b></dd></div><div><dt>Estado</dt><dd><span className={`editor-versions-status editor-versions-status--${versionStatusTone(versionStatus)}`}><i />{versionStatus?.name || '—'}</span></dd></div><div><dt>Última actualización</dt><dd>{formatDate(document.updated_at)}</dd></div></dl></div><div className="editor-versions-document-actions"><PermissionInput permission="versiones.crear" ref={fileInput} className="editor-versions-file-input" type="file" onChange={uploadVersion} /><PermissionButton permission="versiones.crear" className="is-primary" type="button" disabled={loadingUpload} onClick={() => fileInput.current?.click()}><VersionIcon name="upload" size={17} />{loadingUpload ? 'Cargando...' : 'Subir nueva versión'}</PermissionButton><button type="button" onClick={() => compareRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><VersionIcon name="compare" size={17} />Comparar versiones</button>{selectedVersion?.download_url && <PermissionButton permission="documentos.descargar" type="button" onClick={() => downloadFile(selectedVersion.download_url)}><VersionIcon name="download" size={17} />Descargar</PermissionButton>}</div></section><div className="editor-versions-layout"><main><section className="editor-versions-panel editor-versions-history"><header><h2>Historial de versiones</h2><span>{versions.length} versiones</span></header><div className="editor-versions-table-scroll"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado</th><th>Tamaño</th><th>Comentario</th><th>Acciones</th></tr></thead><tbody>{versions.map((version) => <tr key={version.id}><td><strong>{version.version}</strong>{version.id === currentVersionId && <small>Vigente</small>}</td><td>{formatDate(version.created_at)}</td><td><span className={`editor-versions-status editor-versions-status--${versionStatusTone(version.status)}`}><i />{version.status?.name || '—'}</span></td><td>{formatSize(version.size)}</td><td>{version.comment || '—'}</td><td><div className="editor-versions-row-actions"><RestoreVersionButton documentId={document.id} version={version} onRestored={() => setRefresh(value => value + 1)} />{version.preview_url && <button type="button" aria-label={`Previsualizar versión ${version.version}`} onClick={() => window.open(version.preview_url, '_blank', 'noopener,noreferrer')}><VersionIcon name="eye" size={16} /></button>}{version.download_url && <PermissionButton permission="documentos.descargar" type="button" aria-label={`Descargar versión ${version.version}`} onClick={() => downloadFile(version.download_url)}><VersionIcon name="download" size={16} /></PermissionButton>}</div></td></tr>)}</tbody></table>{!versions.length && <p className="editor-versions-empty">No hay versiones registradas.</p>}</div><footer>Mostrando {versions.length} versiones</footer></section><section ref={compareRef} className="editor-versions-panel editor-versions-compare"><header><div><h2>Comparar versiones</h2><p>Consulta los cambios registrados entre dos versiones.</p></div><VersionIcon name="compare" size={20} /></header><div className="editor-versions-compare-controls"><label><span>Versión anterior</span><select value={previousId} onChange={(event) => setPreviousId(event.target.value)}>{versions.map((version) => <option key={version.id} value={version.id}>{version.version} · {formatDate(version.created_at)}</option>)}</select></label><span className="editor-versions-compare-arrow">⇄</span><label><span>Versión seleccionada</span><select value={selectedVersionId} onChange={(event) => { setSelectedVersionId(event.target.value); setComparison(null) }}>{versions.map((version) => <option key={version.id} value={version.id}>{version.version} · {formatDate(version.created_at)}</option>)}</select></label><button type="button" disabled={loadingCompare || previousId === selectedVersionId || !previousId || !selectedVersionId} onClick={compare}>{loadingCompare ? 'Comparando...' : 'Comparar'}</button></div>{comparison && <div className="editor-versions-comparison-result"><p>{comparison.same_content ? 'Las versiones tienen la misma huella de contenido.' : 'Las versiones tienen distinta huella de contenido.'}</p>{comparison.changed_fields.length ? <div className="editor-versions-changes">{comparison.changed_fields.map((change) => <article key={change.field}><strong>{fieldLabels[change.field] || change.field}</strong><span>{displayChangedValue(change.from, change.field)}</span><b>→</b><span>{displayChangedValue(change.to, change.field)}</span></article>)}</div> : <p className="editor-versions-no-changes">No hay campos de registro modificados.</p>}</div>}</section></main></div></div>
 }
 
 export default EditorVersionsView

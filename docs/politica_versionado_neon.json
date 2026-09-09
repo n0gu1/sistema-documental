@@ -1,0 +1,10 @@
+[
+  {
+    "table_name": "documentos_metadatos",
+    "columnas": "{id,clave,valor,creado_en,actualizado_en,documento_id}"
+  },
+  {
+    "table_name": "versiones_documento",
+    "columnas": "{id,documento_id,estado_version_id,proveedor_almacenamiento_id,numero_mayor,numero_menor,orden_version,es_vigente,nombre_archivo_original,clave_almacenamiento,tipo_mime,tamano_bytes,sha256,comentario_cambio,creada_por_id,creada_en}"
+  }
+]

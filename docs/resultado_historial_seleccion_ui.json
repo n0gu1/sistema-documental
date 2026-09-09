@@ -1,0 +1,59 @@
+{
+  "environment": "UI local con API y bytes de preview controlados; sin escrituras remotas",
+  "checks": [
+    {
+      "view": "admin",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "document": "A",
+      "historicalVersion": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "admin",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "document": "A",
+      "historicalVersion": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "editor",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    },
+    {
+      "view": "reader",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    },
+    {
+      "view": "reader",
+      "document": "A",
+      "historicalVersion": "1.0",
+      "result": "PASS"
+    },
+    {
+      "view": "reader",
+      "document": "B",
+      "historicalVersion": "2.0",
+      "result": "PASS"
+    }
+  ]
+}

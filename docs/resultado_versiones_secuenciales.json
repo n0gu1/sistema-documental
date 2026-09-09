@@ -1,0 +1,20 @@
+{
+  "result": "PASS",
+  "sequence": [
+    "1.0",
+    "1.1",
+    "1.2"
+  ],
+  "checks": [
+    "Alta con archivo: 1.0",
+    "Carga menor 1: 1.1, una sola vigente",
+    "Carga menor 2: 1.2, una sola vigente",
+    "1.0 y 1.1 conservan filas, autor, fecha, hash, archivo e historial; solo cambia vigencia",
+    "Consulta posterior devuelve 1.2, 1.1 y 1.0 con autor/fecha y vigente correcta",
+    "Fallo de almacenamiento no consume número ni cambia vigente",
+    "PostgreSQL confirma espera por bloqueo del documento sin versiones; carga continúa al liberarlo y se revierte"
+  ],
+  "rolled_back": true,
+  "concurrency": "Bloqueo real entre dos conexiones; no se simulan dos cargas confirmadas simultáneas",
+  "storage": "FileSystemStorage temporal; bytes reales, sin probar S3"
+}

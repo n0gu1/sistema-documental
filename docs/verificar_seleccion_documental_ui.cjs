@@ -61,7 +61,7 @@ const fs = require('node:fs')
       await page.waitForFunction(code => [...document.querySelectorAll('input')].some(input => input.value === code), document.code)
       assert.equal(await page.getByLabel('Título del documento').inputValue(), document.title)
       const saved = page.waitForResponse(response => response.request().method() === 'PATCH' && response.url().endsWith(`/api/documents/${document.id}/`))
-      await page.getByRole('button', { name: 'Guardar borrador', exact: true }).click()
+      await page.getByRole('button', { name: 'Guardar datos', exact: true }).click()
       const savedResponse = await saved
       assert.equal(savedResponse.status(), 200)
       const savedDocument = (await savedResponse.json()).document

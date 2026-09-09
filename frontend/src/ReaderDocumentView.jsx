@@ -21,12 +21,8 @@ function ReaderDocumentView({ documentId, onBack, onAction }) {
     let active = true
     async function load() {
       try {
-        let id = documentId
-        if (!id) {
-          const list = await apiRequest('/api/reader/documents/?limit=1')
-          id = list.results?.[0]?.id
-        }
-        if (!id) throw new Error('No hay documentos publicados disponibles.')
+        const id = documentId
+        if (!id) throw new Error('Seleccione un documento en la biblioteca para consultar su historial y contenido.')
         const data = await apiRequest(readerDocumentPath(id))
         if (!active) return
         setDocument(data.document)

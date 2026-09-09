@@ -1,0 +1,13 @@
+[
+  {
+    "documentos_ensayo_restantes": "0",
+    "versiones_ensayo_restantes": "0",
+    "restricciones_unicas": [
+      "CREATE UNIQUE INDEX uq_versiones_clave_almacenamiento ON gestion_documental.versiones_documento USING btree (proveedor_almacenamiento_id, clave_almacenamiento)",
+      "CREATE UNIQUE INDEX uq_versiones_documento_numero ON gestion_documental.versiones_documento USING btree (documento_id, numero_mayor, numero_menor)",
+      "CREATE UNIQUE INDEX uq_versiones_documento_orden ON gestion_documental.versiones_documento USING btree (documento_id, orden_version)",
+      "CREATE UNIQUE INDEX versiones_documento_pkey ON gestion_documental.versiones_documento USING btree (id)",
+      "CREATE UNIQUE INDEX uq_versiones_documento_vigente ON gestion_documental.versiones_documento USING btree (documento_id) WHERE es_vigente"
+    ]
+  }
+]

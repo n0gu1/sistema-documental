@@ -1584,7 +1584,7 @@ class VersionRestoreTests(SimpleTestCase):
     ):
         document_id = uuid4()
         source_id = uuid4()
-        document = SimpleNamespace(id=document_id, organizacion_id=uuid4(), archivos=MagicMock())
+        document = SimpleNamespace(id=document_id, pk=document_id, organizacion_id=uuid4(), archivos=MagicMock())
         source_state = SimpleNamespace(id=1, codigo='PUBLICADO', nombre='Publicado')
         draft_state = SimpleNamespace(id=2, codigo='BORRADOR', nombre='Borrador')
         provider = SimpleNamespace(id=uuid4())
@@ -1597,8 +1597,8 @@ class VersionRestoreTests(SimpleTestCase):
             nombre_archivo_original='politica.pdf',
             proveedor_almacenamiento=provider,
             tipo_mime='application/pdf',
-            tamano_bytes=25,
-            sha256='a' * 64,
+            tamano_bytes=len(b'%PDF-1.7 restored'),
+            sha256=hashlib.sha256(b'%PDF-1.7 restored').hexdigest(),
             estado_version=source_state,
         )
         latest = SimpleNamespace(id=uuid4(), numero_mayor=1, numero_menor=2, orden_version=3)
@@ -1609,10 +1609,11 @@ class VersionRestoreTests(SimpleTestCase):
             numero_menor=3,
             orden_version=4,
         )
-        document.archivos.select_for_update.return_value.order_by.return_value.first.return_value = latest
+        document.archivos.order_by.return_value.first.return_value = latest
         get_version.return_value = (document, source)
         open_file.return_value = BytesIO(b'%PDF-1.7 restored')
         storage.save.return_value = 'org/doc/restored.pdf'
+        storage.open.return_value = BytesIO(b'%PDF-1.7 restored')
         get_state.return_value = draft_state
         create_version.return_value = restored
         serialize_version_mock.side_effect = [{'id': 'restored'}, {'id': 'source'}]
@@ -1622,7 +1623,8 @@ class VersionRestoreTests(SimpleTestCase):
         request.user = SimpleNamespace(id=uuid4())
         request.auth = None
 
-        response = DocumentVersionRestoreView().post(request, document_id, source_id)
+        with patch('documentos.document_views.Documento.objects.select_for_update'):
+            response = DocumentVersionRestoreView().post(request, document_id, source_id)
 
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['version'], {'id': 'restored'})
@@ -1641,6 +1643,7 @@ class VersionRestoreTests(SimpleTestCase):
         create_history.assert_called_once()
         record_event.assert_called_once()
         self.assertEqual(record_event.call_args.args[2], 'VERSION_RESTAURADA')
+        self.assertEqual(record_event.call_args.kwargs['resource_code'], 'VERSION')
         self.assertEqual(record_event.call_args.kwargs['resource_id'], restored.id)
         self.assertEqual(record_event.call_args.kwargs['details']['source_version_id'], str(source.id))
 
