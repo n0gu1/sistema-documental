@@ -229,7 +229,9 @@ if storage_backend == 's3':
     AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL') or None
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = True
-    AWS_S3_FILE_OVERWRITE = False
+    # F-01: los nombres incluyen uuid4.hex, no hay colision; evitar HeadObject
+    # previo (S3Storage.exists) que B2 responde 403 en claves inexistentes.
+    AWS_S3_FILE_OVERWRITE = True
     AWS_LOCATION = os.environ.get('AWS_LOCATION', 'documentos')
     STORAGES = {
         'default': {'BACKEND': 'storages.backends.s3.S3Storage'},
