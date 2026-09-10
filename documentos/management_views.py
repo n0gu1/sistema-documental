@@ -14,7 +14,7 @@ from rest_framework.views import APIView
 
 from .auth_utils import get_client_ip, record_access_denied, record_auth_event, serialize_user, user_has_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
-from .user_status import update_user_state
+from .user_status import revoke_user_sessions, update_user_state
 from .audit_changes import user_snapshot, named_snapshot, modification_changes
 from .role_validation import role_write, validate_role_name
 from .models import (
@@ -556,10 +556,7 @@ class UserLockView(APIView):
         user.bloqueado_hasta = locked_until
         user.intentos_fallidos = 0
         if data['locked']:
-            SesionDocumental.objects.filter(usuario_id=user.pk, revocada_en__isnull=True).update(
-                revocada_en=now,
-                motivo_revocacion='Cuenta bloqueada por un administrador',
-            )
+            revoke_user_sessions(user.pk, 'Cuenta bloqueada por un administrador', now)
         record_management_event(request, user, 'USUARIO_MODIFICADO', 'Bloqueo de usuario actualizado',
                                 changes=modification_changes(before, user_snapshot(user)))
         return Response({'user': serialize_management_user(user)})

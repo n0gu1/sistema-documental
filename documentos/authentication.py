@@ -72,6 +72,15 @@ class CookieTokenAuthentication(BaseAuthentication):
             record_invalid_session(request, session, 'Cuenta inactiva')
             raise AuthenticationFailed('La cuenta no está activa.')
 
+        if getattr(session.usuario, 'bloqueado_hasta', None) and session.usuario.bloqueado_hasta > now:
+            SesionDocumental.objects.filter(pk=session.pk, revocada_en__isnull=True).update(
+                revocada_en=now,
+                motivo_revocacion='Cuenta bloqueada',
+            )
+            session.motivo_revocacion = 'Cuenta bloqueada'
+            record_invalid_session(request, session, 'Cuenta bloqueada')
+            raise AuthenticationFailed('La cuenta está bloqueada temporalmente.')
+
         SessionAuthentication().enforce_csrf(request)
 
         activity_cutoff = now - timedelta(minutes=security_policy_for(session.usuario.organizacion_id)['inactivity_minutes'])

@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 from .auth_utils import get_client_ip, record_auth_event, serialize_authenticated_user
 from .authentication import hash_session_token
 from .config_service import security_policy_for
+from .user_status import revoke_user_sessions
 from .models import SesionDocumental, UsuarioDocumental
 from .serializers import ChangePasswordSerializer, LoginSerializer
 
@@ -113,6 +114,8 @@ class LoginView(APIView):
                                 minutes=security_policy.get('lock_minutes', settings.AUTH_LOCK_MINUTES),
                             )
                         UsuarioDocumental.objects.filter(pk=user.pk).update(**updates)
+                        if 'bloqueado_hasta' in updates:
+                            revoke_user_sessions(user.pk, 'Cuenta bloqueada por intentos fallidos', now)
                 elif outcome != 'locked':
                     raw_token = secrets.token_urlsafe(48)
                     duration = (
