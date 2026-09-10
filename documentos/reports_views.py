@@ -35,7 +35,7 @@ from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import filter_accessible_documents
 
 
-SCOPES = {'executive', 'editor', 'reviewer', 'versions', 'traceability'}
+SCOPES = {'executive', 'editor', 'reviewer', 'versions', 'traceability', 'activity'}
 FORMATS = {'PDF', 'XLSX'}
 FREQUENCIES = {'daily', 'weekly', 'monthly'}
 REPORT_DOCUMENT_PERMISSIONS = {
@@ -43,6 +43,7 @@ REPORT_DOCUMENT_PERMISSIONS = {
     'editor': 'documentos.consultar',
     'reviewer': 'revisiones.consultar',
     'versions': 'reportes.generar',
+    'activity': 'reportes.generar',
 }
 REPORT_STORAGE_PREFIX = 'reportes'
 
@@ -91,6 +92,7 @@ def require_report_access(request, scope, generate=False):
         'reviewer': 'revisiones.consultar',
         'versions': 'reportes.generar',
         'traceability': 'reportes.generar',
+        'activity': 'reportes.generar',
     }.get(scope)
     if not permission:
         raise ValidationError({'scope': 'El alcance del reporte no es valido.'})
@@ -309,6 +311,78 @@ def reviewer_report_rows(request, filters):
     return rows
 
 
+def activity_report_rows(request, filters):
+    """Vista de acciones realizadas por usuarios/sistema (bitácora, alcance organización)."""
+    timestamp = connection.ops.quote_name(audit_timestamp_column())
+    conditions = ['ba.organizacion_id = %s']
+    params = [request.user.organizacion_id]
+    date_from = parse_report_datetime(filters.get('date_from'), 'date_from')
+    date_to = parse_report_datetime(filters.get('date_to'), 'date_to', end=True)
+    if date_from:
+        conditions.append(f'ba.{timestamp} >= %s')
+        params.append(date_from)
+    if date_to:
+        conditions.append(f'ba.{timestamp} <= %s')
+        params.append(date_to)
+    if filters.get('action'):
+        conditions.append('a.codigo = %s')
+        params.append(str(filters['action']).upper())
+    if filters.get('responsible_id'):
+        conditions.append('ba.usuario_id = %s')
+        params.append(filters['responsible_id'])
+    if filters.get('search'):
+        search = f"%{str(filters['search']).strip()}%"
+        conditions.append('''(COALESCE(a.codigo,'') ILIKE %s OR COALESCE(a.nombre,'') ILIKE %s
+            OR COALESCE(u.nombre_usuario,'') ILIKE %s
+            OR COALESCE(u.nombres || ' ' || u.apellidos,'') ILIKE %s
+            OR COALESCE(tr.codigo,'') ILIKE %s OR COALESCE(d.codigo,'') ILIKE %s
+            OR COALESCE(ba.resultado,'') ILIKE %s)''')
+        params.extend([search] * 7)
+    with connection.cursor() as cursor:
+        cursor.execute(f"""SELECT ba.id, ba.{timestamp}, ba.usuario_id,
+                TRIM(COALESCE(u.nombres,'') || ' ' || COALESCE(u.apellidos,'')),
+                u.nombre_usuario, a.codigo, a.nombre, tr.codigo, tr.nombre,
+                ba.recurso_id, ba.documento_id, ba.version_documento_id,
+                ba.exitoso, ba.resultado, d.codigo, d.nombre,
+                v.numero_mayor, v.numero_menor
+            FROM gestion_documental.bitacora_auditoria ba
+            LEFT JOIN gestion_documental.usuarios u ON u.id = ba.usuario_id
+            JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
+            JOIN gestion_documental.tipos_recurso_auditoria tr ON tr.id = ba.tipo_recurso_id
+            LEFT JOIN gestion_documental.documentos d ON d.id = ba.documento_id
+            LEFT JOIN gestion_documental.versiones_documento v ON v.id = ba.version_documento_id
+            WHERE {' AND '.join(conditions)}
+            ORDER BY ba.{timestamp} DESC, ba.id DESC""", params)
+        events = cursor.fetchall()
+    rows = []
+    for (event_id, occurred_at, user_id, user_name, username, action_code,
+            action_name, resource_code, module, resource_id, document_id,
+            version_id, successful, result, doc_code, doc_title,
+            numero_mayor, numero_menor) in events:
+        actor = (user_name or username or 'Sistema').strip()
+        status_code = 'EXITOSO' if successful else 'FALLIDO'
+        version = f'{numero_mayor}.{numero_menor}' if numero_mayor is not None else None
+        rows.append({
+            'id': str(event_id),
+            'code': doc_code or action_code, 'title': doc_title or action_name,
+            'area_id': resource_code or 'SISTEMA', 'area': module or 'Sistema',
+            'type_id': action_code, 'type': action_name,
+            'responsible_id': str(user_id) if user_id else '',
+            'responsible': actor,
+            'actor_id': str(user_id) if user_id else '',
+            'actor': actor,
+            'action_code': action_code, 'action': action_name,
+            'status_code': status_code, 'status': 'Exitoso' if successful else 'Fallido',
+            'activity_at': occurred_at, 'created_at': occurred_at,
+            'document_id': str(document_id) if document_id else None,
+            'version_id': str(version_id) if version_id else None,
+            'version': version,
+            'resource': resource_code, 'resource_id': str(resource_id) if resource_id else None,
+            'result': result or '', 'successful': successful,
+        })
+    return rows
+
+
 def report_options(rows):
     def unique(key, label_key):
         values = {row[key]: row[label_key] for row in rows if row.get(key) and row.get(label_key)}
@@ -363,6 +437,8 @@ def build_report_data(request, scope, filters):
         return build_traceability_report(request, filters)
     if scope == 'versions':
         rows = version_report_rows(request, filters)
+    elif scope == 'activity':
+        rows = activity_report_rows(request, filters)
     else:
         rows = reviewer_report_rows(request, filters) if scope == 'reviewer' else document_report_rows(request, scope, filters)
     return {
@@ -417,6 +493,8 @@ def report_headers(scope):
         return ['Código', 'Documento', 'Versión', 'Autor', 'Fecha de creación', 'Estado', 'Comentario / cambio']
     if scope == 'reviewer':
         return ['Código', 'Documento', 'Área', 'Tipo', 'Autor del documento', 'Acción', 'Revisor que actuó', 'Fecha de actividad']
+    if scope == 'activity':
+        return ['Fecha', 'Acción', 'Actor', 'Recurso', 'Documento', 'Resultado']
     return ['Código', 'Documento', 'Área', 'Tipo', 'Responsable', 'Estado', 'Versión', 'Actualización']
 
 
@@ -425,6 +503,8 @@ def report_row_values(row, scope):
         return [row['code'], row['title'], row['version'], row['author'], cell_value(row['created_at']), row['status'], row['comment']]
     if scope == 'reviewer':
         return [row['code'], row['title'], row['area'], row['type'], row['responsible'], row['status'], row['actor'], cell_value(row['activity_at'])]
+    if scope == 'activity':
+        return [cell_value(row['activity_at']), row['action'], row['actor'], row['resource'] or '', row['code'] or '', row['result'] or row['status']]
     return [row['code'], row['title'], row['area'], row['type'], row['responsible'], row['status'], row['version'] or '', cell_value(row['updated_at'])]
 
 
