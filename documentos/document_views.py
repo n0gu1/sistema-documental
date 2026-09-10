@@ -1132,7 +1132,7 @@ class DocumentFileDownloadView(APIView):
         response = FileResponse(open_stored_file(document_file), content_type=document_file.tipo_mime)
         filename = document_file.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        record_document_event(request, document, 'ARCHIVO_DESCARGADO', resource_code='ARCHIVO', resource_id=document_file.id)
+        record_document_event(request, document, 'DOCUMENTO_DESCARGADO', resource_code='VERSION', resource_id=document_file.id, details={'file_name': document_file.nombre_archivo_original, 'size': document_file.tamano_bytes, 'mime_type': document_file.tipo_mime})
         return response
 
 

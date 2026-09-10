@@ -161,19 +161,22 @@ def record_reader_access(request, document, version, access_type, detail=None, d
     action_code = {
         'CONSULTA': 'DOCUMENTO_CONSULTADO',
         'LECTURA': 'LECTURA_REGISTRADA',
-        'DESCARGA': 'ARCHIVO_DESCARGADO',
+        'DESCARGA': 'DOCUMENTO_DESCARGADO',
         'VISTA_PREVIA': 'ARCHIVO_PREVISUALIZADO',
     }[access_type]
+    is_download = access_type == 'DESCARGA'
     record_auth_event(
         action_code=action_code,
-        resource_code='ARCHIVO' if access_type in {'DESCARGA', 'VISTA_PREVIA'} else 'DOCUMENTO',
+        resource_code='VERSION' if is_download else ('ARCHIVO' if access_type == 'VISTA_PREVIA' else 'DOCUMENTO'),
         organization_id=document.organizacion_id,
         user_id=request.user.id,
         session_id=getattr(request.auth, 'id', None),
         resource_id=version.id if access_type in {'DESCARGA', 'VISTA_PREVIA'} else document.id,
+        documento_id=document.id if is_download else None,
+        version_documento_id=version.id if is_download else None,
         request=request,
         successful=True,
         result='Acceso documental registrado',
-        details={'access_id': str(access.id), 'version_id': str(version.id)},
+        details={'access_id': str(access.id), 'version_id': str(version.id), **({'file_name': version.nombre_archivo_original, 'size': version.tamano_bytes, 'mime_type': version.tipo_mime} if is_download else {})},
     )
     return access
