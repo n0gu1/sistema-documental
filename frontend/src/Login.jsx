@@ -166,7 +166,7 @@ function Login() {
   useEffect(() => {
     const openLibrary = () => setLibraryOpen(true)
     const openDocument = (event) => { setReaderDocumentId(event.detail?.documentId || null); setDocumentOpen(true) }
-    const openHistory = () => setHistoryOpen(true)
+    const openHistory = (event) => { setReaderDocumentId(event.detail?.documentId || null); setHistoryOpen(true) }
     const openReading = () => setReadingOpen(true)
     const openFavorites = () => setFavoritesOpen(true)
     window.addEventListener('reader-library-open', openLibrary)

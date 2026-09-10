@@ -98,7 +98,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error, onNavigate }) {
           <button className="is-active" type="button" onClick={() => navigate('dashboard')}><ReaderIcon name="dashboard" size={22} /> Dashboard</button>
           <button type="button" onClick={() => navigate('library')}><ReaderIcon name="library" size={22} /> Biblioteca documental</button>
           <button type="button" onClick={() => navigate('document')}><ReaderIcon name="document" size={22} /> Documentos disponibles</button>
-          <button type="button" onClick={() => navigate('history', documents[0]?.id)}><ReaderIcon name="layers" size={22} /> Historial de versiones</button>
+          <button type="button" onClick={() => navigate('history')}><ReaderIcon name="layers" size={22} /> Historial de versiones</button>
           <button type="button" onClick={() => navigate('reading')}><ReaderIcon name="history" size={22} /> Historial de lectura</button>
           <button type="button" onClick={() => navigate('favorites')}><ReaderIcon name="favorite" size={22} /> Favoritos</button>
         </nav>
