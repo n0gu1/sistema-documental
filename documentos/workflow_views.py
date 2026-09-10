@@ -383,9 +383,9 @@ class ReviewSubmitView(APIView):
             request,
             document,
             'REVISION_SOLICITADA',
-            resource_code='ARCHIVO',
+            resource_code='VERSION',
             resource_id=version.id,
-            details={'comment': data.get('comment', ''), 'reviewer_count': len(reviews)},
+            details={'comment': data.get('comment', ''), 'reviewer_count': len(reviews), 'review_ids': [str(review.id) for review in reviews]},
         )
         for review in reviews:
             record_document_event(
@@ -777,7 +777,7 @@ class VersionPublishView(APIView):
             request,
             document,
             'DOCUMENTO_PUBLICADO',
-            resource_code='ARCHIVO',
+            resource_code='VERSION',
             resource_id=version.id,
             details={'comment': comment},
         )

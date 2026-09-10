@@ -777,8 +777,8 @@ class DocumentFileListCreateView(APIView):
         record_document_event(
             request,
             document,
-            'ARCHIVO_CARGADO',
-            resource_code='ARCHIVO',
+            'VERSION_CREADA',
+            resource_code='VERSION',
             resource_id=document_file.id,
             details={'comment': serializer.validated_data.get('comment', '')},
         )
@@ -815,8 +815,8 @@ class DocumentVersionListView(APIView):
         record_document_event(
             request,
             document,
-            'ARCHIVO_CARGADO',
-            resource_code='ARCHIVO',
+            'VERSION_CREADA',
+            resource_code='VERSION',
             resource_id=document_file.id,
             details={'comment': serializer.validated_data.get('comment', '')},
         )
