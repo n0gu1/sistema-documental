@@ -57,7 +57,7 @@ def serialize_reader_version(version, request):
         'sha256': version.sha256,
         'version': f'{version.numero_mayor}.{version.numero_menor}',
         'status': {'id': version.estado_version_id, 'code': 'PUBLICADO', 'name': version.estado_version.nombre},
-        'published_at': version.creada_en,
+        'published_at': version.historial_estados.filter(estado_nuevo__codigo='PUBLICADO').order_by('-cambiado_en').values_list('cambiado_en', flat=True).first(),
         'download_url': request.build_absolute_uri(
             reverse('reader-version-download', args=[version.documento_id, version.id]),
         ),
@@ -278,6 +278,10 @@ class ReaderVersionFileView(APIView):
         response = FileResponse(open_reader_file(version), content_type=version.tipo_mime)
         filename = version.nombre_archivo_original.replace('"', '')
         response['Content-Disposition'] = f'{"inline" if self.inline else "attachment"}; filename="{filename}"'
+        response['X-Document-Version-Id'] = str(version.id)
+        response['X-Document-Version'] = f'{version.numero_mayor}.{version.numero_menor}'
+        response['X-Content-SHA256'] = version.sha256
+        response['Cache-Control'] = 'private, no-store'
         return response
 
 

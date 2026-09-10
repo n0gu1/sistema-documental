@@ -1,0 +1,24 @@
+{
+  "checks": [
+    "403 común HasDocumentalPermission sin registro específico",
+    "403 explícito sin duplicados: HTTP",
+    "403 explícito sin duplicados: exactamente un evento",
+    "403 explícito sin duplicados: actor/fecha/false/ruta/método/motivo",
+    "403 explícito sin duplicados: motivo esperado",
+    "403 CSRF con sesión identificada: HTTP",
+    "403 CSRF con sesión identificada: exactamente un evento",
+    "403 CSRF con sesión identificada: actor/fecha/false/ruta/método/motivo",
+    "401 sesión expirada identificable: HTTP",
+    "401 sesión expirada identificable: exactamente un evento",
+    "401 sesión expirada identificable: actor/fecha/false/ruta/método/motivo",
+    "401 sesión revocada identificable: HTTP",
+    "401 sesión revocada identificable: exactamente un evento",
+    "401 sesión revocada identificable: actor/fecha/false/ruta/método/motivo",
+    "401 anónimo sin cookie",
+    "401 anónimo token desconocido",
+    "403 por permisos persistido"
+  ],
+  "passed": 17,
+  "persisted_event_id": 575,
+  "environment": "backend local contra Neon; sin despliegue"
+}

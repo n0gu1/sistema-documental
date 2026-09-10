@@ -292,7 +292,7 @@ def add_resolution_comment(review, user, content, comment_type='RESOLUCION', par
 
 
 def record_review_event(request, review, action_code, resource_id=None, details=None):
-    record_auth_event(
+    return record_auth_event(
         action_code=action_code,
         resource_code='REVISION',
         organization_id=review.version_documento.documento.organizacion_id,
@@ -599,7 +599,7 @@ class ReviewDecisionView(APIView):
             request,
             document,
             action_code,
-            resource_code='ARCHIVO',
+            resource_code='VERSION',
             resource_id=version.id,
             details={'comment': decision.validated_data.get('comment', '')},
         )
@@ -761,21 +761,18 @@ class VersionPublishView(APIView):
 
     def post(self, request, document_id, version_id):
         require_permission(request, REVIEW_APPROVE)
-        document, version = get_document_version_or_404(request, document_id, version_id)
-        comment = request.data.get('comment', '')
+        serializer = ReviewDecisionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.validated_data.get('comment', '')
         with transaction.atomic():
+            document = get_document_or_404(request, document_id, for_update=True)
+            version = ArchivoDocumento.objects.select_for_update().filter(documento=document, pk=version_id).first()
+            if version is None:
+                raise Http404
             transition_version(version, 'PUBLICADO', request.user, comment or 'Version publicada')
             document.archivos.filter(es_vigente=True).exclude(pk=version.pk).update(es_vigente=False)
             version.es_vigente = True
             version.save(update_fields=['es_vigente'])
-        record_document_event(
-            request,
-            document,
-            'DOCUMENTO_APROBADO',
-            resource_code='ARCHIVO',
-            resource_id=version.id,
-            details={'comment': comment},
-        )
         record_document_event(
             request,
             document,

@@ -1,8 +1,10 @@
 import json
 import logging
+from dataclasses import dataclass
 from ipaddress import ip_address
+from uuid import uuid4
 
-from django.db import connection
+from django.db import connection, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +93,22 @@ def serialize_authenticated_user(user):
     return {**data, 'permissions': sorted(set(permissions)), 'has_all_permissions': has_all_permissions}
 
 
+@dataclass(frozen=True)
+class AuditWriteResult:
+    # inserted is not a promise that an enclosing transaction will commit.
+    inserted: bool
+    event_id: object = None
+    pending_commit: bool = False
+    failure_id: str = None
+    reason: str = None
+
+
+class AuditRowCountError(Exception):
+    def __init__(self, count):
+        self.count = count
+        super().__init__('Audit insert must affect exactly one row')
+
+
 def record_auth_event(
     *,
     action_code,
@@ -104,8 +122,15 @@ def record_auth_event(
     result=None,
     details=None,
 ):
+    """Best effort, with explicit failure reporting; never commit the caller's work.
+
+    Own atomic block/savepoint isolates statement failures. Successful inserts
+    join the caller's transaction and roll back with it. Failures preserve the
+    business outcome and are returned, logged and attached to the HTTP request.
+    """
+    outer_atomic = connection.in_atomic_block
     try:
-        with connection.cursor() as cursor:
+        with transaction.atomic(), connection.cursor() as cursor:
             cursor.execute(
                 '''
                 INSERT INTO gestion_documental.bitacora_auditoria (
@@ -125,6 +150,7 @@ def record_auth_event(
                 FROM gestion_documental.acciones_auditoria a
                 CROSS JOIN gestion_documental.tipos_recurso_auditoria tr
                 WHERE a.codigo = %s AND tr.codigo = %s
+                RETURNING id
                 ''',
                 [
                     organization_id,
@@ -141,35 +167,61 @@ def record_auth_event(
                 ],
             )
             if cursor.rowcount != 1:
-                logger.critical(
-                    'AUDITORIA_NO_REGISTRADA catalogo_no_encontrado action=%s resource=%s user=%s resource_id=%s',
-                    action_code,
-                    resource_code,
-                    user_id,
-                    resource_id,
-                )
-    except Exception:
+                raise AuditRowCountError(cursor.rowcount)
+            event_id = cursor.fetchone()[0]
+        return AuditWriteResult(inserted=True, event_id=event_id, pending_commit=outer_atomic)
+    except Exception as error:
+        failure_id = str(uuid4())
+        reason = ('catalog_not_found' if error.count == 0 else 'unexpected_row_count') if isinstance(error, AuditRowCountError) else 'write_error'
+        evidence = {
+            'failure_id': failure_id,
+            'reason': reason,
+            'action': action_code,
+            'resource': resource_code,
+            'organization_id': organization_id,
+            'user_id': user_id,
+            'resource_id': resource_id,
+            'outer_atomic': outer_atomic,
+            'exception_type': type(error).__name__,
+            'sqlstate': getattr(error.__cause__, 'sqlstate', None) or getattr(error.__cause__, 'pgcode', None),
+        }
+        # Do not log payloads, tokens, SQL parameters or database error messages.
         logger.critical(
-            'AUDITORIA_NO_REGISTRADA error persistiendo action=%s resource=%s user=%s resource_id=%s',
-            action_code,
-            resource_code,
-            user_id,
-            resource_id,
-            exc_info=True,
+            'AUDITORIA_NO_REGISTRADA %s', json.dumps(evidence, default=str),
+            extra={'audit_failure': evidence},
         )
+        if request is not None:
+            raw_request = getattr(request, '_request', request)
+            failures = getattr(raw_request, '_audit_failures', None)
+            if failures is None:
+                failures = []
+                raw_request._audit_failures = failures
+            failures.append(failure_id)
+        return AuditWriteResult(inserted=False, failure_id=failure_id, reason=reason)
 
 
 def record_access_denied(request, reason, resource_code='PERMISO', resource_id=None, details=None):
+    raw_request = getattr(request, '_request', request)
+    if getattr(raw_request, '_access_denied_recorded', False):
+        return None
     user = getattr(request, 'user', None)
-    record_auth_event(
+    session = getattr(raw_request, '_audit_session', None)
+    if not getattr(user, 'organizacion_id', None):
+        user = getattr(session, 'usuario', None)
+    if not getattr(user, 'id', None) or not getattr(user, 'organizacion_id', None):
+        return None
+    result = record_auth_event(
         action_code='ACCESO_DENEGADO',
         resource_code=resource_code,
         organization_id=getattr(user, 'organizacion_id', None),
         user_id=getattr(user, 'id', None),
-        session_id=getattr(getattr(request, 'auth', None), 'id', None),
+        session_id=getattr(getattr(request, 'auth', None) or session, 'id', None),
         resource_id=resource_id,
         request=request,
         successful=False,
         result='Operacion denegada',
-        details={'reason': reason, **(details or {})},
+        details={**(details or {}), 'reason': reason,
+                 'path': getattr(request, 'path', ''), 'method': getattr(request, 'method', '')},
     )
+    raw_request._access_denied_recorded = True
+    return result

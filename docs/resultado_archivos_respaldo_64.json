@@ -1,0 +1,169 @@
+{
+  "source_backup_id": "20d99ed6-f98f-433a-ade6-1d4bcff03dbd",
+  "source_sha256": "5e3a7e6fdf369202ccb5e60d6e58b0a8c00e9600e01b9c545ef70a8a99f94368",
+  "original_document_files_complete": false,
+  "original_missing_document_objects": [
+    {
+      "id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+      "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+      "version": "2.0",
+      "is_current": true,
+      "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/ee3a0e8275124469abbb8f6e00be1a7f.pdf",
+      "archive_path": "files/66c738fd-ec6c-4642-8e47-872290d3ede2/PRUEBA_POLITICA_V2.pdf",
+      "name": "PRUEBA_POLITICA_V2.pdf",
+      "size": 142,
+      "sha256": "554f5147984d75fe7e43c6f15d08e3d52097907a122299c06613e84b3b4c8749",
+      "mime_type": "application/pdf"
+    },
+    {
+      "id": "f85b5345-f2b3-47fa-8738-414aa94792fe",
+      "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+      "version": "1.0",
+      "is_current": false,
+      "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/35d4fdd9937849d48caf6981d974f5b1.pdf",
+      "archive_path": "files/f85b5345-f2b3-47fa-8738-414aa94792fe/PRUEBA_POLITICA_V1.pdf",
+      "name": "PRUEBA_POLITICA_V1.pdf",
+      "size": 792,
+      "sha256": "5a354f582b4636f0434b0d44b230a171ba2aa5c0bfe278fb48dc7951e1be4faa",
+      "mime_type": "application/pdf"
+    },
+    {
+      "id": "9128a336-22a3-48f6-886a-a3f0d2f2c3b5",
+      "document_id": "2009f338-660e-4bcb-babb-d427620a6479",
+      "version": "1.0",
+      "is_current": true,
+      "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/2009f338-660e-4bcb-babb-d427620a6479/2a095943fcb240b2ab24b5c569f3d547.pdf",
+      "archive_path": "files/9128a336-22a3-48f6-886a-a3f0d2f2c3b5/PRUEBA_PROCEDIMIENTO.pdf",
+      "name": "PRUEBA_PROCEDIMIENTO.pdf",
+      "size": 755,
+      "sha256": "6ec166baeb26a705d8547db2487af1b85d1b01d944c997d7b0dc144b2fcdb3ad",
+      "mime_type": "application/pdf"
+    }
+  ],
+  "source_original_manifest_complete_was_database_only": true,
+  "derivative_path": "C:\\Users\\Cristian\\Desktop\\sistema-documental\\media\\req64-controlado\\20d99ed6-f98f-433a-ade6-1d4bcff03dbd-archivos.sdbk",
+  "size_bytes": 65535,
+  "sha256": "e41f0d3ab0358fc693a934497999f54dd73f764f2112a9a85a6face2bcbb56c0",
+  "manifest": {
+    "format": "sistema-documental-backup-v2",
+    "created_at": "2026-09-10T04:14:33.346541+00:00",
+    "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+    "database_records": 777,
+    "files": [
+      {
+        "id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version": "2.0",
+        "is_current": true,
+        "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/ee3a0e8275124469abbb8f6e00be1a7f.pdf",
+        "archive_path": "files/66c738fd-ec6c-4642-8e47-872290d3ede2/PRUEBA_POLITICA_V2.pdf",
+        "name": "PRUEBA_POLITICA_V2.pdf",
+        "size": 142,
+        "sha256": "554f5147984d75fe7e43c6f15d08e3d52097907a122299c06613e84b3b4c8749",
+        "mime_type": "application/pdf"
+      },
+      {
+        "id": "f85b5345-f2b3-47fa-8738-414aa94792fe",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version": "1.0",
+        "is_current": false,
+        "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/35d4fdd9937849d48caf6981d974f5b1.pdf",
+        "archive_path": "files/f85b5345-f2b3-47fa-8738-414aa94792fe/PRUEBA_POLITICA_V1.pdf",
+        "name": "PRUEBA_POLITICA_V1.pdf",
+        "size": 792,
+        "sha256": "5a354f582b4636f0434b0d44b230a171ba2aa5c0bfe278fb48dc7951e1be4faa",
+        "mime_type": "application/pdf"
+      },
+      {
+        "id": "9128a336-22a3-48f6-886a-a3f0d2f2c3b5",
+        "document_id": "2009f338-660e-4bcb-babb-d427620a6479",
+        "version": "1.0",
+        "is_current": true,
+        "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/2009f338-660e-4bcb-babb-d427620a6479/2a095943fcb240b2ab24b5c569f3d547.pdf",
+        "archive_path": "files/9128a336-22a3-48f6-886a-a3f0d2f2c3b5/PRUEBA_PROCEDIMIENTO.pdf",
+        "name": "PRUEBA_PROCEDIMIENTO.pdf",
+        "size": 755,
+        "sha256": "6ec166baeb26a705d8547db2487af1b85d1b01d944c997d7b0dc144b2fcdb3ad",
+        "mime_type": "application/pdf"
+      }
+    ],
+    "missing_files": [],
+    "complete": true,
+    "scope": "database_and_document_files",
+    "document_files_requested": true,
+    "document_files_complete": true,
+    "database": {
+      "schema": "gestion_documental",
+      "tables": 43,
+      "sequences": 10,
+      "snapshot": {
+        "isolation_level": "REPEATABLE READ",
+        "read_only": true,
+        "captured_at": "2026-09-10T04:03:29.274326+00:00"
+      }
+    },
+    "artifacts": {
+      "database": "database.json",
+      "schema": "schema.json",
+      "sequences": "sequences.json",
+      "reconstruction": "reconstruction.json",
+      "procedure": "RECONSTRUCCION.md"
+    }
+  },
+  "storage_object_locations": {
+    "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/ee3a0e8275124469abbb8f6e00be1a7f.pdf": "documentos/2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/ee3a0e8275124469abbb8f6e00be1a7f.pdf",
+    "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/35d4fdd9937849d48caf6981d974f5b1.pdf": "documentos/2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/35d4fdd9937849d48caf6981d974f5b1.pdf",
+    "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/2009f338-660e-4bcb-babb-d427620a6479/2a095943fcb240b2ab24b5c569f3d547.pdf": "documentos/2a8b6daa-ab1c-411d-916e-6d3d1c29436e/2009f338-660e-4bcb-babb-d427620a6479/2a095943fcb240b2ab24b5c569f3d547.pdf"
+  },
+  "expected_files": 3,
+  "included_files": 3,
+  "missing_files": 0,
+  "complete": true,
+  "checks": [
+    "Snapshot anterior contiene las tres versiones esperadas",
+    "Se detectan los tres binarios excluidos en la copia BD anterior",
+    "Incluye inventario de versión anterior no vigente",
+    "Faltante simulado detectado sin borrar el objeto real",
+    "Manifiesto parcial no se marca completo",
+    "ZIP derivado íntegro",
+    "Mismo contenido exacto de database.json del paso 63",
+    "Inventario cubre todas las versiones sin omisiones",
+    "Completitud refleja faltantes reales",
+    "Alcance documental explícito",
+    "Tamaño 66c738fd-ec6c-4642-8e47-872290d3ede2",
+    "SHA256 66c738fd-ec6c-4642-8e47-872290d3ede2",
+    "Bytes de storage iguales a copia 66c738fd-ec6c-4642-8e47-872290d3ede2",
+    "Tamaño f85b5345-f2b3-47fa-8738-414aa94792fe",
+    "SHA256 f85b5345-f2b3-47fa-8738-414aa94792fe",
+    "Bytes de storage iguales a copia f85b5345-f2b3-47fa-8738-414aa94792fe",
+    "Tamaño 9128a336-22a3-48f6-886a-a3f0d2f2c3b5",
+    "SHA256 9128a336-22a3-48f6-886a-a3f0d2f2c3b5",
+    "Bytes de storage iguales a copia 9128a336-22a3-48f6-886a-a3f0d2f2c3b5",
+    "No hay binarios fuera del inventario",
+    "Copia fuente sin alteración"
+  ],
+  "passed": 21,
+  "simulated_missing": {
+    "path": "C:\\Users\\Cristian\\Desktop\\sistema-documental\\media\\req64-controlado\\20d99ed6-f98f-433a-ade6-1d4bcff03dbd-faltante-simulado.sdbk",
+    "sha256": "e6b3daa56f028a3c994ec6e85c3559b400abce77b04bc15051d4711b54dc2b5c",
+    "complete": false,
+    "missing_files": [
+      {
+        "id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version": "2.0",
+        "is_current": true,
+        "storage_key": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e/7954d65d-2eb8-4dc7-aef6-74ea7c8726fe/ee3a0e8275124469abbb8f6e00be1a7f.pdf",
+        "archive_path": "files/66c738fd-ec6c-4642-8e47-872290d3ede2/PRUEBA_POLITICA_V2.pdf",
+        "name": "PRUEBA_POLITICA_V2.pdf",
+        "size": 142,
+        "sha256": "554f5147984d75fe7e43c6f15d08e3d52097907a122299c06613e84b3b4c8749",
+        "mime_type": "application/pdf",
+        "reason": "object_not_found"
+      }
+    ]
+  },
+  "restore_executed": false,
+  "database_writes": false,
+  "scope": "Copia derivada local del snapshot #63, lecturas exactas de B2; excluye binarios de reportes generados."
+}

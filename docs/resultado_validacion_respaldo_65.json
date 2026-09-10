@@ -1,0 +1,243 @@
+{
+  "source_backup_id": "20d99ed6-f98f-433a-ade6-1d4bcff03dbd",
+  "verified_path": "C:\\Users\\Cristian\\Desktop\\sistema-documental\\media\\req64-controlado\\20d99ed6-f98f-433a-ade6-1d4bcff03dbd-archivos.sdbk",
+  "sha256": "e41f0d3ab0358fc693a934497999f54dd73f764f2112a9a85a6face2bcbb56c0",
+  "successful_result": {
+    "valid": true,
+    "mode": "verify",
+    "format": "sistema-documental-backup-v2",
+    "scope": "database_and_document_files",
+    "hash_verified": true,
+    "manifest_verified": true,
+    "database_verified": true,
+    "database_records": 777,
+    "database_tables": 43,
+    "sequences_verified": 10,
+    "files_verified": 3,
+    "files_restored": 0,
+    "files_replaced": 0,
+    "files_skipped": 0,
+    "files_expected": 3,
+    "missing_files": 0,
+    "document_files_complete": true,
+    "complete": true
+  },
+  "cases": [
+    {
+      "case": "Copia nueva #63 con archivos incorporados en #64",
+      "http": 200,
+      "body": {
+        "valid": true,
+        "mode": "verify",
+        "format": "sistema-documental-backup-v2",
+        "scope": "database_and_document_files",
+        "hash_verified": true,
+        "manifest_verified": true,
+        "database_verified": true,
+        "database_records": 777,
+        "database_tables": 43,
+        "sequences_verified": 10,
+        "files_verified": 3,
+        "files_restored": 0,
+        "files_replaced": 0,
+        "files_skipped": 0,
+        "files_expected": 3,
+        "missing_files": 0,
+        "document_files_complete": true,
+        "complete": true
+      }
+    },
+    {
+      "case": "Hash externo incorrecto",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "La suma de comprobacion del respaldo no coincide."
+      }
+    },
+    {
+      "case": "Cabecera inválida",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El respaldo no tiene un formato valido."
+      }
+    },
+    {
+      "case": "ZIP descifrado inválido",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "No se pudo abrir el respaldo o su formato de archivo no es valido."
+      }
+    },
+    {
+      "case": "Manifiesto JSON inválido",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El manifiesto del respaldo no es valido."
+      }
+    },
+    {
+      "case": "Formato desconocido",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El formato no permite verificar BD y archivos; se requiere un respaldo v2."
+      }
+    },
+    {
+      "case": "Artefacto schema ausente",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El respaldo no contiene todos los artefactos de reconstruccion."
+      }
+    },
+    {
+      "case": "Conteo BD incorrecto",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El conteo de registros no coincide con el manifiesto."
+      }
+    },
+    {
+      "case": "Fila de otra organización",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "La fila de usuarios referencia una fila ausente de organizaciones."
+      }
+    },
+    {
+      "case": "Referencia FK ausente",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "La fila de versiones_documento referencia una fila ausente de documentos."
+      }
+    },
+    {
+      "case": "Archivo físico ausente",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "Los archivos fisicos no coinciden con el inventario."
+      }
+    },
+    {
+      "case": "Hash documental incorrecto",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "La suma de comprobacion no coincide para PRUEBA_POLITICA_V2.pdf."
+      }
+    },
+    {
+      "case": "Tamaño documental incorrecto",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El tamano no coincide para PRUEBA_POLITICA_V2.pdf."
+      }
+    },
+    {
+      "case": "Inventario omite una versión requerida",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "Los archivos fisicos no coinciden con el inventario."
+      }
+    },
+    {
+      "case": "Completitud no booleana",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "La completitud del manifiesto no es valida."
+      }
+    },
+    {
+      "case": "Copia parcial simulada del paso64",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El respaldo esta incompleto; faltan objetos requeridos."
+      }
+    },
+    {
+      "case": "Verify diagnostica copia parcial registrada fallida",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "El respaldo esta incompleto; faltan objetos requeridos."
+      }
+    },
+    {
+      "case": "Original solo BD sin cobertura documental declarada",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "Faltan versiones requeridas en el inventario del respaldo."
+      }
+    },
+    {
+      "case": "Archivo respaldo inaccesible",
+      "http": 422,
+      "body": {
+        "valid": false,
+        "detail": "No se pudo abrir el respaldo o su formato de archivo no es valido."
+      }
+    }
+  ],
+  "checks": [
+    "Copia nueva #63 con archivos incorporados en #64 HTTP 200",
+    "Validación completa de formato/manifiesto/hash/BD",
+    "43 tablas, 777 registros y 3 archivos",
+    "Ninguna restauración",
+    "Hash externo incorrecto HTTP 422",
+    "Hash externo incorrecto valid=false",
+    "Cabecera inválida HTTP 422",
+    "Cabecera inválida valid=false",
+    "ZIP descifrado inválido HTTP 422",
+    "ZIP descifrado inválido valid=false",
+    "Manifiesto JSON inválido HTTP 422",
+    "Manifiesto JSON inválido valid=false",
+    "Formato desconocido HTTP 422",
+    "Formato desconocido valid=false",
+    "Artefacto schema ausente HTTP 422",
+    "Artefacto schema ausente valid=false",
+    "Conteo BD incorrecto HTTP 422",
+    "Conteo BD incorrecto valid=false",
+    "Fila de otra organización HTTP 422",
+    "Fila de otra organización valid=false",
+    "Referencia FK ausente HTTP 422",
+    "Referencia FK ausente valid=false",
+    "Archivo físico ausente HTTP 422",
+    "Archivo físico ausente valid=false",
+    "Hash documental incorrecto HTTP 422",
+    "Hash documental incorrecto valid=false",
+    "Tamaño documental incorrecto HTTP 422",
+    "Tamaño documental incorrecto valid=false",
+    "Inventario omite una versión requerida HTTP 422",
+    "Inventario omite una versión requerida valid=false",
+    "Completitud no booleana HTTP 422",
+    "Completitud no booleana valid=false",
+    "Copia parcial simulada del paso64 HTTP 422",
+    "Copia parcial simulada del paso64 valid=false",
+    "Verify diagnostica copia parcial registrada fallida HTTP 422",
+    "Verify diagnostica copia parcial registrada fallida valid=false",
+    "Original solo BD sin cobertura documental declarada HTTP 422",
+    "Original solo BD sin cobertura documental declarada valid=false",
+    "Archivo respaldo inaccesible HTTP 422",
+    "Archivo respaldo inaccesible valid=false",
+    "Registro Neon intacto y sin restaurado_en",
+    "Archivo cifrado nuevo intacto"
+  ],
+  "passed": 42,
+  "restore_executed": false,
+  "business_data_changed": false,
+  "environment": "Backend local, APIClient administrador force_authenticate; lookup del registro redirigido en memoria a copia complementaria #64, hash/tamaño no persistidos. Auditoría revertida en transacción Neon."
+}

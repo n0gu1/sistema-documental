@@ -1,0 +1,81 @@
+{
+  "environment": "backend local contra Neon, sesiones forzadas; reportes y eventos revertidos",
+  "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+  "document": "PRUEBA-001",
+  "rows": [
+    {
+      "id": "f85b5345-f2b3-47fa-8738-414aa94792fe",
+      "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+      "code": "PRUEBA-001",
+      "title": "Política de pruebas documentales",
+      "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+      "area": "Tecnología",
+      "type_id": "1",
+      "type": "Política",
+      "version": "1.0",
+      "author_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+      "author": "Juan Perez",
+      "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+      "responsible": "Juan Perez",
+      "created_at": "2026-08-27T06:48:25.067084Z",
+      "status_code": "BORRADOR",
+      "status": "Borrador",
+      "comment": "Carga de archivo",
+      "is_current": false
+    },
+    {
+      "id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+      "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+      "code": "PRUEBA-001",
+      "title": "Política de pruebas documentales",
+      "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+      "area": "Tecnología",
+      "type_id": "1",
+      "type": "Política",
+      "version": "2.0",
+      "author_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+      "author": "Juan Perez",
+      "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+      "responsible": "Juan Perez",
+      "created_at": "2026-08-27T06:51:54.610250Z",
+      "status_code": "PUBLICADO",
+      "status": "Publicado",
+      "comment": "Segunda version para probar comparacion",
+      "is_current": true
+    }
+  ],
+  "checks": [
+    "GET versions HTTP 200",
+    "Historial completo y orden numérico",
+    "Incluye versión no vigente",
+    "Campos cotejados con BD 1.0",
+    "Campos cotejados con BD 2.0",
+    "Total cuenta versiones",
+    "Filtro por estado de cada versión",
+    "Filtro por fecha de creación de versión",
+    "UUID inválido HTTP 400",
+    "Generación XLSX HTTP 201",
+    "Descarga XLSX HTTP 200",
+    "Instantánea XLSX completa",
+    "XLSX columnas requeridas",
+    "XLSX fila 1",
+    "XLSX fila 2",
+    "Generación PDF HTTP 201",
+    "Descarga PDF HTTP 200",
+    "Instantánea PDF completa",
+    "Lector sin permiso recibe 403"
+  ],
+  "passed": 19,
+  "exports": [
+    {
+      "format": "XLSX",
+      "generate_status": 201,
+      "download_status": 200
+    },
+    {
+      "format": "PDF",
+      "generate_status": 201,
+      "download_status": 200
+    }
+  ]
+}

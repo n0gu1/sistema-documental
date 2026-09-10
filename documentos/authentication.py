@@ -16,7 +16,7 @@ def hash_session_token(token):
 
 
 def record_invalid_session(request, session, reason):
-    record_auth_event(
+    return record_auth_event(
         action_code='SESION_INVALIDA',
         resource_code='SESION',
         organization_id=session.usuario.organizacion_id,
@@ -47,9 +47,12 @@ class CookieTokenAuthentication(BaseAuthentication):
                 session = SesionDocumental.objects.select_related('usuario').get(hash_token=token_hash)
             except SesionDocumental.DoesNotExist:
                 raise AuthenticationFailed('La sesión no es válida.') from error
+            getattr(request, '_request', request)._audit_session = session
             record_invalid_session(request, session, 'Sesión revocada')
             raise AuthenticationFailed('La sesión no es válida.') from error
 
+        # Keep only a database-resolved actor for denials before DRF sets user/auth.
+        getattr(request, '_request', request)._audit_session = session
         now = timezone.now()
         if session.expira_en <= now:
             SesionDocumental.objects.filter(pk=session.pk, revocada_en__isnull=True).update(

@@ -59,7 +59,7 @@ function VersionsView({ documentId, onBack }) {
       setDocument((current) => ({ ...current, status: { code: 'PUBLICADO', name: 'Publicado' } }))
       setPublishingVersionId('')
       setPublishComment('')
-      setPublishNotice('La versión aprobada se publicó correctamente.')
+      setPublishNotice(`Versión ${data.version.version} publicada (ID: ${data.version.id}). Disponible para lectores autorizados.`)
       setRefresh(value => value + 1)
     } catch (requestError) { setError(requestError.message) } finally { setPublishing(false) }
   }

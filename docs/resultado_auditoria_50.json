@@ -1,0 +1,76 @@
+{
+  "result": "PASS",
+  "environment": "Backend local / PostgreSQL Neon / rollback",
+  "policy": "best_effort_observable_savepoint",
+  "checks": [
+    "Inserción real devuelve ID y pendiente de commit exterior",
+    "Cero filas devuelve fallo explícito",
+    "Cero filas deja conexión utilizable",
+    "Error SQL real devuelve fallo",
+    "Savepoint recupera transacción tras error SQL",
+    "Inserción interior visible antes de rollback",
+    "Evento se revierte junto a transacción del llamador",
+    "Archivado conserva resultado principal 204",
+    "HTTP comunica auditoría fallida",
+    "Referencia HTTP corresponde a evidencia técnica",
+    "Log SQL tiene código 22012",
+    "Respuesta sana sin advertencia falsa",
+    "Conserva 403 y comunica ambos fallos",
+    "Rollback final elimina evento de ensayo",
+    "Error sin transacción exterior aislado",
+    "Evidencia técnica fuera de la BD sobrevive rollback"
+  ],
+  "resource_id": "d1d42157-f754-4fe6-a741-95cd69f793d6",
+  "document_id": "976bf945-3a8c-4878-a9c2-4042a52bc76a",
+  "rolled_back_event_id": 536,
+  "failures": [
+    {
+      "failure_id": "4bfd17e8-5e70-41e2-93e4-59654a3856fe",
+      "reason": "catalog_not_found",
+      "action": "REQ50_NO_EXISTE",
+      "resource": "DOCUMENTO",
+      "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+      "user_id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+      "resource_id": "d1d42157-f754-4fe6-a741-95cd69f793d6",
+      "outer_atomic": true,
+      "exception_type": "AuditRowCountError",
+      "sqlstate": null
+    },
+    {
+      "failure_id": "81bb09b9-7d01-44d3-8c50-1c9924aa857f",
+      "reason": "write_error",
+      "action": "DOCUMENTO_CREADO",
+      "resource": "DOCUMENTO",
+      "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+      "user_id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+      "resource_id": "d1d42157-f754-4fe6-a741-95cd69f793d6",
+      "outer_atomic": true,
+      "exception_type": "DataError",
+      "sqlstate": "22012"
+    },
+    {
+      "failure_id": "268e7e2d-99a0-4700-967e-877062ecab70",
+      "reason": "write_error",
+      "action": "DOCUMENTO_ELIMINADO",
+      "resource": "DOCUMENTO",
+      "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+      "user_id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+      "resource_id": "976bf945-3a8c-4878-a9c2-4042a52bc76a",
+      "outer_atomic": true,
+      "exception_type": "DataError",
+      "sqlstate": "22012"
+    },
+    {
+      "failure_id": "66ee4be4-912f-4771-91bc-4aad9b7bd3b4",
+      "reason": "write_error",
+      "action": "DOCUMENTO_CREADO",
+      "resource": "DOCUMENTO",
+      "organization_id": "2a8b6daa-ab1c-411d-916e-6d3d1c29436e",
+      "user_id": "3779858c-a271-4ef1-98e3-bb2d2de4da58",
+      "resource_id": "d1d42157-f754-4fe6-a741-95cd69f793d6",
+      "outer_atomic": false,
+      "exception_type": "DataError",
+      "sqlstate": "22012"
+    }
+  ]
+}

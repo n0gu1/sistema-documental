@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.db import transaction
 from django.core.mail import EmailMessage
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -9,6 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .auth_utils import record_auth_event
+from .audit_changes import modification_changes, settings_snapshot
+from .models import ConfiguracionSistema
 from .config_service import get_system_config, merge_defaults, serialize_system_config, smtp_connection_for, update_system_config
 from .management_views import require_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
@@ -19,7 +22,7 @@ WRITE_PERMISSION = 'usuarios.gestionar'
 
 
 def record_config_event(request, action_code, config, details=None, successful=True, result=None):
-    record_auth_event(
+    return record_auth_event(
         action_code=action_code,
         resource_code='CONFIGURACION',
         organization_id=request.user.organizacion_id,
@@ -55,6 +58,7 @@ class SystemSettingsView(APIView):
         record_config_event(request, 'CONFIGURACION_CONSULTADA', config)
         return response
 
+    @transaction.atomic
     def post(self, request):
         require_permission(request, WRITE_PERMISSION)
         if not request.data:
@@ -63,11 +67,16 @@ class SystemSettingsView(APIView):
         sections = {key: value for key, value in request.data.items() if key in allowed}
         if not sections:
             raise ValidationError({'detail': 'La configuracion no contiene secciones validas.'})
+        config = ConfiguracionSistema.objects.select_for_update().filter(organizacion_id=request.user.organizacion_id).first()
+        before = settings_snapshot(serialize_system_config(config or get_system_config(request.user.organizacion_id)))
         try:
             config = update_system_config(request.user.organizacion_id, sections)
         except (TypeError, ValueError, DjangoValidationError) as error:
             raise ValidationError({'detail': str(error)}) from error
-        record_config_event(request, 'CONFIGURACION_MODIFICADA', config, details={'sections': sorted(sections)})
+        record_config_event(request, 'CONFIGURACION_MODIFICADA', config, details={
+            'sections': sorted(sections),
+            'changes': modification_changes(before, settings_snapshot(serialize_system_config(config))),
+        })
         return Response({'settings': serialize_system_config(config), 'changes': serialize_changes(config)})
 
 

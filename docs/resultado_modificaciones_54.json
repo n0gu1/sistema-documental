@@ -1,0 +1,210 @@
+{
+  "result": "PASS",
+  "environment": "Django real / Neon / rollback",
+  "checks": [
+    "Un campo: exactamente title con anterior/nuevo",
+    "Mismo valor: cero diferencias",
+    "Metadatos: solo campo descriptivo permitido",
+    "Eliminación de metadato",
+    "Usuario: un campo sin hash ni credenciales",
+    "Rol: una descripción",
+    "Permiso: un módulo",
+    "Asignación de permisos de rol",
+    "ACL: una política modificada",
+    "ACL: política y concesión exactas",
+    "Configuración: un campo sin credenciales SMTP",
+    "Estado de usuario: un campo",
+    "Sin contraseñas, tokens, credenciales ni metadatos desconocidos en cambios"
+  ],
+  "document_id": "f2c356b9-4733-4b50-bdac-aa52de94f538",
+  "event_ids": [
+    548,
+    549,
+    550,
+    551,
+    552,
+    553,
+    554,
+    555,
+    556,
+    557,
+    558,
+    559
+  ],
+  "events": [
+    {
+      "id": 548,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": [
+          {
+            "after": "Título corregido",
+            "field": "title",
+            "before": "Título original"
+          }
+        ]
+      }
+    },
+    {
+      "id": 549,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": []
+      }
+    },
+    {
+      "id": 550,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": [
+          {
+            "after": "Interno",
+            "field": "metadata.classification",
+            "before": null
+          }
+        ]
+      }
+    },
+    {
+      "id": 551,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": [
+          {
+            "after": null,
+            "field": "metadata.classification",
+            "before": "Interno"
+          }
+        ]
+      }
+    },
+    {
+      "id": 552,
+      "action": "USUARIO_MODIFICADO",
+      "details": {
+        "ip": "127.0.0.1",
+        "changes": [
+          {
+            "after": "Ensayo54",
+            "field": "first_name",
+            "before": "Usuario"
+          }
+        ],
+        "target_id": "77c8903a-7575-441b-896f-2154e5af773a"
+      }
+    },
+    {
+      "id": 553,
+      "action": "ROL_MODIFICADO",
+      "details": {
+        "ip": "127.0.0.1",
+        "changes": [
+          {
+            "after": "Nueva",
+            "field": "description",
+            "before": "Anterior"
+          }
+        ],
+        "target_id": "8701c913-abbe-43c2-b6f5-1a765423e15a"
+      }
+    },
+    {
+      "id": 554,
+      "action": "PERMISO_MODIFICADO",
+      "details": {
+        "ip": "127.0.0.1",
+        "changes": [
+          {
+            "after": "nuevo",
+            "field": "module",
+            "before": "anterior"
+          }
+        ],
+        "target_id": "32bf61a5-76a6-4bb6-bcac-6a91d5b646c3"
+      }
+    },
+    {
+      "id": 555,
+      "action": "PERMISO_MODIFICADO",
+      "details": {
+        "ip": "127.0.0.1",
+        "changes": [
+          {
+            "after": [
+              "32bf61a5-76a6-4bb6-bcac-6a91d5b646c3"
+            ],
+            "field": "permission_ids",
+            "before": []
+          }
+        ],
+        "target_id": "8701c913-abbe-43c2-b6f5-1a765423e15a"
+      }
+    },
+    {
+      "id": 556,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": [
+          {
+            "after": "DENEGAR",
+            "field": "permission_policy.32bf61a5-76a6-4bb6-bcac-6a91d5b646c3",
+            "before": null
+          }
+        ],
+        "operation": "document_permissions_updated",
+        "assignment_count": 0
+      }
+    },
+    {
+      "id": 557,
+      "action": "DOCUMENTO_MODIFICADO",
+      "details": {
+        "changes": [
+          {
+            "after": "PERMITIR",
+            "field": "permission_policy.32bf61a5-76a6-4bb6-bcac-6a91d5b646c3",
+            "before": "DENEGAR"
+          },
+          {
+            "after": true,
+            "field": "permissions.8701c913-abbe-43c2-b6f5-1a765423e15a.32bf61a5-76a6-4bb6-bcac-6a91d5b646c3",
+            "before": null
+          }
+        ],
+        "operation": "document_permissions_updated",
+        "assignment_count": 1
+      }
+    },
+    {
+      "id": 558,
+      "action": "CONFIGURACION_MODIFICADA",
+      "details": {
+        "changes": [
+          {
+            "after": "Ensayo de auditoría 54",
+            "field": "general.organization_name",
+            "before": "Consultoria Alexandria"
+          }
+        ],
+        "sections": [
+          "general"
+        ]
+      }
+    },
+    {
+      "id": 559,
+      "action": "USUARIO_MODIFICADO",
+      "details": {
+        "ip": "127.0.0.1",
+        "changes": [
+          {
+            "after": false,
+            "field": "active",
+            "before": true
+          }
+        ],
+        "target_id": "77c8903a-7575-441b-896f-2154e5af773a"
+      }
+    }
+  ]
+}

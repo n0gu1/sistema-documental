@@ -48,6 +48,7 @@ from .reader_access import (
 from .security_utils import sanitize_text
 from .serializers import DocumentPermissionsSerializer
 from .acl_policy import read_policies, save_policies, validate_policies
+from .audit_changes import document_snapshot, document_acl_snapshot, modification_changes
 
 
 READ_PERMISSION = 'documentos.consultar'
@@ -466,7 +467,7 @@ def save_document_file(document, uploaded_file, user, comment='', version_type='
 
 
 def record_document_event(request, document, action_code, resource_code='DOCUMENTO', resource_id=None, details=None):
-    record_auth_event(
+    return record_auth_event(
         action_code=action_code,
         resource_code=resource_code,
         organization_id=document.organizacion_id,
@@ -621,6 +622,7 @@ class DocumentDetailView(APIView):
         serializer = DocumentUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        before = document_snapshot(document)
         if 'metadata' in data:
             validate_metadata(data['metadata'])
         updates = {}
@@ -648,7 +650,8 @@ class DocumentDetailView(APIView):
             document.actualizado_en = timezone.now()
             document.save(update_fields=[*updates.keys(), 'actualizado_en'])
         save_metadata(document, data.get('metadata'))
-        record_document_event(request, document, 'DOCUMENTO_MODIFICADO')
+        record_document_event(request, document, 'DOCUMENTO_MODIFICADO',
+                              details={'changes': modification_changes(before, document_snapshot(document))})
         return Response({'document': serialize_document(document, request, include_details=True), 'version_policy': VERSION_POLICY, 'version_created': False})
 
     @transaction.atomic
@@ -673,6 +676,7 @@ class DocumentPermissionsView(APIView):
         require_permission(request, ROLE_PERMISSION)
         return Response(document_permissions_payload(self.get_document(request, document_id)))
 
+    @transaction.atomic
     def put(self, request, document_id):
         require_permission(request, ROLE_PERMISSION)
         document = self.get_document(request, document_id)
@@ -691,6 +695,7 @@ class DocumentPermissionsView(APIView):
         with transaction.atomic():
             with connection.cursor() as cursor:
                 Documento.objects.select_for_update().get(pk=document.id)
+                before = document_acl_snapshot(document_permissions_payload(document))
                 save_policies(cursor, document.id, policies, assignments)
                 cursor.execute(
                     'DELETE FROM gestion_documental.documentos_roles_permisos WHERE documento_id = %s',
@@ -708,7 +713,8 @@ class DocumentPermissionsView(APIView):
             request,
             document,
             'DOCUMENTO_MODIFICADO',
-            details={'operation': 'document_permissions_updated', 'assignment_count': len(rows)},
+            details={'operation': 'document_permissions_updated', 'assignment_count': len(rows),
+                     'changes': modification_changes(before, document_acl_snapshot(document_permissions_payload(document)))},
         )
         return Response(document_permissions_payload(document))
 

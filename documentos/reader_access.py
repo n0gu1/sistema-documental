@@ -127,7 +127,7 @@ def get_download_document(request, document_id, *, published_only=False):
 def published_version(document, version_id=None):
     versions = document.archivos.select_related('estado_version', 'creada_por').filter(
         estado_version__codigo='PUBLICADO',
-    ).order_by('-orden_version')
+    ).order_by('-es_vigente', '-orden_version')
     if version_id is not None:
         versions = versions.filter(pk=version_id)
     return versions.first()

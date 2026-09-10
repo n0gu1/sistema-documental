@@ -2,14 +2,16 @@ import hashlib
 import uuid
 from datetime import datetime, time, timedelta
 from io import BytesIO
+from xml.sax.saxutils import escape
 
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import connection
 from django.db.models import Prefetch
 from django.http import HttpResponse
 from django.utils import timezone
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Alignment, Font, PatternFill
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.styles import getSampleStyleSheet
@@ -22,25 +24,25 @@ from rest_framework.views import APIView
 
 from .management_views import require_permission
 from .auth_utils import get_user_roles, record_auth_event
+from .audit_views import audit_timestamp_column
 from .models import (
     ArchivoDocumento,
-    DetalleSolicitudRevision,
     Documento,
     ProgramacionReporte,
     ReporteGenerado,
-    SolicitudRevision,
 )
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .reader_access import filter_accessible_documents
 
 
-SCOPES = {'executive', 'editor', 'reviewer'}
+SCOPES = {'executive', 'editor', 'reviewer', 'versions', 'traceability'}
 FORMATS = {'PDF', 'XLSX'}
 FREQUENCIES = {'daily', 'weekly', 'monthly'}
 REPORT_DOCUMENT_PERMISSIONS = {
     'executive': 'reportes.generar',
     'editor': 'documentos.consultar',
     'reviewer': 'revisiones.consultar',
+    'versions': 'reportes.generar',
 }
 REPORT_STORAGE_PREFIX = 'reportes'
 
@@ -61,7 +63,12 @@ def parse_report_datetime(value, field_name, end=False):
     return parsed
 
 
-def clean_filters(params):
+def clean_filters(params, scope=None):
+    if scope == 'traceability':
+        try:
+            return {'document_id': str(uuid.UUID(str(params.get('document_id', ''))))}
+        except (ValueError, TypeError, AttributeError) as error:
+            raise ValidationError({'document_id': 'Seleccione un documento válido para la trazabilidad.'}) from error
     filters = {}
     for key in ('date_from', 'date_to', 'area_id', 'type_id', 'status_code', 'responsible_id'):
         value = params.get(key)
@@ -69,6 +76,11 @@ def clean_filters(params):
             filters[key] = str(value)
     parse_report_datetime(filters.get('date_from'), 'date_from')
     parse_report_datetime(filters.get('date_to'), 'date_to', end=True)
+    if scope == 'versions' and params.get('document_id'):
+        try:
+            filters['document_id'] = str(uuid.UUID(str(params['document_id'])))
+        except (ValueError, TypeError, AttributeError) as error:
+            raise ValidationError({'document_id': 'Use un UUID de documento válido.'}) from error
     return filters
 
 
@@ -77,10 +89,15 @@ def require_report_access(request, scope, generate=False):
         'executive': 'reportes.generar' if generate else 'reportes.generar',
         'editor': 'documentos.consultar',
         'reviewer': 'revisiones.consultar',
+        'versions': 'reportes.generar',
+        'traceability': 'reportes.generar',
     }.get(scope)
     if not permission:
         raise ValidationError({'scope': 'El alcance del reporte no es valido.'})
     require_permission(request, permission)
+    if scope == 'traceability':
+        from .audit_views import require_audit_access
+        require_audit_access(request)
 
 
 def is_report_administrator(user):
@@ -103,7 +120,7 @@ def can_manage_report_schedule(request, schedule):
 
 
 def record_report_event(request, action_code, resource_id=None, details=None):
-    record_auth_event(
+    return record_auth_event(
         action_code=action_code,
         resource_code='REPORTE',
         organization_id=request.user.organizacion_id,
@@ -148,13 +165,13 @@ def document_report_rows(request, scope, filters):
     if filters.get('responsible_id'):
         queryset = queryset.filter(creado_por_id=filters['responsible_id'])
 
-    queryset = filter_accessible_documents(
+    documents = filter_accessible_documents(
         request.user,
-        queryset,
+        queryset.order_by('-actualizado_en', 'codigo'),
         REPORT_DOCUMENT_PERMISSIONS[scope],
     )
     rows = []
-    for document in queryset.order_by('-actualizado_en', 'codigo'):
+    for document in documents:
         version = current_report_version(document)
         status_code = version.estado_version.codigo if version else 'SIN_VERSION'
         if filters.get('status_code') and status_code != filters['status_code']:
@@ -177,34 +194,95 @@ def document_report_rows(request, scope, filters):
     return rows
 
 
-def reviewer_report_rows(request, filters):
-    queryset = SolicitudRevision.objects.filter(
-        revisor_id=request.user.id,
-        version_documento__documento__organizacion_id=request.user.organizacion_id,
-    ).select_related(
-        'version_documento__documento__area',
-        'version_documento__documento__tipo_documento',
-        'version_documento__documento__creado_por',
-        'estado_revision',
-    ).prefetch_related('detalle').order_by('-solicitada_en')
+def version_report_rows(request, filters):
+    documents = Documento.objects.filter(
+        organizacion_id=request.user.organizacion_id, eliminado_en__isnull=True,
+    ).select_related('area', 'tipo_documento')
+    for field in ('document_id', 'area_id', 'type_id'):
+        if filters.get(field):
+            documents = documents.filter(**{
+                {'document_id': 'id', 'area_id': 'area_id', 'type_id': 'tipo_documento_id'}[field]: filters[field],
+            })
+    versions = ArchivoDocumento.objects.select_related('estado_version', 'creada_por')
     date_from = parse_report_datetime(filters.get('date_from'), 'date_from')
     date_to = parse_report_datetime(filters.get('date_to'), 'date_to', end=True)
     if date_from:
-        queryset = queryset.filter(solicitada_en__gte=date_from)
+        versions = versions.filter(creada_en__gte=date_from)
     if date_to:
-        queryset = queryset.filter(solicitada_en__lte=date_to)
+        versions = versions.filter(creada_en__lte=date_to)
+    if filters.get('status_code'):
+        versions = versions.filter(estado_version__codigo=filters['status_code'])
+    if filters.get('responsible_id'):
+        versions = versions.filter(creada_por_id=filters['responsible_id'])
+    documents = documents.order_by('codigo', 'id').prefetch_related(Prefetch(
+        'archivos', queryset=versions.order_by('numero_mayor', 'numero_menor', 'id'),
+        to_attr='report_versions',
+    ))
     rows = []
-    now = timezone.now()
-    for review in queryset:
-        document = review.version_documento.documento
-        if not filter_accessible_documents(
-            request.user,
-            [document],
-            REPORT_DOCUMENT_PERMISSIONS['reviewer'],
-        ):
+    for document in filter_accessible_documents(request.user, documents, REPORT_DOCUMENT_PERMISSIONS['versions']):
+        for version in document.report_versions:
+            author = f'{version.creada_por.nombres} {version.creada_por.apellidos}'.strip()
+            rows.append({
+                'id': str(version.id), 'document_id': str(document.id),
+                'code': document.codigo, 'title': document.nombre,
+                'area_id': str(document.area_id), 'area': document.area.nombre,
+                'type_id': str(document.tipo_documento_id), 'type': document.tipo_documento.nombre,
+                'version': f'{version.numero_mayor}.{version.numero_menor}',
+                'author_id': str(version.creada_por_id), 'author': author,
+                'responsible_id': str(version.creada_por_id), 'responsible': author,
+                'created_at': version.creada_en,
+                'status_code': version.estado_version.codigo, 'status': version.estado_version.nombre,
+                'comment': version.comentario_cambio or '', 'is_current': version.es_vigente,
+            })
+    return rows
+
+
+REVIEW_ACTIVITY_ACTIONS = {
+    'DOCUMENTO_APROBADO': ('APROBADA', 'Aprobación emitida'),
+    'DOCUMENTO_RECHAZADO': ('RECHAZADA', 'Rechazo emitido'),
+    'REVISION_DEVUELTA': ('DEVUELTA', 'Devolución emitida'),
+}
+
+
+def reviewer_report_rows(request, filters):
+    # State changes can close other reviewers' requests automatically. Only
+    # successful decision events identify the actor who actually performed work.
+    timestamp = connection.ops.quote_name(audit_timestamp_column())
+    conditions = [
+        'ba.organizacion_id = %s', 'ba.usuario_id = %s', 'ba.exitoso = TRUE',
+        "tr.codigo = 'VERSION'", 'a.codigo IN (%s, %s, %s)',
+    ]
+    params = [request.user.organizacion_id, request.user.id, *REVIEW_ACTIVITY_ACTIONS]
+    for key, operator in [('date_from', '>='), ('date_to', '<=')]:
+        value = parse_report_datetime(filters.get(key), key, end=key == 'date_to')
+        if value:
+            conditions.append(f'ba.{timestamp} {operator} %s')
+            params.append(value)
+    with connection.cursor() as cursor:
+        cursor.execute(f"""SELECT ba.id, ba.recurso_id, a.codigo, ba.{timestamp}
+            FROM gestion_documental.bitacora_auditoria ba
+            JOIN gestion_documental.acciones_auditoria a ON a.id = ba.accion_id
+            JOIN gestion_documental.tipos_recurso_auditoria tr ON tr.id = ba.tipo_recurso_id
+            WHERE {' AND '.join(conditions)}
+            ORDER BY ba.{timestamp} DESC, ba.id DESC""", params)
+        events = cursor.fetchall()
+    versions = ArchivoDocumento.objects.filter(
+        id__in=[event[1] for event in events],
+        documento__organizacion_id=request.user.organizacion_id,
+    ).select_related('documento__area', 'documento__tipo_documento', 'documento__creado_por').in_bulk()
+    access = {}
+    rows = []
+    for event_id, version_id, action, occurred_at in events:
+        version = versions.get(version_id)
+        if not version:
             continue
-        detail = getattr(review, 'detalle', None)
-        status_code = review.estado_revision.codigo
+        document = version.documento
+        if document.id not in access:
+            access[document.id] = bool(filter_accessible_documents(
+                request.user, [document], REPORT_DOCUMENT_PERMISSIONS['reviewer']))
+        if not access[document.id]:
+            continue
+        status_code, label = REVIEW_ACTIVITY_ACTIONS[action]
         if filters.get('area_id') and str(document.area_id) != filters['area_id']:
             continue
         if filters.get('type_id') and str(document.tipo_documento_id) != filters['type_id']:
@@ -214,20 +292,19 @@ def reviewer_report_rows(request, filters):
         if filters.get('responsible_id') and str(document.creado_por_id) != filters['responsible_id']:
             continue
         rows.append({
-            'id': str(review.id),
-            'code': document.codigo,
-            'title': document.nombre,
-            'area_id': str(document.area_id),
-            'area': document.area.nombre,
-            'type_id': str(document.tipo_documento_id),
-            'type': document.tipo_documento.nombre,
+            'id': str(event_id), 'document_id': str(document.id),
+            'version_id': str(version.id), 'version': f'{version.numero_mayor}.{version.numero_menor}',
+            'code': document.codigo, 'title': document.nombre,
+            'area_id': str(document.area_id), 'area': document.area.nombre,
+            'type_id': str(document.tipo_documento_id), 'type': document.tipo_documento.nombre,
             'responsible_id': str(document.creado_por_id),
             'responsible': f'{document.creado_por.nombres} {document.creado_por.apellidos}'.strip(),
-            'status_code': status_code,
-            'status': review.estado_revision.nombre,
-            'deadline': detail.fecha_limite if detail else None,
-            'overdue': bool(detail and detail.fecha_limite and detail.fecha_limite < now and not review.resuelta_en),
-            'created_at': review.solicitada_en,
+            'actor_id': str(request.user.id),
+            'actor': f'{request.user.nombres} {request.user.apellidos}'.strip(),
+            'action_code': action, 'status_code': status_code, 'status': label,
+            'activity_at': occurred_at, 'activity_date': timezone.localdate(occurred_at).isoformat(),
+            # Compatibility alias, now explicitly the event date.
+            'created_at': occurred_at,
         })
     return rows
 
@@ -259,11 +336,13 @@ def summarize_report(rows, scope):
         responsible_counts[row['responsible']] = responsible_counts.get(row['responsible'], 0) + 1
         overdue += int(row.get('overdue', False))
     completed_statuses = {'APROBADO', 'PUBLICADO', 'COMPLETADA', 'APROBADA'}
-    return {
+    summary = {
         'total': len(rows),
         'published': status_counts.get('PUBLICADO', 0),
         'in_review': status_counts.get('EN_REVISION', 0) + status_counts.get('PENDIENTE', 0),
-        'completed': sum(value for key, value in status_counts.items() if key in completed_statuses),
+        'completed': len(rows) if scope == 'reviewer' else sum(value for key, value in status_counts.items() if key in completed_statuses),
+        **({'approved': status_counts.get('APROBADA', 0), 'rejected': status_counts.get('RECHAZADA', 0),
+            'returned': status_counts.get('DEVUELTA', 0)} if scope == 'reviewer' else {}),
         'overdue': overdue,
         'by_status': [{'code': key, 'name': key.replace('_', ' ').title(), 'count': value} for key, value in sorted(status_counts.items())],
         'by_area': [{'name': key, 'count': value} for key, value in sorted(area_counts.items())],
@@ -271,16 +350,29 @@ def summarize_report(rows, scope):
         'by_responsible': [{'name': key, 'count': value} for key, value in sorted(responsible_counts.items())],
         'scope': scope,
     }
+    if scope == 'reviewer':
+        # These are workload/version-state metrics, not performed actions.
+        for key in ('published', 'in_review', 'overdue'):
+            summary.pop(key)
+    return summary
 
 
 def build_report_data(request, scope, filters):
-    rows = reviewer_report_rows(request, filters) if scope == 'reviewer' else document_report_rows(request, scope, filters)
+    if scope == 'traceability':
+        from .traceability_report import build_traceability_report
+        return build_traceability_report(request, filters)
+    if scope == 'versions':
+        rows = version_report_rows(request, filters)
+    else:
+        rows = reviewer_report_rows(request, filters) if scope == 'reviewer' else document_report_rows(request, scope, filters)
     return {
         'scope': scope,
         'filters': filters,
         'summary': summarize_report(rows, scope),
         'options': report_options(rows),
         'rows': rows,
+        **({'activity_definition': 'successful_review_decisions',
+            'activity_timezone': timezone.get_current_timezone_name()} if scope == 'reviewer' else {}),
     }
 
 
@@ -300,13 +392,15 @@ def serialize_report(report):
     }
 
 
-def report_history(request, scope):
+def report_history(request, scope, document_id=None):
     filters = {
         'organizacion_id': request.user.organizacion_id,
         'alcance': scope,
     }
     if scope in {'editor', 'reviewer'}:
         filters['generado_por_id'] = request.user.id
+    if scope == 'traceability':
+        filters['filtros__document_id'] = document_id
     return [serialize_report(report) for report in ReporteGenerado.objects.filter(
         **filters,
     ).order_by('-creado_en', '-id')[:20]]
@@ -319,14 +413,18 @@ def cell_value(value):
 
 
 def report_headers(scope):
+    if scope == 'versions':
+        return ['Código', 'Documento', 'Versión', 'Autor', 'Fecha de creación', 'Estado', 'Comentario / cambio']
     if scope == 'reviewer':
-        return ['Código', 'Documento', 'Área', 'Tipo', 'Responsable', 'Estado', 'Vencida', 'Fecha']
+        return ['Código', 'Documento', 'Área', 'Tipo', 'Autor del documento', 'Acción', 'Revisor que actuó', 'Fecha de actividad']
     return ['Código', 'Documento', 'Área', 'Tipo', 'Responsable', 'Estado', 'Versión', 'Actualización']
 
 
 def report_row_values(row, scope):
+    if scope == 'versions':
+        return [row['code'], row['title'], row['version'], row['author'], cell_value(row['created_at']), row['status'], row['comment']]
     if scope == 'reviewer':
-        return [row['code'], row['title'], row['area'], row['type'], row['responsible'], row['status'], 'Sí' if row['overdue'] else 'No', cell_value(row['created_at'])]
+        return [row['code'], row['title'], row['area'], row['type'], row['responsible'], row['status'], row['actor'], cell_value(row['activity_at'])]
     return [row['code'], row['title'], row['area'], row['type'], row['responsible'], row['status'], row['version'] or '', cell_value(row['updated_at'])]
 
 
@@ -348,6 +446,11 @@ def build_xlsx(data):
     detail.append(report_headers(data['scope']))
     for row in data['rows']:
         detail.append(report_row_values(row, data['scope']))
+        if data['scope'] == 'versions':
+            for cell in detail[detail.max_row]:
+                # Comments are literal document data, never spreadsheet formulas.
+                cell.data_type = 's'
+                cell.alignment = Alignment(wrap_text=True, vertical='top')
     for sheet_item in workbook.worksheets:
         for column in sheet_item.columns:
             width = min(max(len(str(cell.value or '')) for cell in column) + 2, 42)
@@ -368,7 +471,17 @@ def build_pdf(data):
     summary_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E78')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white), ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#D9E2F3')), ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold')]))
     story.extend([summary_table, Spacer(1, 14)])
     detail = [report_headers(data['scope'])] + [[str(value) for value in report_row_values(row, data['scope'])] for row in data['rows'][:1000]]
-    detail_table = Table(detail, repeatRows=1)
+    if data['scope'] == 'versions':
+        # Version comments and titles wrap within the page instead of widening it.
+        from reportlab.lib.styles import ParagraphStyle
+        cell_style = ParagraphStyle('VersionCell', fontSize=7, leading=9)
+        header_style = ParagraphStyle('VersionHeader', parent=cell_style, textColor=colors.white)
+        detail = [[Paragraph(escape(str(value)).replace('\n', '<br/>'), header_style if index == 0 else cell_style)
+                   for value in row] for index, row in enumerate(
+                       [report_headers('versions')] + [report_row_values(row, 'versions') for row in data['rows']])]
+        detail_table = Table(detail, colWidths=[65, 145, 40, 90, 80, 65, 156.6], repeatRows=1)
+    else:
+        detail_table = Table(detail, repeatRows=1)
     detail_table.setStyle(TableStyle([('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1F4E78')), ('TEXTCOLOR', (0, 0), (-1, 0), colors.white), ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor('#D9E2F3')), ('FONTSIZE', (0, 0), (-1, -1), 7), ('VALIGN', (0, 0), (-1, -1), 'TOP')]))
     story.append(detail_table)
     document.build(story)
@@ -376,6 +489,9 @@ def build_pdf(data):
 
 
 def build_report_content(data, report_format):
+    if data['scope'] == 'traceability':
+        from .traceability_exports import build_traceability_pdf, build_traceability_xlsx
+        return build_traceability_pdf(data) if report_format == 'PDF' else build_traceability_xlsx(data)
     return build_pdf(data) if report_format == 'PDF' else build_xlsx(data)
 
 
@@ -443,9 +559,9 @@ class ReportListView(APIView):
     def get(self, request):
         scope = request.query_params.get('scope', 'executive')
         require_report_access(request, scope)
-        filters = clean_filters(request.query_params)
+        filters = clean_filters(request.query_params, scope)
         data = build_report_data(request, scope, filters)
-        data['history'] = report_history(request, scope)
+        data['history'] = report_history(request, scope, filters.get('document_id')) if scope == 'traceability' else report_history(request, scope)
         record_report_event(request, 'REPORTE_CONSULTADO', details={'scope': scope, 'rows': len(data['rows'])})
         return Response(data)
 
@@ -459,7 +575,7 @@ class ReportGenerateView(APIView):
         report_format = str(request.data.get('format', 'PDF')).upper()
         if report_format not in FORMATS:
             raise ValidationError({'format': 'El formato debe ser PDF o XLSX.'})
-        filters = clean_filters(request.data.get('filters', {}))
+        filters = clean_filters(request.data.get('filters', {}), scope)
         data = build_report_data(request, scope, filters)
         report = persist_report_snapshot(
             organization_id=request.user.organizacion_id,
@@ -489,6 +605,9 @@ class ReportDownloadView(APIView):
         if report.alcance in {'editor', 'reviewer'} and report.generado_por_id != request.user.id:
             return Response({'detail': 'Reporte no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         require_report_access(request, report.alcance)
+        if report.alcance == 'traceability':
+            from .traceability_report import trace_document
+            trace_document(request, report.filtros.get('document_id'))
         try:
             snapshot = read_report_snapshot(report)
         except ReportSnapshotError as error:
@@ -535,7 +654,7 @@ class ReportScheduleListView(APIView):
             raise ValidationError({'frequency': 'La frecuencia debe ser daily, weekly o monthly.'})
         if report_format not in FORMATS:
             raise ValidationError({'format': 'El formato debe ser PDF o XLSX.'})
-        filters = clean_filters(request.data.get('filters', {}))
+        filters = clean_filters(request.data.get('filters', {}), scope)
         next_run = parse_report_datetime(request.data.get('next_run_at'), 'next_run_at') or timezone.now() + timedelta(days=1)
         schedule = ProgramacionReporte.objects.create(
             organizacion_id=request.user.organizacion_id,

@@ -1,0 +1,69 @@
+{
+  "environment": "backend local conectado a Neon; identidades existentes mediante force_authenticate",
+  "results": [
+    {
+      "request": "GET /api/reports/?scope=executive",
+      "user": "prueba.admin@test.local",
+      "status": 200,
+      "keys": [
+        "filters",
+        "history",
+        "options",
+        "rows",
+        "scope",
+        "summary"
+      ],
+      "row_keys": [
+        "area",
+        "area_id",
+        "code",
+        "id",
+        "responsible",
+        "responsible_id",
+        "status",
+        "status_code",
+        "title",
+        "type",
+        "type_id",
+        "updated_at",
+        "version"
+      ],
+      "row_count": 15,
+      "summary_total": 15,
+      "history_count": 2,
+      "ordering_verified": true
+    },
+    {
+      "request": "GET /api/reports/?scope=editor",
+      "user": "prueba.editor@test.local",
+      "status": 200,
+      "keys": [
+        "filters",
+        "history",
+        "options",
+        "rows",
+        "scope",
+        "summary"
+      ],
+      "row_keys": [
+        "area",
+        "area_id",
+        "code",
+        "id",
+        "responsible",
+        "responsible_id",
+        "status",
+        "status_code",
+        "title",
+        "type",
+        "type_id",
+        "updated_at",
+        "version"
+      ],
+      "row_count": 7,
+      "summary_total": 7,
+      "history_count": 0,
+      "ordering_verified": true
+    }
+  ]
+}

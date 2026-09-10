@@ -31,11 +31,14 @@ SUPPORTED_DESTINATIONS = {'s3', 'filesystem'}
 GLOBAL_BACKUP_TABLES = frozenset({
     'acciones_auditoria',
     'estados_documento',
+    'estados_respaldo',
     'estados_revision',
     'estados_version',
     'permisos',
     'tipos_documento',
     'tipos_recurso_auditoria',
+    'tipos_reporte',
+    'tipos_respaldo',
 })
 BACKUP_OPERATIONAL_TABLES = frozenset({
     'configuraciones_respaldo_v2',
@@ -58,6 +61,20 @@ BACKUP_RELATIONS = {
         ('usuarios', 'creada_por_id', 'id'),
     ),
     'documentos_metadatos': (('documentos', 'documento_id', 'id'),),
+    'documentos_etiquetas': (
+        ('documentos', 'documento_id', 'id'),
+        ('etiquetas', 'etiqueta_id', 'id'),
+    ),
+    'documentos_politicas_acl': (('documentos', 'documento_id', 'id'),),
+    'documentos_usuarios_permisos': (
+        ('documentos', 'documento_id', 'id'),
+        ('usuarios', 'usuario_id', 'id'),
+        ('usuarios', 'concedido_por_id', 'id'),
+    ),
+    'usuarios_permisos': (
+        ('usuarios', 'usuario_id', 'id'),
+        ('usuarios', 'asignado_por_id', 'id'),
+    ),
     'documentos_roles_permisos': (
         ('documentos', 'documento_id', 'id'),
         ('roles', 'rol_id', 'id'),
@@ -548,7 +565,11 @@ def _snapshot_scope_resolver(schema_definition, database, organization_id):
             if all(value is None for value in local_values):
                 continue
             if any(value is None for value in local_values):
-                raise BackupExecutionError(f'La tabla {table_name} contiene una clave foranea incompleta.')
+                # PostgreSQL defaults to MATCH SIMPLE: any NULL exempts the
+                # composite FK from matching. MATCH FULL requires all or none.
+                if 'MATCH FULL' in constraint.get('definition', '').upper():
+                    raise BackupExecutionError(f'La tabla {table_name} contiene una clave foranea incompleta.')
+                continue
             parent_row = find_row(foreign_table, foreign_columns, local_values)
             if parent_row is None:
                 raise BackupExecutionError(
@@ -854,35 +875,62 @@ def build_database_snapshot(organization_id):
     return database, records
 
 
-def build_storage_snapshot(organization_id, archive):
+def backup_file_inventory(organization_id, database=None):
+    if database is not None:
+        if str(database.get('organization_id')) != str(organization_id):
+            raise BackupExecutionError('La organizacion del inventario no coincide con el snapshot.')
+        versions = next((table for table in database['tables'] if table['name'] == 'versiones_documento'), None)
+        if versions is None:
+            raise BackupExecutionError('El snapshot no contiene el inventario de versiones.')
+        rows = versions['rows']
+    else:
+        queryset = ArchivoDocumento.objects.filter(documento__organizacion_id=organization_id).only(
+            'id', 'documento_id', 'clave_almacenamiento', 'nombre_archivo_original', 'tamano_bytes',
+            'sha256', 'tipo_mime', 'numero_mayor', 'numero_menor', 'es_vigente',
+        )
+        rows = [dict(item.__dict__) for item in queryset.iterator()]
+    inventory = []
+    for row in rows:
+        archive_path = f"files/{row['id']}/{PurePosixPath(row['nombre_archivo_original']).name}"
+        inventory.append({
+            'id': str(row['id']),
+            'document_id': str(row['documento_id']),
+            'version': f"{row.get('numero_mayor', '?')}.{row.get('numero_menor', '?')}",
+            'is_current': row.get('es_vigente'),
+            'storage_key': row['clave_almacenamiento'],
+            'archive_path': archive_path,
+            'name': row['nombre_archivo_original'],
+            'size': row['tamano_bytes'],
+            'sha256': row['sha256'],
+            'mime_type': row['tipo_mime'],
+        })
+    return inventory
+
+
+def build_storage_snapshot(organization_id, archive, database=None):
     files = []
     missing = []
-    queryset = ArchivoDocumento.objects.filter(documento__organizacion_id=organization_id).only(
-        'id', 'documento_id', 'clave_almacenamiento', 'nombre_archivo_original', 'tamano_bytes', 'sha256', 'tipo_mime',
-    )
-    for item in queryset.iterator():
-        archive_path = f'files/{item.id}/{PurePosixPath(item.nombre_archivo_original).name}'
-        file_info = {
-            'id': str(item.id),
-            'document_id': str(item.documento_id),
-            'storage_key': item.clave_almacenamiento,
-            'archive_path': archive_path,
-            'name': item.nombre_archivo_original,
-            'size': item.tamano_bytes,
-            'sha256': item.sha256,
-            'mime_type': item.tipo_mime,
-        }
-        if not default_storage.exists(item.clave_almacenamiento):
-            missing.append(file_info)
+    for file_info in backup_file_inventory(organization_id, database):
+        key = file_info['storage_key']
+        if not key or not key.strip():
+            missing.append({**file_info, 'reason': 'missing_storage_key'})
             continue
-        with default_storage.open(item.clave_almacenamiento, 'rb') as source:
-            content = source.read()
-        if item.tamano_bytes is not None and len(content) != item.tamano_bytes:
-            raise BackupExecutionError(f'El tamano no coincide para {item.nombre_archivo_original}.')
-        if item.sha256 and hashlib.sha256(content).hexdigest() != item.sha256:
-            raise BackupExecutionError(f'La suma de comprobacion no coincide para {item.nombre_archivo_original}.')
-        archive.writestr(archive_path, content)
-        files.append(file_info)
+        if not default_storage.exists(key):
+            missing.append({**file_info, 'reason': 'object_not_found'})
+            continue
+        try:
+            with default_storage.open(key, 'rb') as source:
+                content = source.read()
+        except FileNotFoundError:
+            missing.append({**file_info, 'reason': 'object_not_found'})
+            continue
+        digest = hashlib.sha256(content).hexdigest()
+        if file_info['size'] is not None and len(content) != file_info['size']:
+            raise BackupExecutionError(f"El tamano no coincide para {file_info['name']}.")
+        if file_info['sha256'] and digest != file_info['sha256']:
+            raise BackupExecutionError(f"La suma de comprobacion no coincide para {file_info['name']}.")
+        archive.writestr(file_info['archive_path'], content)
+        files.append({**file_info, 'size': len(content), 'sha256': digest})
     return files, missing
 
 
@@ -1153,7 +1201,7 @@ def build_backup_archive(organization_id, include_files=True):
             archive.writestr('schema.json', json.dumps(schema_definition, default=json_default, ensure_ascii=True))
             archive.writestr('sequences.json', json.dumps(sequences, default=json_default, ensure_ascii=True))
             if include_files:
-                files, missing_files = build_storage_snapshot(organization_id, archive)
+                files, missing_files = build_storage_snapshot(organization_id, archive, database=database)
             else:
                 files = []
             reconstruction = build_reconstruction_plan(organization_id, database, schema_definition, sequences)
@@ -1170,6 +1218,9 @@ def build_backup_archive(organization_id, include_files=True):
                 'files': files,
                 'missing_files': missing_files,
                 'complete': not missing_files,
+                'scope': 'database_and_document_files' if include_files else 'database_only',
+                'document_files_requested': bool(include_files),
+                'document_files_complete': bool(include_files) and not missing_files,
                 'database': {
                     'schema': BACKUP_SCHEMA,
                     'tables': len(database['tables']),
@@ -1243,12 +1294,16 @@ def create_backup(organization_id, user_id=None, backup_type='manual', config=No
         backup.sha256 = hashlib.sha256(payload).hexdigest()
         backup.archivos = stats['files']
         backup.registros_db = stats['records']
-        backup.estado = 'exitoso'
+        backup.estado = 'exitoso' if stats['complete'] else 'fallido'
         backup.finalizado_en = timezone.now()
         backup.save(update_fields=[
             'clave_almacenamiento', 'tamano_bytes', 'sha256', 'archivos', 'registros_db',
             'estado', 'finalizado_en',
         ])
+        if not stats['complete']:
+            raise BackupExecutionError(
+                f"Respaldo incompleto: faltan {stats['missing_files']} archivos documentales requeridos.",
+            )
         if config.pk and not config._state.adding:
             config.ultima_ejecucion_en = backup.finalizado_en
             config.proxima_ejecucion_en = next_execution(config.frecuencia, backup.finalizado_en)
@@ -1331,6 +1386,9 @@ def _read_v2_artifacts(archive, manifest):
 
 
 def verify_backup(backup, restore_files=False, restore_database=False):
+    if not restore_files and not restore_database:
+        from .backup_verification import verify_read_only
+        return verify_read_only(backup)
     archive, manifest = load_backup_archive(backup)
     try:
         artifacts = _read_v2_artifacts(archive, manifest)

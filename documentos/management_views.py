@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from .auth_utils import get_client_ip, record_access_denied, record_auth_event, serialize_user, user_has_permission
 from .permissions import IsAuthenticatedAndPasswordCurrent
 from .user_status import update_user_state
+from .audit_changes import user_snapshot, named_snapshot, modification_changes
 from .role_validation import role_write, validate_role_name
 from .models import (
     PermisoDocumental,
@@ -215,9 +216,10 @@ def build_device_inventory(session_rows, now=None):
     )
 
 
-def get_user_for_organization(user_id, organization_id):
+def get_user_for_organization(user_id, organization_id, for_update=False):
     try:
-        return UsuarioDocumental.objects.get(pk=user_id, organizacion_id=organization_id)
+        queryset = UsuarioDocumental.objects.select_for_update() if for_update else UsuarioDocumental.objects
+        return queryset.get(pk=user_id, organizacion_id=organization_id)
     except UsuarioDocumental.DoesNotExist:
         return None
 
@@ -449,9 +451,10 @@ class UserDetailView(APIView):
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'user': serialize_management_user(user)})
 
+    @transaction.atomic
     def patch(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
-        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        user = get_user_for_organization(user_id, request.user.organizacion_id, for_update=True)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = UserUpdateSerializer(data=request.data, partial=True)
@@ -471,6 +474,7 @@ class UserDetailView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
+        before = user_snapshot(user)
         updates = {}
         field_mapping = {
             'email': 'correo',
@@ -484,12 +488,14 @@ class UserDetailView(APIView):
                 updates[field] = data[key]
         if updates:
             update_user_state(user, updates)
-        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado')
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario actualizado',
+                                changes=modification_changes(before, user_snapshot(user)))
         return Response({'user': serialize_management_user(user)})
 
+    @transaction.atomic
     def delete(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
-        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        user = get_user_for_organization(user_id, request.user.organizacion_id, for_update=True)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         if user.pk == request.user.id:
@@ -501,38 +507,45 @@ class UserDetailView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        before = user_snapshot(user)
         update_user_state(user, {'activo': False})
-        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario dado de baja logicamente')
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Usuario dado de baja logicamente',
+                                changes=modification_changes(before, user_snapshot(user)))
         return Response({'user': serialize_management_user(user)})
 
 
 class UserStatusView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
         serializer = UserStatusSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        user = get_user_for_organization(user_id, request.user.organizacion_id, for_update=True)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         active = serializer.validated_data['active']
+        before = user_snapshot(user)
         update_user_state(user, {'activo': active})
-        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Estado de usuario actualizado')
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Estado de usuario actualizado',
+                                changes=modification_changes(before, user_snapshot(user)))
         return Response({'user': serialize_management_user(user)})
 
 
 class UserLockView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def post(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
         serializer = UserLockSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        user = get_user_for_organization(user_id, request.user.organizacion_id, for_update=True)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         data = serializer.validated_data
+        before = user_snapshot(user)
         now = timezone.now()
         locked_until = now + timedelta(minutes=data.get('minutes', 15)) if data['locked'] else None
         UsuarioDocumental.objects.filter(pk=user.pk).update(
@@ -547,7 +560,8 @@ class UserLockView(APIView):
                 revocada_en=now,
                 motivo_revocacion='Cuenta bloqueada por un administrador',
             )
-        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Bloqueo de usuario actualizado')
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Bloqueo de usuario actualizado',
+                                changes=modification_changes(before, user_snapshot(user)))
         return Response({'user': serialize_management_user(user)})
 
 
@@ -603,9 +617,10 @@ class UserRolesView(APIView):
         )
         return Response({'roles': list(roles)})
 
+    @transaction.atomic
     def put(self, request, user_id):
         require_permission(request, 'usuarios.gestionar')
-        user = get_user_for_organization(user_id, request.user.organizacion_id)
+        user = get_user_for_organization(user_id, request.user.organizacion_id, for_update=True)
         if not user:
             return Response({'detail': 'Usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = RoleAssignmentSerializer(data=request.data)
@@ -622,8 +637,12 @@ class UserRolesView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         require_role_assignment_authority(request, role_ids, target_user=user)
+        before = {'role_ids': sorted(str(pk) for pk in UsuarioRolDocumental.objects.filter(
+            Q(vigente_hasta__isnull=True) | Q(vigente_hasta__gt=timezone.now()),
+            usuario_id=user.pk).values_list('rol_id', flat=True))}
         assign_roles(user, role_ids, request.user.id)
-        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Roles de usuario actualizados')
+        record_management_event(request, user, 'USUARIO_MODIFICADO', 'Roles de usuario actualizados',
+                                changes=modification_changes(before, {'role_ids': sorted(str(pk) for pk in set(role_ids))}))
         return Response({'roles': list(RolDocumental.objects.filter(
             id__in=role_ids,
             organizacion_id=request.user.organizacion_id,
@@ -778,9 +797,10 @@ class RoleListCreateView(APIView):
 class RoleDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def patch(self, request, role_id):
         require_permission(request, 'roles.gestionar')
-        role = RolDocumental.objects.filter(
+        role = RolDocumental.objects.select_for_update().filter(
             pk=role_id,
             organizacion_id=request.user.organizacion_id,
         ).first()
@@ -789,6 +809,7 @@ class RoleDetailView(APIView):
         serializer = RoleUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        before = named_snapshot(role)
         updates = {}
         field_mapping = {'name': 'nombre', 'description': 'descripcion', 'active': 'activo'}
         if 'name' in data:
@@ -807,6 +828,7 @@ class RoleDetailView(APIView):
             request.user,
             'ROL_MODIFICADO',
             'Rol actualizado',
+            changes=modification_changes(before, named_snapshot(role)),
             resource_code='ROL',
             resource_id=role.id,
         )
@@ -875,14 +897,16 @@ class PermissionListView(APIView):
 class PermissionDetailView(APIView):
     permission_classes = [IsAuthenticatedAndPasswordCurrent]
 
+    @transaction.atomic
     def patch(self, request, permission_id):
         require_permission(request, 'roles.gestionar')
-        permission = PermisoDocumental.objects.filter(pk=permission_id).first()
+        permission = PermisoDocumental.objects.select_for_update().filter(pk=permission_id).first()
         if not permission:
             return Response({'detail': 'Permiso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = PermissionUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        before = named_snapshot(permission)
         updates = {}
         field_mapping = {'name': 'nombre', 'module': 'modulo', 'description': 'descripcion', 'active': 'activo'}
         for key, field in field_mapping.items():
@@ -897,6 +921,7 @@ class PermissionDetailView(APIView):
             request.user,
             'PERMISO_MODIFICADO',
             'Permiso actualizado',
+            changes=modification_changes(before, named_snapshot(permission)),
             resource_code='PERMISO',
             resource_id=permission.id,
         )
@@ -940,9 +965,10 @@ class RolePermissionsView(APIView):
             },
         )
 
+    @transaction.atomic
     def put(self, request, role_id):
         require_permission(request, 'roles.gestionar')
-        role = RolDocumental.objects.filter(
+        role = RolDocumental.objects.select_for_update().filter(
             pk=role_id,
             organizacion_id=request.user.organizacion_id,
             activo=True,
@@ -962,6 +988,7 @@ class RolePermissionsView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         with transaction.atomic():
+            before = {'permission_ids': sorted(str(pk) for pk in RolPermisoDocumental.objects.filter(rol_id=role.pk).values_list('permiso_id', flat=True))}
             RolPermisoDocumental.objects.filter(rol_id=role.pk).delete()
             for permission_id in valid_permission_ids:
                 RolPermisoDocumental.objects.create(
@@ -975,6 +1002,7 @@ class RolePermissionsView(APIView):
             request.user,
             'PERMISO_MODIFICADO',
             'Permisos de rol actualizados',
+            changes=modification_changes(before, {'permission_ids': sorted(str(pk) for pk in valid_permission_ids)}),
             resource_code='PERMISO',
             resource_id=role.pk,
         )
@@ -1003,8 +1031,8 @@ def assign_roles(user, role_ids, assigned_by_id):
                 )
 
 
-def record_management_event(request, user, action_code, result, resource_code='USUARIO', resource_id=None):
-    record_auth_event(
+def record_management_event(request, user, action_code, result, resource_code='USUARIO', resource_id=None, changes=None):
+    return record_auth_event(
         action_code=action_code,
         resource_code=resource_code,
         organization_id=user.organizacion_id,
@@ -1014,7 +1042,8 @@ def record_management_event(request, user, action_code, result, resource_code='U
         request=request,
         successful=True,
         result=result,
-        details={'target_id': str(resource_id or user.id), 'ip': get_client_ip(request)},
+        details={'target_id': str(resource_id or user.id), 'ip': get_client_ip(request),
+                 **({'changes': changes} if changes is not None else {})},
     )
 
 

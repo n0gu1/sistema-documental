@@ -1,0 +1,209 @@
+{
+  "definition": "Eventos exitosos propios: DOCUMENTO_APROBADO, DOCUMENTO_RECHAZADO, REVISION_DEVUELTA",
+  "fixture_marker": "852d9354-3d24-4ff8-9db1-8bc5d75f686d",
+  "fixture_event_ids": [
+    609,
+    610,
+    611,
+    612,
+    613,
+    614,
+    615,
+    616,
+    617
+  ],
+  "data": {
+    "scope": "reviewer",
+    "filters": {
+      "date_from": "2026-09-03",
+      "date_to": "2026-09-09"
+    },
+    "summary": {
+      "total": 4,
+      "completed": 4,
+      "approved": 2,
+      "rejected": 1,
+      "returned": 1,
+      "by_status": [
+        {
+          "code": "APROBADA",
+          "name": "Aprobada",
+          "count": 2
+        },
+        {
+          "code": "DEVUELTA",
+          "name": "Devuelta",
+          "count": 1
+        },
+        {
+          "code": "RECHAZADA",
+          "name": "Rechazada",
+          "count": 1
+        }
+      ],
+      "by_area": [
+        {
+          "name": "Tecnología",
+          "count": 4
+        }
+      ],
+      "by_type": [
+        {
+          "name": "Política",
+          "count": 4
+        }
+      ],
+      "by_responsible": [
+        {
+          "name": "Juan Perez",
+          "count": 4
+        }
+      ],
+      "scope": "reviewer"
+    },
+    "options": {
+      "areas": [
+        {
+          "id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+          "name": "Tecnología"
+        }
+      ],
+      "types": [
+        {
+          "id": "1",
+          "name": "Política"
+        }
+      ],
+      "responsibles": [
+        {
+          "id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+          "name": "Juan Perez"
+        }
+      ],
+      "statuses": [
+        {
+          "id": "APROBADA",
+          "name": "Aprobación emitida"
+        },
+        {
+          "id": "DEVUELTA",
+          "name": "Devolución emitida"
+        },
+        {
+          "id": "RECHAZADA",
+          "name": "Rechazo emitido"
+        }
+      ]
+    },
+    "rows": [
+      {
+        "id": "612",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version_id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "version": "2.0",
+        "code": "PRUEBA-001",
+        "title": "Política de pruebas documentales",
+        "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+        "area": "Tecnología",
+        "type_id": "1",
+        "type": "Política",
+        "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+        "responsible": "Juan Perez",
+        "actor_id": "ee41aabd-9216-42d1-8be5-6e6c55e6504f",
+        "actor": "Usuario Prueba Revisor",
+        "action_code": "REVISION_DEVUELTA",
+        "status_code": "DEVUELTA",
+        "status": "Devolución emitida",
+        "activity_at": "2026-09-09T15:00:00Z",
+        "activity_date": "2026-09-09",
+        "created_at": "2026-09-09T15:00:00Z"
+      },
+      {
+        "id": "611",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version_id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "version": "2.0",
+        "code": "PRUEBA-001",
+        "title": "Política de pruebas documentales",
+        "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+        "area": "Tecnología",
+        "type_id": "1",
+        "type": "Política",
+        "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+        "responsible": "Juan Perez",
+        "actor_id": "ee41aabd-9216-42d1-8be5-6e6c55e6504f",
+        "actor": "Usuario Prueba Revisor",
+        "action_code": "DOCUMENTO_RECHAZADO",
+        "status_code": "RECHAZADA",
+        "status": "Rechazo emitido",
+        "activity_at": "2026-09-08T15:00:00Z",
+        "activity_date": "2026-09-08",
+        "created_at": "2026-09-08T15:00:00Z"
+      },
+      {
+        "id": "610",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version_id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "version": "2.0",
+        "code": "PRUEBA-001",
+        "title": "Política de pruebas documentales",
+        "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+        "area": "Tecnología",
+        "type_id": "1",
+        "type": "Política",
+        "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+        "responsible": "Juan Perez",
+        "actor_id": "ee41aabd-9216-42d1-8be5-6e6c55e6504f",
+        "actor": "Usuario Prueba Revisor",
+        "action_code": "DOCUMENTO_APROBADO",
+        "status_code": "APROBADA",
+        "status": "Aprobación emitida",
+        "activity_at": "2026-09-08T15:00:00Z",
+        "activity_date": "2026-09-08",
+        "created_at": "2026-09-08T15:00:00Z"
+      },
+      {
+        "id": "609",
+        "document_id": "7954d65d-2eb8-4dc7-aef6-74ea7c8726fe",
+        "version_id": "66c738fd-ec6c-4642-8e47-872290d3ede2",
+        "version": "2.0",
+        "code": "PRUEBA-001",
+        "title": "Política de pruebas documentales",
+        "area_id": "2891e37a-8a43-4e21-b2f9-cf4a890b05c6",
+        "area": "Tecnología",
+        "type_id": "1",
+        "type": "Política",
+        "responsible_id": "0b370f19-c34e-4f24-9ed7-dc0294ac36c7",
+        "responsible": "Juan Perez",
+        "actor_id": "ee41aabd-9216-42d1-8be5-6e6c55e6504f",
+        "actor": "Usuario Prueba Revisor",
+        "action_code": "DOCUMENTO_APROBADO",
+        "status_code": "APROBADA",
+        "status": "Aprobación emitida",
+        "activity_at": "2026-09-03T15:00:00Z",
+        "activity_date": "2026-09-03",
+        "created_at": "2026-09-03T15:00:00Z"
+      }
+    ],
+    "activity_definition": "successful_review_decisions",
+    "activity_timezone": "America/Bogota",
+    "history": []
+  },
+  "checks": [
+    "GET actividad HTTP 200",
+    "Solo cuatro decisiones propias exitosas en rango",
+    "Total 4 = 2 aprobaciones + 1 rechazo + 1 devolución",
+    "No publica métricas ficticias de vencimiento o publicación",
+    "Actor y fecha del evento en cada fila",
+    "Fechas de actividad 03:1, 08:2, 09:1",
+    "Filtro de acción devuelve un rechazo",
+    "Filtro de fecha usa el día de ejecución",
+    "Solicitud recibida/cierre automático no incrementan actividad",
+    "Exportación describe acción, actor y fecha de actividad",
+    "Aprobación real HTTP 200",
+    "Aprobación real produce una acción atribuida y fechada",
+    "Repetir decisión HTTP 409 sin nueva actividad"
+  ],
+  "passed": 13,
+  "environment": "Backend local contra Neon; datos controlados, todos revertidos"
+}

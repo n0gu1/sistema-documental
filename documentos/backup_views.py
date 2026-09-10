@@ -30,7 +30,7 @@ BACKUP_PERMISSION = 'usuarios.gestionar'
 
 
 def record_backup_event(request, action_code, resource_id=None, details=None, successful=True, result=None):
-    record_auth_event(
+    return record_auth_event(
         action_code=action_code,
         resource_code='RESPALDO',
         organization_id=request.user.organizacion_id,
@@ -250,11 +250,11 @@ class BackupRestoreView(APIView):
     def post(self, request, backup_id):
         require_permission(request, BACKUP_PERMISSION)
         backup = get_backup_or_404(request, backup_id)
-        if backup.estado != 'exitoso':
-            raise ValidationError({'detail': 'Solo se pueden restaurar respaldos exitosos.'})
         mode = request.data.get('mode', 'verify')
-        if mode not in {'verify', 'restore', 'restore_files'}:
+        if not isinstance(mode, str) or mode not in {'verify', 'restore', 'restore_files'}:
             raise ValidationError({'mode': 'El modo debe ser verify, restore o restore_files.'})
+        if mode != 'verify' and backup.estado != 'exitoso':
+            raise ValidationError({'detail': 'Solo se pueden restaurar respaldos exitosos.'})
         try:
             result = restore_backup(backup) if mode == 'restore' else verify_backup(
                 backup,

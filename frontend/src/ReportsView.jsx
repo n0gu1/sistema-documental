@@ -1,7 +1,8 @@
 import { PermissionButton, PermissionForm } from './Permissions'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiRequest, formatDate } from './api'
 import './ReportsView.css'
+import TraceabilityReport from './TraceabilityReport'
 
 const emptyData = {
   summary: { total: 0, published: 0, in_review: 0, completed: 0, overdue: 0, by_status: [], by_area: [], by_type: [], by_responsible: [] },
@@ -35,7 +36,10 @@ function Breakdown({ title, values }) {
   return <section className="reports-card"><h2>{title}</h2>{values.length ? <div className="reports-breakdown">{values.map((item) => <div key={item.name}><div><span>{item.name}</span><b>{item.count}</b></div><i><em style={{ width: `${item.count / max * 100}%` }} /></i></div>)}</div> : <p className="reports-empty">No hay datos para los filtros seleccionados.</p>}</section>
 }
 
-function ReportsView({ globalQuery = '', scope = 'executive', title = 'Reportes ejecutivos' }) {
+function ExistingReportsView({ globalQuery = '', scope: initialScope = 'executive', title: initialTitle = 'Reportes ejecutivos' }) {
+  const [scope, setScope] = useState(initialScope)
+  const requestSequence = useRef(0)
+  const title = scope === 'versions' ? 'Reporte de versiones' : initialTitle
   const [filters, setFilters] = useState({ date_from: '', date_to: '', area_id: '', type_id: '', status_code: '', responsible_id: '' })
   const [data, setData] = useState(emptyData)
   const [schedules, setSchedules] = useState([])
@@ -53,19 +57,21 @@ function ReportsView({ globalQuery = '', scope = 'executive', title = 'Reportes 
   }
 
   async function loadReports() {
+    const sequence = ++requestSequence.current
     setLoading(true)
     try {
       const [reportData, scheduleData] = await Promise.all([
         apiRequest(`/api/reports/?${queryString()}`),
         apiRequest(`/api/reports/schedules/?scope=${scope}`),
       ])
+      if (sequence !== requestSequence.current) return
       setData({ ...emptyData, ...reportData })
       setSchedules(scheduleData.schedules || [])
       setError('')
     } catch (requestError) {
-      setError(requestError.message)
+      if (sequence === requestSequence.current) setError(requestError.message)
     } finally {
-      setLoading(false)
+      if (sequence === requestSequence.current) setLoading(false)
     }
   }
 
@@ -110,20 +116,24 @@ function ReportsView({ globalQuery = '', scope = 'executive', title = 'Reportes 
     link.remove()
   }
 
-  const searchableRows = data.rows.filter((row) => !globalQuery.trim() || [row.code, row.title, row.area, row.type, row.responsible, row.status].join(' ').toLowerCase().includes(globalQuery.trim().toLowerCase()))
+  const searchableRows = data.rows.filter((row) => !globalQuery.trim() || [row.code, row.title, row.area, row.type, row.responsible, row.status, row.version, row.comment].join(' ').toLowerCase().includes(globalQuery.trim().toLowerCase()))
   const { summary } = data
 
   return <div className="reports-view">
     <header className="reports-heading"><div><p>Analítica documental</p><h1>{title}</h1><span>Consultas reales de la organización, con filtros y exportación.</span></div><time><ReportIcon name="calendar" size={17} /> Actualizado {formatDate(new Date().toISOString())}</time></header>
-    <section className="reports-panel reports-filters" aria-label="Filtros de reportes"><label className="reports-filter"><span>Desde</span><input type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} /></label><label className="reports-filter"><span>Hasta</span><input type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} /></label><Filter label="Área" value={filters.area_id} onChange={(value) => updateFilter('area_id', value)} options={data.options.areas} placeholder="Todas las áreas" /><Filter label="Tipo" value={filters.type_id} onChange={(value) => updateFilter('type_id', value)} options={data.options.types} placeholder="Todos los tipos" /><Filter label="Estado" value={filters.status_code} onChange={(value) => updateFilter('status_code', value)} options={data.options.statuses} placeholder="Todos los estados" /><Filter label="Responsable" value={filters.responsible_id} onChange={(value) => updateFilter('responsible_id', value)} options={data.options.responsibles} placeholder="Todos" /><button type="button" onClick={clearFilters}><ReportIcon name="filter" size={15} /> Limpiar</button></section>
+    <section className="reports-panel reports-filters" style={initialScope === 'executive' ? { gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' } : undefined} aria-label="Filtros de reportes">{initialScope === 'executive' && <label className="reports-filter"><span>Reporte</span><select aria-label="Tipo de reporte" value={scope} onChange={(event) => { setScope(event.target.value); clearFilters(); setData(emptyData) }}><option value="executive">Ejecutivo</option><option value="versions">Historial de versiones</option></select></label>}<label className="reports-filter"><span>Desde</span><input type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} /></label><label className="reports-filter"><span>Hasta</span><input type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} /></label><Filter label="Área" value={filters.area_id} onChange={(value) => updateFilter('area_id', value)} options={data.options.areas} placeholder="Todas las áreas" /><Filter label="Tipo" value={filters.type_id} onChange={(value) => updateFilter('type_id', value)} options={data.options.types} placeholder="Todos los tipos" /><Filter label="Estado" value={filters.status_code} onChange={(value) => updateFilter('status_code', value)} options={data.options.statuses} placeholder="Todos los estados" /><Filter label={scope === 'versions' ? 'Autor de versión' : 'Responsable'} value={filters.responsible_id} onChange={(value) => updateFilter('responsible_id', value)} options={data.options.responsibles} placeholder="Todos" /><button type="button" onClick={clearFilters}><ReportIcon name="filter" size={15} /> Limpiar</button></section>
     {error && <p className="reports-error" role="alert">{error}</p>}
     {notice && <p className="reports-notice" role="status">{notice}</p>}
-    <section className="reports-metrics" aria-label="Indicadores de reportes"><Metric label={scope === 'reviewer' ? 'Revisiones asignadas' : 'Documentos procesados'} value={loading ? '...' : summary.total} detail={`${summary.completed} completados`} tone="blue" /><Metric label="Publicados" value={loading ? '...' : summary.published} detail={`${summary.in_review} en revisión`} tone="violet" /><Metric label="Registros vencidos" value={loading ? '...' : summary.overdue} detail="Requieren atención" tone="orange" /><Metric label="Responsables" value={loading ? '...' : summary.by_responsible.length} detail="Con actividad en el período" tone="green" /></section>
-    <div className="reports-chart-grid"><Breakdown title="Distribución por estado" values={summary.by_status} /><Breakdown title="Documentos por área" values={summary.by_area} /><Breakdown title="Documentos por tipo" values={summary.by_type} /></div>
-    <section className="reports-panel reports-recent"><header><div><h2>Detalle del reporte</h2><p>{searchableRows.length} registros coinciden con los filtros.</p></div><div className="reports-actions"><select value={format} onChange={(event) => setFormat(event.target.value)} aria-label="Formato de reporte"><option value="PDF">PDF</option><option value="XLSX">Excel (XLSX)</option></select><PermissionButton permission="reportes.generar" className="is-primary" type="button" onClick={generateReport}><ReportIcon name="chart" size={15} /> Generar reporte</PermissionButton><button type="button" onClick={() => setShowSchedule((current) => !current)}><ReportIcon name="schedule" size={15} /> Programar</button></div></header>{showSchedule && <PermissionForm permission="reportes.generar" className="reports-schedule" onSubmit={createSchedule}><label>Frecuencia<select value={frequency} onChange={(event) => setFrequency(event.target.value)}><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensual</option></select></label><button className="is-primary" type="submit">Guardar programación</button></PermissionForm>}<div className="reports-table-scroll"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>Responsable</th><th>Estado</th><th>Actualización</th></tr></thead><tbody>{searchableRows.map((row) => <tr key={row.id}><td>{row.code}</td><td>{row.title}</td><td>{row.area}</td><td>{row.type}</td><td>{row.responsible}</td><td><b>{row.status}</b></td><td>{formatDate(row.updated_at || row.created_at)}</td></tr>)}</tbody></table>{!loading && !searchableRows.length && <p className="reports-empty">No se encontraron registros.</p>}</div></section>
+    <section className="reports-metrics" aria-label="Indicadores de reportes"><Metric label={scope === 'versions' ? 'Versiones' : scope === 'reviewer' ? 'Revisiones asignadas' : 'Documentos procesados'} value={loading ? '...' : summary.total} detail={`${summary.completed} completados`} tone="blue" /><Metric label="Publicados" value={loading ? '...' : summary.published} detail={`${summary.in_review} en revisión`} tone="violet" /><Metric label="Registros vencidos" value={loading ? '...' : summary.overdue} detail="Requieren atención" tone="orange" /><Metric label={scope === 'versions' ? 'Autores' : 'Responsables'} value={loading ? '...' : summary.by_responsible.length} detail="Con actividad en el período" tone="green" /></section>
+    <div className="reports-chart-grid"><Breakdown title="Distribución por estado" values={summary.by_status} /><Breakdown title={scope === 'versions' ? 'Versiones por área' : 'Documentos por área'} values={summary.by_area} /><Breakdown title={scope === 'versions' ? 'Versiones por tipo' : 'Documentos por tipo'} values={summary.by_type} /></div>
+    <section className="reports-panel reports-recent"><header><div><h2>Detalle del reporte</h2><p>{searchableRows.length} registros coinciden con los filtros.</p></div><div className="reports-actions"><select value={format} onChange={(event) => setFormat(event.target.value)} aria-label="Formato de reporte"><option value="PDF">PDF</option><option value="XLSX">Excel (XLSX)</option></select><PermissionButton permission="reportes.generar" className="is-primary" type="button" onClick={generateReport}><ReportIcon name="chart" size={15} /> Generar reporte</PermissionButton><button type="button" onClick={() => setShowSchedule((current) => !current)}><ReportIcon name="schedule" size={15} /> Programar</button></div></header>{showSchedule && <PermissionForm permission="reportes.generar" className="reports-schedule" onSubmit={createSchedule}><label>Frecuencia<select value={frequency} onChange={(event) => setFrequency(event.target.value)}><option value="daily">Diaria</option><option value="weekly">Semanal</option><option value="monthly">Mensual</option></select></label><button className="is-primary" type="submit">Guardar programación</button></PermissionForm>}<div className="reports-table-scroll"><table><thead><tr><th>Código</th><th>Documento</th><th>Área</th><th>Tipo</th><th>{scope === 'versions' ? 'Autor' : 'Responsable'}</th><th>Estado</th>{scope === 'versions' && <th>Versión</th>}<th>{scope === 'versions' ? 'Fecha de creación' : 'Actualización'}</th>{scope === 'versions' && <th>Comentario / cambio</th>}</tr></thead><tbody>{searchableRows.map((row) => <tr key={row.id}><td>{row.code}</td><td>{row.title}</td><td>{row.area}</td><td>{row.type}</td><td>{row.responsible}</td><td><b>{row.status}</b></td>{scope === 'versions' && <td>{row.version}</td>}<td>{formatDate(row.updated_at || row.created_at)}</td>{scope === 'versions' && <td style={{ whiteSpace: 'pre-wrap', minWidth: 220 }}>{row.comment || 'Sin comentario'}</td>}</tr>)}</tbody></table>{!loading && !searchableRows.length && <p className="reports-empty">No se encontraron registros.</p>}</div></section>
      <section className="reports-panel reports-history"><header><div><h2>Historial de reportes generados</h2><p>Se conserva una instantánea inmutable para futuras descargas.</p></div></header><div className="reports-history-list">{data.history.map((report) => <article key={report.id}><span><ReportIcon name={report.format === 'PDF' ? 'document' : 'chart'} size={17} /></span><div><strong>{report.name}</strong><small>{report.format} · {report.rows} registros · {formatDate(report.created_at)}</small></div><button type="button" onClick={() => download(report)} aria-label={`Descargar ${report.name}`}><ReportIcon name="download" size={16} /></button></article>)}{!data.history.length && <p className="reports-empty">Aún no hay reportes generados.</p>}</div></section>
     <section className="reports-panel reports-schedules"><header><div><h2>Programaciones activas</h2><p>El proceso programado genera el reporte en la siguiente ejecución.</p></div></header>{schedules.length ? schedules.map((schedule) => <p key={schedule.id}><strong>{schedule.name}</strong><span>{schedule.frequency} · {schedule.format} · Próxima ejecución: {formatDate(schedule.next_run_at)}</span></p>) : <p className="reports-empty">No hay programaciones activas.</p>}</section>
   </div>
 }
 
-export default ReportsView
+export default function ReportsView(props) {
+  const [traceability, setTraceability] = useState(false)
+  if (traceability) return <TraceabilityReport onBack={() => setTraceability(false)} />
+  return <>{(!props.scope || props.scope === 'executive') && <div className="reports-actions"><button type="button" onClick={() => setTraceability(true)}>Reporte integral de trazabilidad</button></div>}<ExistingReportsView {...props} /></>
+}

@@ -73,7 +73,7 @@ function ReaderVersionHistoryView({ documentId }) {
 
   if (error && !document) return <div className="reader-history-view"><p className="editor-error" role="alert">{error}</p></div>
   if (!document) return <div className="reader-history-view"><p>Cargando historial...</p></div>
-  const current = versions.find((version) => version.is_current) || versions[0] || document.version
+  const current = versions.find((version) => version.id === document.published_version_id) || document.version
   return <div className="reader-history-view">
     <header className="reader-history-heading"><div><h1>Historial de versiones</h1><p>Consulta el historial y las versiones publicadas de cada documento.</p></div></header>
     {error && <p className="editor-error" role="alert">{error}</p>}

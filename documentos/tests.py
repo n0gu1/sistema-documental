@@ -1050,6 +1050,34 @@ class BackupSnapshotTests(SimpleTestCase):
     def setUp(self):
         self.organization_id = uuid4()
 
+    def test_current_backup_catalogs_are_global(self):
+        for table in ('estados_respaldo', 'tipos_respaldo', 'tipos_reporte'):
+            with self.subTest(table=table):
+                self.assertEqual(table_scope_clause(
+                    table, {table: {'id', 'codigo', 'nombre'}}, self.organization_id,
+                ), (None, []))
+
+    def test_current_acl_and_tag_tables_keep_all_tenant_relations(self):
+        cases = {
+            'documentos_etiquetas': ('documento_id', 'etiqueta_id'),
+            'documentos_politicas_acl': ('documento_id',),
+            'documentos_usuarios_permisos': ('documento_id', 'usuario_id', 'concedido_por_id'),
+            'usuarios_permisos': ('usuario_id', 'asignado_por_id'),
+        }
+        for table, relations in cases.items():
+            with self.subTest(table=table):
+                clause, params = table_scope_clause(table, {
+                    table: {*relations, 'permiso_id'},
+                    'documentos': {'id', 'organizacion_id'},
+                    'usuarios': {'id', 'organizacion_id'},
+                    'etiquetas': {'id', 'organizacion_id'},
+                }, self.organization_id)
+                self.assertEqual(params, [self.organization_id] * len(relations))
+                for column in relations:
+                    self.assertIn(column, clause)
+                self.assertEqual(clause.count('EXISTS'), len(relations))
+                self.assertIn(' AND ', clause)
+
     def test_relational_table_scope_follows_document_organization(self):
         clause, params = table_scope_clause(
             'documentos_metadatos',
@@ -1179,11 +1207,11 @@ class BackupSnapshotTests(SimpleTestCase):
             'missing_files': [],
             'complete': True,
         }
-        backup = SimpleNamespace(restaurado_en=None, save=MagicMock())
+        backup = SimpleNamespace(restaurado_en=None, save=MagicMock(), sha256='a' * 64)
         with patch('documentos.backup_service.load_backup_archive', return_value=(archive, manifest)):
-            result = verify_backup(backup)
+            with self.assertRaisesMessage(BackupExecutionError, 'se requiere un respaldo v2'):
+                verify_backup(backup)
 
-        self.assertTrue(result['valid'])
         self.assertIsNone(backup.restaurado_en)
         backup.save.assert_not_called()
 

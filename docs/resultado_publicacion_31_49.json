@@ -1,0 +1,35 @@
+{
+  "result": "PASS",
+  "environment": "Backend local / Neon / almacenamiento temporal real / rollback",
+  "document_id": "57e451cc-8690-485d-83b5-3cc45c1191f7",
+  "downloaded_version": {
+    "id": "c11f0da9-36d5-41a4-b51d-30aa0d8756b5",
+    "number": "1.1",
+    "sha256": "41a76ebc54e463266c77f74aac468539d5d44037459ed9034f0ae7b45efc6b2d"
+  },
+  "checks": [
+    "Antes: no aparece en biblioteca",
+    "Antes: detalle 404",
+    "Antes: descarga aprobada 404 ReaderVersionDownloadView",
+    "Antes: descarga aprobada 404 DocumentVersionDownloadView",
+    "Lector no publica",
+    "Borrador no publicable",
+    "Publicar aprobada 1.1",
+    "Después: visible",
+    "Después: versión exacta 1.1",
+    "Fecha de publicación real",
+    "Descarga 200 ReaderVersionDownloadView",
+    "Bytes SHA256 1.1 ReaderVersionDownloadView",
+    "Cabecera ID exacto",
+    "Descarga 200 DocumentVersionDownloadView",
+    "Bytes SHA256 1.1 DocumentVersionDownloadView",
+    "Publicación repetida rechazada",
+    "Publicar aprobada anterior 1.0",
+    "Lector recibe publicación elegida 1.0",
+    "Sin autorización: no aparece",
+    "Sin autorización: consulta bloqueada ReaderDocumentDetailView",
+    "Sin autorización: consulta bloqueada DocumentDetailView",
+    "Sin autorización: descarga bloqueada ReaderVersionDownloadView",
+    "Sin autorización: descarga bloqueada DocumentVersionDownloadView"
+  ]
+}
