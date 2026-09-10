@@ -467,13 +467,16 @@ def save_document_file(document, uploaded_file, user, comment='', version_type='
 
 
 def record_document_event(request, document, action_code, resource_code='DOCUMENTO', resource_id=None, details=None):
+    resolved_resource_id = resource_id or document.id
     return record_auth_event(
         action_code=action_code,
         resource_code=resource_code,
         organization_id=document.organizacion_id,
         user_id=request.user.id,
         session_id=getattr(request.auth, 'id', None),
-        resource_id=resource_id or document.id,
+        resource_id=resolved_resource_id,
+        documento_id=document.id,
+        version_documento_id=resolved_resource_id if resource_code in ('ARCHIVO', 'VERSION') and str(resolved_resource_id) != str(document.id) else None,
         request=request,
         successful=True,
         result='Operacion documental correcta',

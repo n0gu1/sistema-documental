@@ -119,6 +119,8 @@ def record_auth_event(
     user_id=None,
     session_id=None,
     resource_id=None,
+    documento_id=None,
+    version_documento_id=None,
     result=None,
     details=None,
 ):
@@ -140,13 +142,15 @@ def record_auth_event(
                     accion_id,
                     tipo_recurso_id,
                     recurso_id,
+                    documento_id,
+                    version_documento_id,
                     exitoso,
                     resultado,
                     detalles,
                     direccion_ip,
                     agente_usuario
                 )
-                SELECT %s, %s, %s, a.id, tr.id, %s, %s, %s, %s::jsonb, %s, %s
+                SELECT %s, %s, %s, a.id, tr.id, %s, %s, %s, %s, %s, %s::jsonb, %s, %s
                 FROM gestion_documental.acciones_auditoria a
                 CROSS JOIN gestion_documental.tipos_recurso_auditoria tr
                 WHERE a.codigo = %s AND tr.codigo = %s
@@ -157,6 +161,8 @@ def record_auth_event(
                     user_id,
                     session_id,
                     resource_id,
+                    documento_id,
+                    version_documento_id,
                     successful,
                     result,
                     json.dumps(details or {}, default=str),
