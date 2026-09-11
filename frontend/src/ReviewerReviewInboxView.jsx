@@ -35,6 +35,9 @@ function ReviewerReviewInboxView({ onOpenReview }) {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [nextOffset, setNextOffset] = useState(null)
+  const [totalCount, setTotalCount] = useState(0)
   const [error, setError] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
 
@@ -45,7 +48,11 @@ function ReviewerReviewInboxView({ onOpenReview }) {
       apiRequest('/api/notifications/?limit=4'),
     ]).then(([reviewsResult, notificationsResult]) => {
       if (!active) return
-      if (reviewsResult.status === 'fulfilled') setReviews(reviewsResult.value.results || [])
+      if (reviewsResult.status === 'fulfilled') {
+        setReviews(reviewsResult.value.results || [])
+        setTotalCount(reviewsResult.value.count ?? (reviewsResult.value.results || []).length)
+        setNextOffset(reviewsResult.value.next_offset ?? null)
+      }
       if (notificationsResult.status === 'fulfilled') setNotifications(notificationsResult.value.results || [])
       const failure = [reviewsResult, notificationsResult].find((item) => item.status === 'rejected')
       if (failure && reviewsResult.status === 'rejected') setError(failure.reason.message)
@@ -72,6 +79,22 @@ function ReviewerReviewInboxView({ onOpenReview }) {
       (!dateFrom || (deadline && deadline >= dateFrom)) &&
       (!dateTo || (deadline && deadline <= dateTo))
   })
+
+  function loadMoreReviews() {
+    if (nextOffset === null || nextOffset === undefined || loadingMore) return
+    setLoadingMore(true)
+    apiRequest(`/api/reviews/inbox/?limit=100&offset=${nextOffset}`)
+      .then((value) => {
+        setReviews((current) => {
+          const seen = new Set(current.map((review) => review.id))
+          return [...current, ...(value.results || []).filter((review) => !seen.has(review.id))]
+        })
+        setTotalCount(value.count ?? 0)
+        setNextOffset(value.next_offset ?? null)
+      })
+      .catch((requestError) => setError(requestError.message))
+      .finally(() => setLoadingMore(false))
+  }
 
   function clearFilters() {
     setQuery('')
@@ -124,7 +147,7 @@ function ReviewerReviewInboxView({ onOpenReview }) {
         </section>
         <section className="reviewer-inbox-table-card">
           <div className="reviewer-inbox-table-wrap"><table><thead><tr><th>Código</th><th>Documento</th><th>Autor</th><th>Estado de solicitud</th><th>Prioridad</th><th>Fecha límite</th><th>Versión</th><th>Acciones</th></tr></thead><tbody>{visibleReviews.map((review) => <tr key={review.id}><td><strong>{review.document?.code || '—'}</strong></td><td>{review.document?.title || 'Documento sin título'}</td><td>{review.requested_by?.name || '—'}</td><td><span className={`reviewer-inbox-status is-${review.status?.code?.toLowerCase() || 'unknown'}`}>{reviewStatusName(review)}</span></td><td><span className={`reviewer-inbox-priority is-${review.priority?.toLowerCase() || 'media'}`}>{reviewPriorityName(review.priority)}</span></td><td className={isOverdue(review) ? 'is-overdue' : ''}>{formatDate(review.deadline, 'Sin fecha')}</td><td>{review.document?.version || '—'}</td><td><button type="button" aria-label={`Revisar ${review.document?.title || review.document?.code || 'documento'}`} onClick={() => openReview(review)}><InboxIcon name="eye" size={17} /></button></td></tr>)}</tbody></table>{loading && <p className="reviewer-inbox-empty">Cargando revisiones...</p>}{!loading && !visibleReviews.length && <p className="reviewer-inbox-empty">No hay revisiones que coincidan con los filtros.</p>}</div>
-          <footer><span>Mostrando {visibleReviews.length} de {reviews.length} revisiones</span><span>{visibleReviews.length ? `Página 1 de 1` : ''}</span></footer>
+          <footer><span>Mostrando {visibleReviews.length} de {totalCount || reviews.length} revisiones</span>{nextOffset !== null && nextOffset !== undefined && <button type="button" disabled={loadingMore} onClick={loadMoreReviews}>{loadingMore ? 'Cargando…' : `Cargar más (${(totalCount || reviews.length) - reviews.length} restantes)`}</button>}</footer>
         </section>
       </main>
       <aside className="reviewer-inbox-sidebar">
