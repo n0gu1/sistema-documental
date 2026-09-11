@@ -1,5 +1,5 @@
-import { PermissionButton, PermissionForm } from './Permissions'
-import { useEffect, useState } from 'react'
+import { PermissionButton, PermissionForm, PermissionInput } from './Permissions'
+import { useEffect, useRef, useState } from 'react'
 import RestoreVersionButton from './RestoreVersionButton'
 import { apiRequest, downloadFile, formatDate } from './documentApi'
 import './VersionsView.css'
@@ -11,6 +11,7 @@ function VersionIcon({ name, size = 18 }) {
 }
 
 function VersionsView({ documentId, onBack }) {
+  const fileInput = useRef(null)
   const [document, setDocument] = useState(null)
   const [versions, setVersions] = useState([])
   const [refresh, setRefresh] = useState(0)
@@ -24,6 +25,7 @@ function VersionsView({ documentId, onBack }) {
   const [publishComment, setPublishComment] = useState('')
   const [publishing, setPublishing] = useState(false)
   const [publishNotice, setPublishNotice] = useState('')
+  const [loadingUpload, setLoadingUpload] = useState(false)
 
   useEffect(() => {
     if (!documentId) return
@@ -43,6 +45,24 @@ function VersionsView({ documentId, onBack }) {
   async function compare() {
     if (!document?.id || !previousId || !selectedVersionId) return
     try { setComparison(await apiRequest(`/api/documents/${document.id}/versions/compare/?from_version=${previousId}&to_version=${selectedVersionId}`)) } catch (requestError) { setError(requestError.message) }
+  }
+
+  async function uploadVersion(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !document?.id) return
+    setLoadingUpload(true)
+    setError('')
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const response = await apiRequest(`/api/documents/${document.id}/versions/`, { method: 'POST', body })
+      const uploaded = response.version
+      setVersions((current) => [uploaded, ...current.map((version) => ({ ...version, is_current: false }))])
+      setCurrentVersionId(uploaded.is_current ? uploaded.id : null)
+      setSelectedVersionId(uploaded.id)
+    } catch (requestError) { setError(requestError.message) }
+    finally { setLoadingUpload(false) }
   }
 
   async function publishVersion(event) {
@@ -74,7 +94,7 @@ function VersionsView({ documentId, onBack }) {
   return <div className="versions-view"><VersionStateSummary version={versions.find(version => version.id === selectedVersionId)} /><header className="versions-heading"><div><p>Control documental</p><h1>Gestión de versiones</h1><span>Administre el historial y la trazabilidad de versiones documentales.</span></div><button type="button" onClick={onBack}><VersionIcon name="back" size={17} /> Volver a documentos</button></header>
      {error && <p className="versions-error" role="alert">{error}</p>}
     <section className="versions-document-card"><div className="versions-document-card__icon"><VersionIcon size={24} /></div><article><span>Código</span><strong>{document.code}</strong></article><article className="versions-document-card__title"><span>Título</span><strong>{document.title}</strong></article><article><span>Área</span><strong>{document.area?.name || '—'}</strong></article><article><span>Versión vigente</span><strong>{currentVersion?.version || 'Sin versión vigente'}</strong></article><article className="versions-document-card__owner"><span>Responsable</span><div><i>{(document.responsible?.name || '—').split(' ').map((part) => part[0]).join('').slice(0, 2)}</i><strong>{document.responsible?.name || '—'}</strong></div></article><article><span>Estado de versión vigente</span><strong className="versions-status"><i /> {currentVersion?.status?.name || '—'}</strong></article><article><span>Última actualización</span><strong>{formatDate(document.updated_at)}</strong></article><VersionIcon name="calendar" size={18} /></section>
-     <div className="versions-toolbar"><button type="button">Subir nueva versión</button><button type="button" onClick={compare}><VersionIcon name="compare" size={18} /> Comparar versiones</button></div>
+     <div className="versions-toolbar"><PermissionInput permission="versiones.crear" ref={fileInput} className="versions-file-input" type="file" onChange={uploadVersion} /><PermissionButton permission="versiones.crear" type="button" disabled={loadingUpload} onClick={() => fileInput.current?.click()}>{loadingUpload ? 'Cargando...' : 'Subir nueva versión'}</PermissionButton><button type="button" onClick={compare}><VersionIcon name="compare" size={18} /> Comparar versiones</button></div>
      {approvedVersions.length > 0 && <PermissionForm permission="revisiones.aprobar" className="versions-publish-panel" onSubmit={publishVersion}><div><p>Publicación autorizada</p><h2>Publicar versión aprobada</h2><span>Seleccione una versión aprobada para hacerla visible como versión vigente.</span></div><label>Versión<select required value={publishingVersionId} onChange={(event) => setPublishingVersionId(event.target.value)} disabled={publishing}><option value="">Seleccione una versión</option>{approvedVersions.map((version) => <option key={version.id} value={version.id}>Versión {version.version} · {version.name}</option>)}</select></label><label>Comentario de publicación<textarea value={publishComment} onChange={(event) => setPublishComment(event.target.value)} placeholder="Agregue una nota para la trazabilidad (opcional)." maxLength={1000} disabled={publishing} /></label><div className="versions-publish-actions"><button type="submit" disabled={publishing || !publishingVersionId}>{publishing ? 'Publicando...' : 'Publicar versión'}</button></div></PermissionForm>}
      {publishNotice && <p className="versions-publish-notice" role="status">{publishNotice}</p>}
     <section className="versions-panel versions-history"><div className="versions-panel__heading"><div><p>Historial documental</p><h2>Historial de versiones</h2></div><span>{versions.length} versiones registradas</span></div><div className="versions-table-scroll"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Estado de versión</th><th>Responsable</th><th>Tamaño</th><th>Comentario</th><th>Acciones</th></tr></thead><tbody>{versions.map((item) => <tr key={item.id}><td><strong>{item.version}</strong>{item.id === currentVersionId && <small> Vigente</small>}</td><td>{formatDate(item.created_at)}</td><td><span className="versions-status"><i /> {item.status?.name || '—'}</span></td><td>{item.author?.name || '—'}</td><td>{item.size ? `${Math.round(item.size / 1024)} KB` : '—'}</td><td>{item.comment || '—'}</td><td><div className="versions-row-actions"><RestoreVersionButton documentId={document.id} version={item} onRestored={() => setRefresh(value => value + 1)} /><button type="button" disabled={!item.preview_url} onClick={() => window.open(item.preview_url, '_blank', 'noopener,noreferrer')} aria-label={`Ver versión ${item.version}`}><VersionIcon name="eye" size={16} /></button><PermissionButton permission="documentos.descargar" type="button" onClick={() => downloadFile(item.download_url)} aria-label={`Descargar versión ${item.version}`}><VersionIcon name="download" size={16} /></PermissionButton></div></td></tr>)}</tbody></table>{!versions.length && <p>No hay versiones registradas.</p>}</div><footer><span>Mostrando {versions.length} versiones</span></footer></section>

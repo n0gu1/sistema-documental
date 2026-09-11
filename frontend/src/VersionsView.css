@@ -1,5 +1,7 @@
 .versions-view { min-width: 0; }
 
+.versions-file-input { display: none; }
+
 .versions-heading {
   display: flex;
   align-items: flex-end;
