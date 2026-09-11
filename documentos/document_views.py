@@ -957,9 +957,9 @@ TIMELINE_ACTIONS = {
     'DOCUMENTO_RECHAZADO': ('document_rejected', 'Documento rechazado'),
     'DOCUMENTO_APROBADO': ('document_approved', 'Documento aprobado'),
     'DOCUMENTO_PUBLICADO': ('document_published', 'Documento publicado'),
-    'ARCHIVO_DESCARGADO': ('version_downloaded', 'Version descargada'),
+    'DOCUMENTO_DESCARGADO': ('version_downloaded', 'Version descargada'),
 }
-PUBLIC_TIMELINE_ACTIONS = {'ARCHIVO_DESCARGADO', 'DOCUMENTO_PUBLICADO'}
+PUBLIC_TIMELINE_ACTIONS = {'DOCUMENTO_DESCARGADO', 'DOCUMENTO_PUBLICADO'}
 
 
 def timeline_user(user_id, username, name):
