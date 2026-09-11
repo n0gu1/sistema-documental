@@ -481,6 +481,10 @@ def _lookup_value(value):
 def _restore_value(value, column_type):
     value = _decode_backup_value(value)
     if value is not None and column_type in {'json', 'jsonb'}:
+        if isinstance(value, str):
+            # El snapshot conserva el texto JSON original; re-codificarlo
+            # produciria un escalar string y violaria los CHECK de objeto.
+            return value
         return json.dumps(value, default=json_default, ensure_ascii=True)
     return value
 
