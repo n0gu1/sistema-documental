@@ -153,6 +153,7 @@ function Login() {
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [user, setUser] = useState(null)
+  const [sessionLoading, setSessionLoading] = useState(true)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [documentOpen, setDocumentOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -187,6 +188,9 @@ function Login() {
         if (active && data?.user) setUser(data.user)
       })
       .catch(() => {})
+      .finally(() => {
+        if (active) setSessionLoading(false)
+      })
     refreshSession()
     window.addEventListener('focus', refreshSession)
     return () => { active = false; window.removeEventListener('focus', refreshSession) }
@@ -266,6 +270,20 @@ function Login() {
   }
 
   const workspace = workspaceFor(user)
+
+  if (sessionLoading) {
+    return (
+      <main className="session-loading" aria-live="polite" aria-busy="true">
+        <section className="session-loading__card">
+          <Brand compact />
+          <div className="session-loading__status">
+            <span className="session-loading__spinner" aria-hidden="true" />
+            <span>Verificando su sesión...</span>
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   if (user && !user.must_change_password && workspace === 'management') {
     return <PermissionProvider user={user}><Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>

@@ -22,6 +22,51 @@ button {
   background: #fbfcfe;
 }
 
+.session-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(214, 225, 238, .32), transparent 35%),
+    #f9fbfe;
+}
+
+.session-loading__card {
+  display: grid;
+  justify-items: center;
+  gap: 30px;
+  width: min(100%, 380px);
+  min-width: 0;
+  padding: 42px 48px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, .96);
+  border: 1px solid #e0e5eb;
+  border-radius: 13px;
+  box-shadow: 0 17px 37px rgba(26, 47, 73, .1);
+}
+
+.session-loading__status {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #62728b;
+  font-size: 15px;
+}
+
+.session-loading__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d6e3f2;
+  border-top-color: #1671d2;
+  border-radius: 50%;
+  animation: session-loading-spin .8s linear infinite;
+}
+
+@keyframes session-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
 .login-aside {
   position: relative;
   z-index: 1;
