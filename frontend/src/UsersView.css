@@ -186,3 +186,4 @@
 .users-role-form select { width: 100%; min-height: 36px; padding: 6px; border: 1px solid #c6d1de; border-radius: 5px; font: inherit; background: #fff; }
 .users-role-form button { padding: 9px 12px; border: 0; border-radius: 5px; background: #0868df; color: #fff; cursor: pointer; }
 .users-role-form button:disabled { opacity: .5; cursor: default; }
+.users-edit-selected{min-height:36px;margin-top:10px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;color:#075fd5;background:#fff;border:1px solid #d9e2ec;border-radius:6px;font-size:10px;font-weight:650;cursor:pointer}.users-edit-selected:hover{background:#f1f7ff;border-color:#9fc1eb}@media (max-width:760px){.users-edit-selected{width:100%;justify-content:center}}
