@@ -70,7 +70,8 @@
 .audit-distribution { padding: 14px; }
 .audit-distribution h2,
 .audit-critical h2 { margin: 0; color: #142942; font-size: 10px; }
-.audit-distribution > div { margin-top: 13px; display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: center; gap: 12px; }
+.audit-distribution > div { margin-top: 13px; display: flex; flex-direction: column; align-items: stretch; gap: 12px; }
+.audit-distribution .audit-donut { align-self: center; }
 .audit-donut { width: 104px; height: 104px; display: grid; place-items: center; background: conic-gradient(#0869e8 0 40%, #287fdc 40% 60%, #35a66d 60% 75%, #49bd87 75% 85%, #12aaa5 85% 93%, #91abc8 93%); border-radius: 50%; }
 .audit-donut::before { content: ""; width: 62px; height: 62px; grid-area: 1 / 1; background: #fff; border-radius: 50%; }
 .audit-donut > span { z-index: 1; grid-area: 1 / 1; text-align: center; }
