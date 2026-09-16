@@ -1,0 +1,98 @@
+.version-state-summary {
+  margin: 0 0 16px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #dfe7f0;
+  border-radius: 10px;
+  box-shadow: 0 3px 12px rgba(25, 52, 83, .035);
+}
+
+.version-state-summary dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.version-state-summary dl > div {
+  min-width: 0;
+  min-height: 67px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  border-right: 1px solid #e7edf4;
+}
+
+.version-state-summary dl > div:last-child { border-right: 0; }
+
+.version-state-summary dt {
+  overflow: hidden;
+  color: #687991;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: .03em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.version-state-summary dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #142844;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-state-summary__badge {
+  width: max-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-state-summary__badge i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+}
+
+.version-state-summary__badge--green { color: #0a874b; background: #e0f5e8; }
+.version-state-summary__badge--green i { background: #17a25d; }
+.version-state-summary__badge--blue { color: #075fd3; background: #e5efff; }
+.version-state-summary__badge--blue i { background: #1474ec; }
+.version-state-summary__badge--orange { color: #c87209; background: #fff0d8; }
+.version-state-summary__badge--orange i { background: #f2a317; }
+.version-state-summary__badge--red { color: #c33a3a; background: #ffe7e7; }
+.version-state-summary__badge--red i { background: #df5454; }
+.version-state-summary__badge--gray { color: #68788f; background: #e9edf3; }
+.version-state-summary__badge--gray i { background: #9aa7b9; }
+
+@media (max-width: 760px) {
+  .version-state-summary dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .version-state-summary dl > div { border-bottom: 1px solid #e7edf4; }
+  .version-state-summary dl > div:nth-child(2n) { border-right: 0; }
+  .version-state-summary dl > div:nth-last-child(-n + 2) { border-bottom: 0; }
+}
+
+@media (max-width: 470px) {
+  .version-state-summary { margin-bottom: 14px; }
+  .version-state-summary dl > div { min-height: 60px; padding: 10px 12px; }
+  .version-state-summary dt { font-size: 8px; }
+  .version-state-summary dd { font-size: 11px; }
+  .version-state-summary__badge { padding: 4px 7px; font-size: 9px; }
+}
