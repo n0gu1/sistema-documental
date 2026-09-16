@@ -7,13 +7,23 @@ import './EditorDocumentEditView.css'
 import VersionStateSummary from './VersionStateSummary'
 
 function EditIcon({ name, size = 18 }) {
-  const content = name === 'arrow' ? <path d="M19 12H5m6-6-6 6 6 6" /> : name === 'document' ? <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h7" /></> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : name === 'save' ? <><path d="M4 4h13l3 3v13H4z" /><path d="M8 4v6h8V4m-7 12h6" /></> : name === 'eye' ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : name === 'flow' ? <><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h5a5 5 0 0 1 5 5v5" /></> : name === 'chevron' ? <path d="m8 10 4 4 4-4" /> : name === 'file' ? <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /></> : <circle cx="12" cy="12" r="8" />
+  const content = name === 'arrow' ? <path d="M19 12H5m6-6-6 6 6 6" /> : name === 'document' ? <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h7" /></> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : name === 'save' ? <><path d="M4 4h13l3 3v13H4z" /><path d="M8 4v6h8V4m-7 12h6" /></> : name === 'eye' ? <><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></> : name === 'flow' ? <><circle cx="6" cy="6" r="2" /><circle cx="18" cy="18" r="2" /><path d="M8 6h5a5 5 0 0 1 5 5v5" /></> : name === 'chevron' ? <path d="m8 10 4 4 4-4" /> : name === 'refresh' ? <><path d="M20 7v5h-5" /><path d="M18.5 16a8 8 0 1 1 1.2-8.5L20 12" /></> : name === 'file' ? <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /></> : <circle cx="12" cy="12" r="8" />
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
 
 function directEditLocked(status) {
   const code = typeof status === 'string' ? status : status?.code
   return ['EN_REVISION', 'APROBADO', 'PUBLICADO'].includes(code)
+}
+
+function reviewStatusTone(code) {
+  const value = `${code || ''}`.toLowerCase()
+  if (value.includes('aprob')) return 'approved'
+  if (value.includes('rechaz')) return 'rejected'
+  if (value.includes('revisi')) return 'review'
+  if (value.includes('pend')) return 'pending'
+  if (value.includes('cancel')) return 'canceled'
+  return 'default'
 }
 
 function dateTimeLocalValue(value) {
@@ -299,10 +309,10 @@ function LegacyEditorDocumentEditView({ document, onBack, onAction }) {
   return <div className="editor-edit-view"><header className="editor-edit-heading"><div><h1>Editar documento</h1><button type="button" onClick={onBack}><EditIcon name="arrow" size={17} /> Volver a documentos</button></div></header>{(loadError || saveError || reviewError) && <p className="editor-error" role="alert">{loadError || saveError || reviewError}</p>}
     <section className="editor-edit-summary"><span className="editor-edit-summary__icon"><EditIcon name="document" size={37} /></span><div className="editor-edit-summary__title"><h2>{title || 'Sin título'}</h2><span>Versión {currentVersionLabel}</span></div><dl><div><dt>Código</dt><dd>{loadedDocument.code || '—'}</dd></div><div><dt>Área</dt><dd>{loadedDocument.area?.name || '—'}</dd></div><div><dt>Tipo</dt><dd>{loadedDocument.type?.name || '—'}</dd></div><div><dt>Versión</dt><dd>{currentVersionLabel}</dd></div><div><dt>Estado de versión vigente</dt><dd><b>{status}</b></dd></div><div><dt>Última actualización</dt><dd>{formatDate(loadedDocument.updated_at)}<br />por {responsible}</dd></div><div><dt>Revisor asignado</dt><dd>{loadedDocument.reviewer?.name || '—'}</dd></div></dl></section>
     {rejectedVersion && <section className="editor-edit-side-card" aria-label="Corregir versión rechazada"><h2>La versión {currentVersionLabel} fue rechazada</h2><p>Revise el motivo y cargue el archivo corregido como una nueva versión. El rechazo anterior se conservará.</p><PermissionButton permission="versiones.crear" type="button" disabled={uploadSubmitting} onClick={() => { setUploadForm({ comment: '', versionType: 'minor' }); versionFileInput.current?.click() }}>Crear versión corregida</PermissionButton></section>}
-    {correctedDraft && <p role="status">La versión {currentVersionLabel} está en borrador. Envíela a revisión para iniciar una nueva ronda.</p>}
-    <button type="button" onClick={() => setStateRefresh(value => value + 1)}>Actualizar estados</button>
+    {correctedDraft && <p className="editor-edit-draft-note" role="status">La versión {currentVersionLabel} está en borrador. Envíela a revisión para iniciar una nueva ronda.</p>}
+    <button className="editor-edit-refresh" type="button" onClick={() => setStateRefresh(value => value + 1)}><EditIcon name="refresh" size={16} /> Actualizar estados</button>
     <VersionStateSummary version={loadedDocument.current_version || currentVersion} />
-    <section className="editor-edit-side-card" aria-label="Estados de solicitudes"><h2>Estados de solicitudes de revisión</h2>{reviewsDocumentId !== document?.id ? <p>Cargando solicitudes...</p> : reviewsError ? <p role="alert">{reviewsError}</p> : documentReviews.length ? documentReviews.map(review => <p key={review.id}>Versión {review.document?.version} · {review.reviewer?.name || 'Revisor'} · Estado de solicitud: {(review.review_status || review.status)?.code || 'Sin estado'}</p>) : <p>Sin solicitudes de revisión.</p>}</section>
+    <section className="editor-edit-side-card editor-review-status" aria-label="Estados de solicitudes"><h2>Estados de solicitudes de revisión</h2>{reviewsDocumentId !== document?.id ? <p className="editor-empty">Cargando solicitudes...</p> : reviewsError ? <p className="editor-error" role="alert">{reviewsError}</p> : documentReviews.length ? <div className="editor-review-status-list">{documentReviews.map((review) => { const code = (review.review_status || review.status)?.code || 'Sin estado'; return <article className="editor-review-status-row" key={review.id}><div><strong>Versión {review.document?.version || '—'}</strong><span>{review.reviewer?.name || 'Revisor'}</span></div><b className={`editor-review-status-badge editor-review-status-badge--${reviewStatusTone(code)}`}>{code}</b></article> })}</div> : <p className="editor-empty">Sin solicitudes de revisión.</p>}</section>
     <div className="editor-edit-layout"><main className="editor-edit-main">
       <nav className="editor-edit-tabs" aria-label="Secciones del documento">{['Información general', 'Contenido', 'Anexos', 'Observaciones'].map(item => <button className={tab === item ? 'is-active' : ''} type="button" key={item} onClick={() => setTab(item)}><EditIcon name={item === 'Información general' ? 'file' : item === 'Contenido' ? 'document' : item === 'Anexos' ? 'document' : 'flow'} size={17} /> {item}</button>)}</nav>
       {isLoading && <p role="status">Cargando datos del documento...</p>}
