@@ -4,6 +4,14 @@ import './ReportsView.css'
 
 const actorName = (actor) => actor?.name || 'No consta'
 
+const versionTone = (state) => {
+  const value = `${state || ''}`.toLowerCase()
+  if (value.includes('rechaz')) return 'red'
+  if (value.includes('public') || value.includes('aprob')) return 'green'
+  if (value.includes('revisi')) return 'orange'
+  return 'blue'
+}
+
 export default function TraceabilityReport({ onBack }) {
   const [documents, setDocuments] = useState([])
   const [selected, setSelected] = useState('')
@@ -57,14 +65,16 @@ export default function TraceabilityReport({ onBack }) {
     {error && <p className="reports-error" role="alert">{error}</p>}
     {busy && <p role="status">Procesando reporte…</p>}
     {data && <>
-      <section className="reports-panel" style={{ padding: 16, marginTop: 16 }}>
+      <section className="reports-panel trace-summary" style={{ padding: 16, marginTop: 16 }}>
+        <p className="trace-eyebrow">Trazabilidad del documento</p>
         <h2>{data.document.code} — {data.document.title}</h2>
-        <p>{data.summary.versions} versiones · {data.summary.reviews} solicitudes · {data.summary.records} registros de evidencia</p>
-        {data.notes.map(note => <p key={note}>{note}</p>)}
+        <div className="trace-stats"><div><strong>{data.summary.versions}</strong><span>versiones</span></div><div><strong>{data.summary.reviews}</strong><span>solicitudes</span></div><div><strong>{data.summary.records}</strong><span>registros de evidencia</span></div></div>
+        <ul className="trace-notes">{data.notes.map(note => <li key={note}>{note}</li>)}</ul>
         <div className="reports-actions"><select aria-label="Formato de trazabilidad" value={format} onChange={e => setFormat(e.target.value)} disabled={busy}><option value="PDF">PDF</option><option value="XLSX">Excel (XLSX)</option></select><button className="is-primary" disabled={busy} onClick={generate}>Exportar trazabilidad</button>{download && <a href={download.download_url} download>Descargar {download.format}</a>}</div>
       </section>
-      <section className="reports-panel" style={{ padding: 16, marginTop: 16 }}><h2>Versiones conservadas</h2>
-        {data.versions.map(v => <p key={v.id}><strong>{v.version}</strong> · {actorName(v.author)} · {formatDate(v.created_at)} · Estado actual: {v.current_state}{v.is_current ? ' · Vigente' : ''}<br />{v.comment || 'Sin comentario'}</p>)}
+      <section className="reports-panel trace-versions" style={{ padding: 16, marginTop: 16 }}><h2>Versiones conservadas</h2>
+        <p className="trace-versions__count">{data.versions.length} versiones en el historial conservado</p>
+        <div className="trace-versions__list">{data.versions.map(v => <article key={v.id}><div><strong className="trace-version-badge">{v.version}</strong><span>{actorName(v.author)} · {formatDate(v.created_at)}</span></div><b className={`trace-state-badge trace-state-badge--${versionTone(v.current_state)}`}>{v.current_state}{v.is_current ? ' · Vigente' : ''}</b><small>{v.comment || 'Sin comentario'}</small></article>)}</div>
       </section>
       <section className="reports-panel reports-recent" style={{ marginTop: 16 }}><header><h2>Cronología de evidencias</h2></header><div className="reports-table-scroll"><table><thead><tr><th>Fecha</th><th>Versión</th><th>Evento</th><th>Actor</th><th>Revisor asignado</th><th>Estado / origen</th><th>Detalle</th><th>Fuente</th></tr></thead><tbody>
         {data.rows.map(row => <tr key={row.id}><td>{formatDate(row.at)}</td><td>{row.version || '—'}</td><td>{row.event}<br />{row.successful === false ? 'Fallido' : ''}</td><td>{actorName(row.actor)}</td><td>{actorName(row.reviewer)}</td><td>{row.state_from || row.state_to ? `${row.state_from || 'No consta'} → ${row.state_to || 'No consta'}` : ''}{row.restored_from && `Restaurada desde ${row.restored_from.version}`}</td><td style={{ whiteSpace: 'pre-wrap', minWidth: 220 }}>{row.comment}{Object.keys(row.details).length > 0 && <details><summary>Detalle de la fuente</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(row.details, null, 2)}</pre></details>}</td><td>{row.source}<br />{row.source_id}</td></tr>)}
