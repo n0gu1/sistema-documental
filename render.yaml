@@ -3,7 +3,7 @@ services:
     name: sistema-documental
     runtime: python
     buildCommand: npm ci --prefix frontend --include=dev && npm run build --prefix frontend && pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
-    startCommand: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT
+    startCommand: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT --worker-class gthread --workers 1 --threads 4 --timeout 60
     healthCheckPath: /api/health/
     envVars:
       - key: SECRET_KEY

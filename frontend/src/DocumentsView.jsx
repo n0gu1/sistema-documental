@@ -205,6 +205,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
     observations: "",
   });
   const [saving, setSaving] = useState(false);
+  const [catalogsReady, setCatalogsReady] = useState(false);
   const deferredSearch = useDeferredValue(
     `${globalQuery} ${search}`.trim().toLowerCase(),
   );
@@ -217,6 +218,9 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
       })
       .catch((requestError) => {
         if (active) setError(requestError.message);
+      })
+      .finally(() => {
+        if (active) setCatalogsReady(true);
       });
     return () => {
       active = false;
@@ -224,6 +228,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
   }, []);
 
   useEffect(() => {
+    if (!catalogsReady) return;
     let active = true;
     setLoading(true);
     const query = buildDocumentQuery({
@@ -260,7 +265,7 @@ function DocumentsView({ globalQuery, today, onViewDocument, onEditDocument, onO
     return () => {
       active = false;
     };
-  }, [deferredSearch, type, area, status, owner, from, until, classification, page, catalogs, refresh]);
+  }, [deferredSearch, type, area, status, owner, from, until, classification, page, catalogs, catalogsReady, refresh]);
 
   const visibleDocuments = documents;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

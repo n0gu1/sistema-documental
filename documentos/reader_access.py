@@ -1,7 +1,7 @@
 from django.db import connection
 from django.http import Http404
 
-from .auth_utils import get_client_ip, get_user_roles, record_access_denied, record_auth_event, user_has_permission
+from .auth_utils import get_cached_user_roles, get_client_ip, get_user_roles, record_access_denied, record_auth_event, user_has_permission
 from .models import Documento, RegistroAccesoDocumento
 
 
@@ -28,7 +28,7 @@ def is_reader_user(user):
 def has_area_permission(user, area_id):
     if not getattr(user, 'area_id', None):
         return True
-    if any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id)):
+    if any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(user)):
         return True
     return str(user.area_id) == str(area_id)
 
@@ -72,9 +72,9 @@ def has_document_permission(user, document_id, permission_code):
         )
         has_document_roles, role_allowed = cursor.fetchone()
     if mode == 'DENEGAR':
-        return any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+        return any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(user))
     if mode == 'PERMITIR' or (mode is None and has_document_roles):
-        is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+        is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(user))
         if is_admin:
             return True
         return role_allowed
@@ -82,7 +82,7 @@ def has_document_permission(user, document_id, permission_code):
         return False
     if not getattr(user, 'area_id', None):
         return global_permission
-    is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_user_roles(user.id))
+    is_admin = any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(user))
     if is_admin:
         return True
     document = Documento.objects.filter(pk=document_id).only('area_id', 'creado_por_id').first()
@@ -93,10 +93,66 @@ def has_document_permission(user, document_id, permission_code):
 
 
 def filter_accessible_documents(user, documents, permission_code='documentos.consultar'):
-    return [
-        document for document in documents
-        if has_document_permission(user, document.id, permission_code)
-    ]
+    documents = list(documents)
+    if not documents:
+        return []
+    # Fast path: administrators pass every document check in has_document_permission.
+    if any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(user)):
+        return documents
+    global_permission = user_has_permission(user, permission_code)
+    doc_ids = [document.id for document in documents]
+    with connection.cursor() as cursor:
+        cursor.execute(
+            '''SELECT a.documento_id, a.modo
+               FROM gestion_documental.documentos_politicas_acl a
+               JOIN gestion_documental.permisos p ON p.id = a.permiso_id
+               WHERE a.documento_id = ANY(%s) AND p.codigo = %s AND p.activo''',
+            [doc_ids, permission_code],
+        )
+        policy_by_doc = {str(document_id): mode for document_id, mode in cursor.fetchall()}
+        cursor.execute(
+            '''SELECT DISTINCT drp.documento_id
+               FROM gestion_documental.documentos_roles_permisos drp
+               JOIN gestion_documental.permisos p ON p.id = drp.permiso_id
+               WHERE drp.documento_id = ANY(%s) AND p.codigo = %s AND p.activo''',
+            [doc_ids, permission_code],
+        )
+        docs_with_roles = {str(document_id) for (document_id,) in cursor.fetchall()}
+        cursor.execute(
+            '''SELECT DISTINCT drp.documento_id
+               FROM gestion_documental.documentos_roles_permisos drp
+               JOIN gestion_documental.permisos p ON p.id = drp.permiso_id
+               JOIN gestion_documental.usuarios_roles ur ON ur.rol_id = drp.rol_id
+               JOIN gestion_documental.roles r ON r.id = ur.rol_id
+               WHERE drp.documento_id = ANY(%s) AND ur.usuario_id = %s
+                 AND p.codigo = %s AND p.activo AND r.activo
+                 AND (ur.vigente_hasta IS NULL OR ur.vigente_hasta > CURRENT_TIMESTAMP)''',
+            [doc_ids, user.id, permission_code],
+        )
+        role_allowed_docs = {str(document_id) for (document_id,) in cursor.fetchall()}
+    user_area_id = getattr(user, 'area_id', None)
+    result = []
+    for document in documents:
+        key = str(document.id)
+        mode = policy_by_doc.get(key)
+        has_document_roles = key in docs_with_roles
+        role_allowed = key in role_allowed_docs
+        if mode == 'DENEGAR':
+            continue
+        if mode == 'PERMITIR' or (mode is None and has_document_roles):
+            if role_allowed:
+                result.append(document)
+            continue
+        if not global_permission:
+            continue
+        if not user_area_id:
+            result.append(document)
+            continue
+        area_id = getattr(document, 'area_id', None)
+        creado_por_id = getattr(document, 'creado_por_id', None)
+        if not user_area_id or (area_id is not None and str(area_id) == str(user_area_id)) or (creado_por_id is not None and str(creado_por_id) == str(user.id)):
+            result.append(document)
+    return result
 
 
 def published_document_queryset(organization_id):

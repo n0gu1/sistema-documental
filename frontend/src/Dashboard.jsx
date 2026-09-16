@@ -95,13 +95,13 @@ function Dashboard({ user, route, onNavigate, onLogout, logoutPending, error }) 
 
   useEffect(() => {
     let active = true
-    if (!can('usuarios.consultar')) { setLoading(false); return }
+    if (activeView !== 'dashboard' || !can('usuarios.consultar')) { setLoading(false); return }
     apiRequest('/api/admin/dashboard/')
       .then((result) => { if (active) setData({ ...emptyDashboard, ...result }) })
       .catch((requestError) => { if (active) setLoadError(requestError.message) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [activeView])
 
   const filteredDocuments = data.recent_documents.filter((document) => !deferredQuery || [document.code, document.title, document.type, document.area, document.responsible, document.status].join(' ').toLowerCase().includes(deferredQuery))
   const filteredActivity = data.activity.filter((item) => !deferredQuery || [item.user, item.action, item.detail].join(' ').toLowerCase().includes(deferredQuery))

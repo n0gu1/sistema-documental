@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import IntegrityError, connection, transaction
+from django.db.models import Prefetch
 from django.http import FileResponse, Http404, HttpResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -17,11 +18,11 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .auth_utils import record_access_denied, record_auth_event
+from .auth_utils import get_cached_user_roles, record_access_denied, record_auth_event
 from .audit_views import audit_timestamp_column
 from .document_serializers import DocumentCreateSerializer, DocumentFileSerializer, DocumentUpdateSerializer, VersionRestoreSerializer
 from .file_validation import validate_uploaded_file
-from .document_filters import apply_document_filters, require_search_permission
+from .document_filters import apply_document_filters
 from .management_views import require_permission
 from .models import (
     ArchivoDocumento,
@@ -69,7 +70,12 @@ logger = logging.getLogger(__name__)
 def document_queryset(organization_id, include_archived=False):
     queryset = Documento.objects.filter(
         organizacion_id=organization_id,
-    ).select_related('area', 'tipo_documento', 'creado_por')
+    ).select_related('area', 'tipo_documento', 'creado_por').prefetch_related(
+        Prefetch(
+            'archivos',
+            queryset=ArchivoDocumento.objects.select_related('estado_version').order_by('-es_vigente', '-orden_version'),
+        )
+    )
     if not include_archived:
         queryset = queryset.filter(eliminado_en__isnull=True)
     return queryset
@@ -208,13 +214,19 @@ def compare_versions(first, second, request):
 
 def serialize_document(document, request, include_details=False):
     # A missing current flag must not silently promote an arbitrary version.
-    version = document.archivos.select_related('estado_version').filter(es_vigente=True).first()
+    prefetched = document._prefetched_objects_cache.get('archivos') if hasattr(document, '_prefetched_objects_cache') else None
+    if prefetched is not None:
+        version = next((item for item in prefetched if item.es_vigente), None)
+        published_ids = [str(item.id) for item in prefetched if getattr(item.estado_version, 'codigo', None) == 'PUBLICADO']
+    else:
+        version = document.archivos.select_related('estado_version').filter(es_vigente=True).first()
+        published_ids = [str(pk) for pk in document.archivos.filter(estado_version__codigo='PUBLICADO').values_list('id', flat=True)]
     result = {
         'status_scope': 'current_version',
         'current_version_id': str(version.id) if version else None,
         'current_version': serialize_version_state(version) if version else None,
         'current_version_status': serialize_version_state(version)['status'] if version else None,
-        'publication': {'published_version_ids': [str(pk) for pk in document.archivos.filter(estado_version__codigo='PUBLICADO').values_list('id', flat=True)], 'requires_explicit_action': True},
+        'publication': {'published_version_ids': published_ids, 'requires_explicit_action': True},
         'id': str(document.id),
         'code': document.codigo,
         'title': document.nombre,
@@ -504,7 +516,6 @@ class DocumentListCreateView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
-        require_search_permission(request)
         if is_reader_user(request.user):
             from .reader_views import ReaderDocumentListView
 
@@ -515,14 +526,18 @@ class DocumentListCreateView(APIView):
             request.query_params,
             user=request.user,
         )
-        documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
-        total = len(documents)
         try:
             limit = min(max(int(request.query_params.get('limit', 25)), 1), 100)
             offset = max(int(request.query_params.get('offset', 0)), 0)
         except (TypeError, ValueError) as error:
             raise ValidationError({'code': 'INVALID_PAGINATION', 'detail': 'La paginacion no es valida.'}) from error
-        page = documents[offset:offset + limit]
+        if any(role['code'] == 'ADMINISTRADOR' for role in get_cached_user_roles(request.user)):
+            total = queryset.count()
+            page = list(queryset[offset:offset + limit])
+        else:
+            documents = filter_accessible_documents(request.user, queryset, READ_PERMISSION)
+            total = len(documents)
+            page = documents[offset:offset + limit]
         return Response({
             'count': total,
             'next_offset': offset + limit if offset + limit < total else None,
@@ -1167,7 +1182,6 @@ class DocumentExportView(APIView):
 
     def get(self, request):
         require_permission(request, READ_PERMISSION)
-        require_search_permission(request)
         if is_reader_user(request.user):
             record_access_denied(request, 'READER_ENDPOINT_REQUIRED', resource_code='DOCUMENTO')
             raise PermissionDenied({'code': 'READER_ENDPOINT_REQUIRED', 'detail': 'Use los endpoints especificos del lector.'})

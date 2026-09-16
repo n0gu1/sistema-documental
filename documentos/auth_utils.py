@@ -56,11 +56,27 @@ def get_user_permission_codes(user_id):
         return [code for (code,) in cursor.fetchall()]
 
 
+def get_cached_user_roles(user):
+    cached = getattr(user, '_cached_roles', None)
+    if cached is None:
+        cached = get_user_roles(user.id)
+        user._cached_roles = cached
+    return cached
+
+
+def get_cached_user_permission_codes(user):
+    cached = getattr(user, '_cached_perm_codes', None)
+    if cached is None:
+        cached = get_user_permission_codes(user.id)
+        user._cached_perm_codes = cached
+    return cached
+
+
 def user_has_permission(user, permission_code):
-    roles = get_user_roles(user.id)
+    roles = get_cached_user_roles(user)
     if any(role['code'] == 'ADMINISTRADOR' for role in roles):
         return True
-    return permission_code in get_user_permission_codes(user.id)
+    return permission_code in get_cached_user_permission_codes(user)
 
 
 def serialize_user(user):
