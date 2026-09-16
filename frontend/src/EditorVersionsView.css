@@ -36,11 +36,13 @@
 .editor-versions-history table { width: 100%; min-width: 800px; border-collapse: collapse; color: #425570; font-size: 10px; }
 .editor-versions-history th { height: 34px; padding: 0 12px; color: #203653; background: #f7f9fc; border-bottom: 1px solid #e1e7ef; text-align: left; white-space: nowrap; }
 .editor-versions-history td { height: 48px; padding: 5px 12px; border-bottom: 1px solid #e6ebf1; white-space: nowrap; }
+.editor-versions-history th:last-child, .editor-versions-history td:last-child { width: 96px; min-width: 96px; }
 .editor-versions-history tbody tr:hover { background: #fbfdff; }
 .editor-versions-history td:first-child strong { color: #0868df; }
 .editor-versions-history td:first-child small { margin-left: 7px; padding: 4px 7px; color: #08804c; background: #def3e6; border-radius: 4px; font-size: 9px; }
-.editor-versions-row-actions { display: flex; justify-content: flex-end; gap: 5px; }
-.editor-versions-row-actions button { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; color: #274767; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.editor-versions-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-width: 85px; }
+.editor-versions-row-actions > div { width: 27px; min-width: 27px; }
+.editor-versions-row-actions button { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; overflow: hidden; color: #274767; background: transparent; border: 0; border-radius: 4px; font-size: 0; cursor: pointer; }
 .editor-versions-row-actions button:hover { color: #0869e8; background: #eaf3ff; }
 .editor-versions-history > footer { min-height: 37px; padding: 5px 13px; display: flex; align-items: center; color: #75859a; font-size: 10px; }
 .editor-versions-empty { padding: 28px 17px; color: #75859a; text-align: center; }

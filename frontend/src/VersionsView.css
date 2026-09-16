@@ -116,10 +116,12 @@
 .versions-history th { height: 31px; padding: 0 13px; color: #203653; background: #f7f9fc; border: 1px solid #e1e7ef; border-width: 1px 0; font-size: 8px; text-align: left; white-space: nowrap; }
 .versions-history th svg { margin-left: 4px; vertical-align: middle; }
 .versions-history td { height: 31px; padding: 4px 13px; border-bottom: 1px solid #e6ebf1; white-space: nowrap; }
+.versions-history th:last-child, .versions-history td:last-child { width: 88px; min-width: 88px; }
 .versions-history tbody tr:hover { background: #fbfdff; }
 .versions-history td strong { color: #243b59; }
-.versions-row-actions { display: flex; justify-content: flex-end; gap: 5px; }
-.versions-row-actions button { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; color: #274767; background: transparent; border: 0; border-radius: 4px; cursor: pointer; }
+.versions-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-width: 83px; }
+.versions-row-actions > div { width: 25px; min-width: 25px; }
+.versions-row-actions button { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; overflow: hidden; color: #274767; background: transparent; border: 0; border-radius: 4px; font-size: 0; cursor: pointer; }
 .versions-row-actions button:hover { color: #0869e8; background: #eaf3ff; }
 .versions-history > footer { min-height: 36px; padding: 5px 13px; display: flex; align-items: center; justify-content: space-between; color: #75859a; font-size: 8px; }
 .versions-history > footer div { display: flex; gap: 4px; }
