@@ -303,6 +303,7 @@ function Login() {
   const historyOpen = route?.view === 'history'
   const readingOpen = route?.view === 'reading'
   const favoritesOpen = route?.view === 'favorites'
+  const readerOverlayOpen = libraryOpen || documentOpen || historyOpen || readingOpen || favoritesOpen
   const readerDocumentId = route?.documentId || null
 
   useEffect(() => {
@@ -337,7 +338,7 @@ function Login() {
   }
 
   if (user && !user.must_change_password && workspace === 'reader') {
-    return <PermissionProvider user={user}><><ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} onNavigate={openReaderView} />{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}</></PermissionProvider>
+    return <PermissionProvider user={user}><>{!readerOverlayOpen && <ReaderDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} onNavigate={openReaderView} />}{libraryOpen && <div className="reader-library-overlay"><ReaderLibraryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{documentOpen && <div className="reader-library-overlay"><ReaderDocumentShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{historyOpen && <div className="reader-library-overlay"><ReaderVersionHistoryShell user={user} documentId={readerDocumentId} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{readingOpen && <div className="reader-library-overlay"><ReaderReadingHistoryShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}{favoritesOpen && <div className="reader-library-overlay"><ReaderFavoritesShell user={user} onClose={() => openReaderView('dashboard')} onNavigate={openReaderView} onLogout={handleLogout} logoutPending={submitting} /></div>}</></PermissionProvider>
   }
 
   return (
