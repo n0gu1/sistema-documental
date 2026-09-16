@@ -82,7 +82,17 @@ function AuditView({ globalQuery }) {
     return (!deferredSearch || searchable.includes(deferredSearch)) && (!deferredGlobalQuery || searchable.includes(deferredGlobalQuery))
   })
   const moduleCounts = Object.entries(events.reduce((counts, event) => ({ ...counts, [event.module]: (counts[event.module] || 0) + 1 }), {}))
-  const moduleDistribution = moduleCounts.sort((left, right) => right[1] - left[1]).slice(0, 6).map(([label, count], index) => [label, `${Math.round((count / (events.length || 1)) * 100)}% (${count})`, ['#0869e8', '#287fdc', '#35a66d', '#49bd87', '#12aaa5', '#91abc8'][index]])
+  const moduleDistribution = moduleCounts.sort((left, right) => right[1] - left[1]).slice(0, 6).map(([label, count], index) => [label, count, ['#0869e8', '#287fdc', '#35a66d', '#49bd87', '#12aaa5', '#91abc8'][index]])
+  const moduleTotal = events.length || 1
+  const moduleGradient = (() => {
+    if (!moduleDistribution.length) return '#e5eaf0'
+    let acc = 0
+    return `conic-gradient(${moduleDistribution.map(([, count, color]) => {
+      const from = (acc / moduleTotal) * 100
+      acc += count
+      return `${color} ${from}% ${(acc / moduleTotal) * 100}%`
+    }).join(', ')})`
+  })()
   const criticalEvents = alerts.slice(0, 3).map((alert) => [formatDate(alert.last_event_at), alert.title, alert.message, alert.source, alert.severity])
 
   function clearFilters() {
@@ -142,7 +152,7 @@ function AuditView({ globalQuery }) {
 
         <aside className="audit-aside">
            <section className="audit-panel audit-actions"><button type="button" onClick={exportAudit}><AuditIcon name="download" size={17} /> Exportar bitácora</button><button className="is-primary" type="button" onClick={() => setNotice('El informe básico requiere un endpoint de reportes específico.')}><AuditIcon name="report" size={17} /> Generar informe</button></section>
-           <section className="audit-panel audit-distribution"><h2>Distribución por módulo</h2><div><div className="audit-donut"><span><strong>{events.length}</strong><small>Resultados cargados</small></span></div><ul>{moduleDistribution.map(([label, value, color]) => <li key={label}><i style={{ backgroundColor: color }} /><span>{label}</span><b>{value}</b></li>)}</ul>{!moduleDistribution.length && <p className="audit-empty">No hay distribución disponible.</p>}</div></section>
+           <section className="audit-panel audit-distribution"><h2>Distribución por módulo</h2><div><div className="audit-donut" style={{ background: moduleGradient }}><span><strong>{events.length}</strong><small>Resultados cargados</small></span></div><ul>{moduleDistribution.map(([label, count, color]) => <li key={label}><i style={{ backgroundColor: color }} /><span>{label}</span><b>{`${Math.round((count / moduleTotal) * 100)}% (${count})`}</b></li>)}</ul>{!moduleDistribution.length && <p className="audit-empty">No hay distribución disponible.</p>}</div></section>
             <section className="audit-panel audit-critical"><h2>Últimos eventos críticos</h2>{criticalEvents.map(([dateValue, title, message, source, severity]) => <article key={`${dateValue}-${source}`}><i /><div><time>{dateValue}</time><p>{title}</p><span>{message} · {source}</span></div><b>{severity === 'critico' ? 'Crítico' : 'Alto'}</b></article>)}{!criticalEvents.length && <p className="audit-empty">No hay alertas críticas.</p>}<button type="button" onClick={() => setNotice(criticalEvents.length ? 'Se muestran las alertas críticas de las últimas 24 horas.' : 'No hay eventos críticos registrados.')}><span>Ver todos los eventos críticos</span><AuditIcon name="arrow" size={16} /></button></section>
         </aside>
       </div>
