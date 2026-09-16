@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint src",
+    "test": "node --test tests/app-routes.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

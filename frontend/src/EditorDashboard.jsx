@@ -49,11 +49,11 @@ function statusClass(status) {
   return status.toLowerCase().replaceAll(' ', '-').replaceAll('_', '-')
 }
 
-function EditorDashboard({ user, onLogout, logoutPending, error }) {
+function EditorDashboard({ user, route, onNavigate, onLogout, logoutPending, error }) {
   const { can } = usePermissions()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [activeView, setActiveView] = useState(() => Object.keys(editorViews).find((view) => can(editorViews[view])) || 'dashboard')
+  const [localView, setLocalView] = useState(() => Object.keys(editorViews).find((view) => can(editorViews[view])) || 'dashboard')
   const [selectedDocument, setSelectedDocument] = useState(null)
   const [query, setQuery] = useState('')
   const [notice, setNotice] = useState('')
@@ -65,6 +65,12 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
   const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'
   const role = user.roles?.find((item) => item.code === 'EDITOR')?.name || 'Editor'
   const today = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
+  const activeView = route?.view || localView
+  const routedDocument = route
+    ? route.documentId
+      ? String(selectedDocument?.id) === String(route.documentId) ? selectedDocument : { id: route.documentId }
+      : null
+    : selectedDocument
 
   useEffect(() => {
     let active = true
@@ -85,8 +91,8 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
 
   function navigate(view) {
     if (!can(editorViews[view])) return
-    setActiveView(view)
-    if (view !== 'versions') setSelectedDocument(null)
+    if (onNavigate) onNavigate(view)
+    else setLocalView(view)
     setNotice('')
     setSidebarOpen(false)
   }
@@ -94,13 +100,15 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
   function openDocumentEditor(document) {
     if (!can('documentos.consultar')) return
     setSelectedDocument(document)
-    setActiveView('edit-document')
+    if (onNavigate) onNavigate('edit-document', { documentId: document.id })
+    else setLocalView('edit-document')
   }
 
   function openDocumentHistory(document) {
     if (!can('versiones.consultar')) return
     setSelectedDocument(document)
-    setActiveView('versions')
+    if (onNavigate) onNavigate('versions', { documentId: document.id })
+    else setLocalView('versions')
   }
 
   function dashboardView() {
@@ -108,9 +116,9 @@ function EditorDashboard({ user, onLogout, logoutPending, error }) {
   }
 
   let content = dashboardView()
-  if (activeView === 'documents') content = selectedDocument ? <EditorDocumentEditView document={selectedDocument} onBack={() => { setSelectedDocument(null); navigate('documents') }} onAction={action} /> : <EditorDocumentsView globalQuery={query} onAction={action} onEditDocument={openDocumentEditor} onHistory={openDocumentHistory} />
-  if (activeView === 'edit-document') content = <EditorDocumentEditView document={selectedDocument} onBack={() => { setSelectedDocument(null); navigate('documents') }} onAction={action} />
-  if (activeView === 'versions') content = <EditorVersionsView key={selectedDocument?.id || 'unselected'} documentId={selectedDocument?.id} onBack={() => navigate('documents')} onAction={action} />
+  if (activeView === 'documents') content = <EditorDocumentsView globalQuery={query} onAction={action} onEditDocument={openDocumentEditor} onHistory={openDocumentHistory} />
+  if (activeView === 'edit-document') content = <EditorDocumentEditView document={routedDocument} onBack={() => navigate('documents')} onAction={action} />
+  if (activeView === 'versions') content = <EditorVersionsView key={routedDocument?.id || 'unselected'} documentId={routedDocument?.id} onBack={() => navigate('documents')} onAction={action} />
   if (activeView === 'audit') content = <EditorActivityLogView user={user} globalQuery={query} />
   if (activeView === 'reports') content = <EditorBasicReportsView globalQuery={query} />
 

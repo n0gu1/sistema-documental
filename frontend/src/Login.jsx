@@ -1,6 +1,7 @@
 import { PermissionProvider } from './Permissions'
-import { workspaceFor } from './permissionPolicy'
+import { editorViews, hasPermission, managementViews, reviewerViews, workspaceFor } from './permissionPolicy'
 import { useEffect, useState } from 'react'
+import { pathForRoute, routeForPath } from './appRoutes'
 import Dashboard from './Dashboard'
 import EditorDashboard from './EditorDashboard'
 import ReaderDashboard from './ReaderDashboard'
@@ -12,6 +13,22 @@ import ReaderFavoritesShell from './ReaderFavoritesShell'
 import ReviewerDashboard from './ReviewerDashboard'
 import { apiRequest } from './api'
 import './Login.css'
+
+const readerViews = {
+  dashboard: 'documentos.consultar',
+  library: 'documentos.consultar',
+  document: 'documentos.consultar',
+  history: 'documentos.consultar',
+  reading: 'documentos.consultar',
+  favorites: 'documentos.consultar',
+}
+
+const workspaceViews = {
+  management: managementViews,
+  editor: editorViews,
+  reviewer: reviewerViews,
+  reader: readerViews,
+}
 
 function Brand({ compact = false }) {
   return (
@@ -154,22 +171,23 @@ function Login() {
   const [remember, setRemember] = useState(false)
   const [user, setUser] = useState(null)
   const [sessionLoading, setSessionLoading] = useState(true)
-  const [libraryOpen, setLibraryOpen] = useState(false)
-  const [documentOpen, setDocumentOpen] = useState(false)
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [readingOpen, setReadingOpen] = useState(false)
-  const [favoritesOpen, setFavoritesOpen] = useState(false)
-  const [readerDocumentId, setReaderDocumentId] = useState(null)
+  const [pathname, setPathname] = useState(() => window.location.pathname)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
   useEffect(() => {
-    const openLibrary = () => setLibraryOpen(true)
-    const openDocument = (event) => { setReaderDocumentId(event.detail?.documentId || null); setDocumentOpen(true) }
-    const openHistory = (event) => { setReaderDocumentId(event.detail?.documentId || null); setHistoryOpen(true) }
-    const openReading = () => setReadingOpen(true)
-    const openFavorites = () => setFavoritesOpen(true)
+    const syncPath = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', syncPath)
+    return () => window.removeEventListener('popstate', syncPath)
+  }, [])
+
+  useEffect(() => {
+    const openLibrary = () => openReaderView('library')
+    const openDocument = (event) => openReaderView('document', event.detail?.documentId || null)
+    const openHistory = (event) => openReaderView('history', event.detail?.documentId || null)
+    const openReading = () => openReaderView('reading')
+    const openFavorites = () => openReaderView('favorites')
     window.addEventListener('reader-library-open', openLibrary)
     window.addEventListener('reader-document-open', openDocument)
     window.addEventListener('reader-history-open', openHistory)
@@ -245,13 +263,8 @@ function Login() {
     try {
       await apiRequest('/api/auth/logout/', { method: 'POST' })
       setUser(null)
-      setLibraryOpen(false)
-      setDocumentOpen(false)
-      setHistoryOpen(false)
-      setReadingOpen(false)
-      setFavoritesOpen(false)
-      setReaderDocumentId(null)
       setIdentity('')
+      navigatePath('/', { replace: true })
     } catch (requestError) {
       setError(requestError.message)
     } finally {
@@ -259,17 +272,43 @@ function Login() {
     }
   }
 
+  function navigatePath(path, { replace = false } = {}) {
+    if (window.location.pathname !== path) {
+      window.history[replace ? 'replaceState' : 'pushState']({}, '', path)
+    }
+    setPathname(path)
+  }
+
+  function openWorkspaceView(view, options = {}) {
+    if (!workspace) return
+    navigatePath(pathForRoute(workspace, view, options), { replace: options.replace })
+  }
+
   function openReaderView(view, documentId = null) {
-    const target = view === 'documents' ? 'document' : view
-    setLibraryOpen(target === 'library')
-    setDocumentOpen(target === 'document')
-    setHistoryOpen(target === 'history')
-    setReadingOpen(target === 'reading')
-    setFavoritesOpen(target === 'favorites')
-    if (documentId) setReaderDocumentId(documentId)
+    navigatePath(pathForRoute('reader', view, { documentId }))
   }
 
   const workspace = workspaceFor(user)
+  const views = workspaceViews[workspace]
+  const requestedRoute = workspace ? routeForPath(workspace, pathname) : null
+  const requestedPermission = requestedRoute ? views?.[requestedRoute.view] : null
+  const canOpenRequestedRoute = Boolean(requestedPermission && hasPermission(user, requestedPermission) &&
+    !(workspace === 'management' && requestedRoute?.documentMode === 'edit' && !hasPermission(user, 'documentos.modificar')))
+  const defaultView = views ? Object.keys(views).find((view) => hasPermission(user, views[view])) : null
+  const route = canOpenRequestedRoute ? requestedRoute : defaultView ? { view: defaultView } : null
+  const hasRoute = Boolean(route)
+  const canonicalPath = workspace && route ? pathForRoute(workspace, route.view, route) : '/'
+  const libraryOpen = route?.view === 'library'
+  const documentOpen = route?.view === 'document'
+  const historyOpen = route?.view === 'history'
+  const readingOpen = route?.view === 'reading'
+  const favoritesOpen = route?.view === 'favorites'
+  const readerDocumentId = route?.documentId || null
+
+  useEffect(() => {
+    if (sessionLoading || !user || user.must_change_password || !workspace || !hasRoute) return
+    if (pathname !== canonicalPath) navigatePath(canonicalPath, { replace: true })
+  }, [canonicalPath, hasRoute, pathname, sessionLoading, user, workspace])
 
   if (sessionLoading) {
     return (
@@ -286,15 +325,15 @@ function Login() {
   }
 
   if (user && !user.must_change_password && workspace === 'management') {
-    return <PermissionProvider user={user}><Dashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
+    return <PermissionProvider user={user}><Dashboard user={user} route={route} onNavigate={openWorkspaceView} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
   if (user && !user.must_change_password && workspace === 'editor') {
-    return <PermissionProvider user={user}><EditorDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
+    return <PermissionProvider user={user}><EditorDashboard user={user} route={route} onNavigate={openWorkspaceView} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
   if (user && !user.must_change_password && workspace === 'reviewer') {
-    return <PermissionProvider user={user}><ReviewerDashboard user={user} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
+    return <PermissionProvider user={user}><ReviewerDashboard user={user} route={route} onNavigate={openWorkspaceView} onLogout={handleLogout} logoutPending={submitting} error={error} /></PermissionProvider>
   }
 
   if (user && !user.must_change_password && workspace === 'reader') {

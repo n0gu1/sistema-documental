@@ -76,14 +76,11 @@ function metricItems(metrics) {
   ]
 }
 
-function Dashboard({ user, onLogout, logoutPending, error }) {
+function Dashboard({ user, route, onNavigate, onLogout, logoutPending, error }) {
   const { can } = usePermissions()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [activeView, setActiveView] = useState(() => Object.keys(managementViews).find((view) => can(managementViews[view])) || 'dashboard')
   const [query, setQuery] = useState('')
-  const [selectedDocumentId, setSelectedDocumentId] = useState(null)
-  const [documentMode, setDocumentMode] = useState('list')
   const [documentNotice, setDocumentNotice] = useState('')
   const [data, setData] = useState(emptyDashboard)
   const [loading, setLoading] = useState(true)
@@ -92,6 +89,9 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
   const role = user.roles?.map((item) => item.name).join(', ') || 'Usuario'
   const initials = `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}` || 'AD'
   const today = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
+  const activeView = route?.view || Object.keys(managementViews).find((view) => can(managementViews[view])) || 'dashboard'
+  const selectedDocumentId = route?.documentId || null
+  const documentMode = route?.documentMode || 'list'
 
   useEffect(() => {
     let active = true
@@ -109,19 +109,16 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
 
   function navigate(view) {
     if (!can(managementViews[view])) return
-    if (view === 'document') setDocumentMode('list')
     setDocumentNotice('')
-    setActiveView(view)
+    onNavigate?.(view)
     setSidebarOpen(false)
   }
 
   function openDocument(documentId, mode) {
     const view = mode === 'history' ? 'layers' : 'document'
     if (!documentId || !can(managementViews[view]) || (mode === 'edit' && !can('documentos.modificar'))) return
-    setSelectedDocumentId(documentId)
-    setDocumentMode(mode)
     setDocumentNotice('')
-    setActiveView(view)
+    onNavigate?.(view, { documentId, documentMode: mode })
     setSidebarOpen(false)
   }
 
@@ -148,7 +145,7 @@ function Dashboard({ user, onLogout, logoutPending, error }) {
         {activeView === 'document' ? documentMode === 'edit' && selectedDocumentId ?
           <EditorDocumentEditView key={selectedDocumentId} document={{ id: selectedDocumentId }} onBack={() => navigate('document')} onAction={setDocumentNotice} /> : <>
             <DocumentsView globalQuery={query} today={today} onViewDocument={id => openDocument(id, 'detail')} onEditDocument={id => openDocument(id, 'edit')} onOpenVersions={id => openDocument(id, 'history')} />
-            {documentMode === 'detail' && selectedDocumentId && <DocumentDetailsDialog key={selectedDocumentId} documentId={selectedDocumentId} onClose={() => setDocumentMode('list')} onEdit={() => openDocument(selectedDocumentId, 'edit')} onHistory={() => openDocument(selectedDocumentId, 'history')} />}
+            {documentMode === 'detail' && selectedDocumentId && <DocumentDetailsDialog key={selectedDocumentId} documentId={selectedDocumentId} onClose={() => navigate('document')} onEdit={() => openDocument(selectedDocumentId, 'edit')} onHistory={() => openDocument(selectedDocumentId, 'history')} />}
           </> : activeView === 'layers' ? <VersionsView key={selectedDocumentId || 'unselected'} documentId={selectedDocumentId} onBack={() => navigate('document')} /> : activeView === 'users' ? <UsersView globalQuery={query} organizationId={user.organization_id} /> : activeView === 'shield' ? <RolesView globalQuery={query} /> : activeView === 'clipboard' ? <AuditView globalQuery={query} /> : activeView === 'chart' ? <ReportsView globalQuery={query} /> : activeView === 'cloud' ? <BackupsView globalQuery={query} /> : activeView === 'settings' ? <SettingsView globalQuery={query} /> : <>
           <div className="dashboard-heading"><div><p>Vista general</p><h1>Panel de administración</h1><span>Supervise la actividad documental y el estado de la organización.</span></div><div className="dashboard-date"><Icon name="calendar" size={18} /><span>{today}</span></div></div>
            <section className="dashboard-welcome"><div><span className="dashboard-welcome__eyebrow"><Icon name="check" size={16} /> Datos de la organización</span><h2>Bienvenido, {user.first_name}</h2><p>{loading ? 'Cargando indicadores...' : `Hay ${data.metrics.pending_reviews} solicitudes de revisión pendientes y ${data.metrics.pending_activation} usuarios que deben activar su acceso.`}</p></div><PermissionButton permission={'documentos.crear'} type="button" onClick={() => navigate('document')}><Icon name="plus" size={19} /> Nuevo documento</PermissionButton></section>

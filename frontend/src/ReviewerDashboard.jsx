@@ -32,25 +32,23 @@ function activityDetail(event) {
   return event.result || 'Sin detalle'
 }
 
-function ReviewerDashboard({ user, onLogout, logoutPending, error: initialError }) {
+function ReviewerDashboard({ user, route, onNavigate, onLogout, logoutPending, error: initialError }) {
   const { can } = usePermissions()
-  const [activeView, setActiveView] = useState(() => Object.keys(reviewerViews).find((view) => can(reviewerViews[view])) || 'dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [reviews, setReviews] = useState([])
   const [activity, setActivity] = useState([])
-  const [selectedReviewId, setSelectedReviewId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [notice, setNotice] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const visibleError = loadError || initialError
+  const activeView = route?.view || Object.keys(reviewerViews).find((view) => can(reviewerViews[view])) || 'dashboard'
+  const selectedReviewId = route?.reviewId || null
 
   useEffect(() => {
     let active = true
-    const openReviewEvent = (event) => { setSelectedReviewId(event.detail?.reviewId || null); setActiveView('review-document') }
-    window.addEventListener('review-document-open', openReviewEvent)
     Promise.allSettled([
       apiRequest('/api/reviews/inbox/?limit=100'),
       apiRequest(`/api/audit/?user_id=${user.id}&limit=10`),
@@ -61,7 +59,7 @@ function ReviewerDashboard({ user, onLogout, logoutPending, error: initialError 
       const failures = [reviewsResult, activityResult].filter((item) => item.status === 'rejected')
       if (failures.length === 2) setLoadError(failures[0].reason.message)
     }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false; window.removeEventListener('review-document-open', openReviewEvent) }
+    return () => { active = false }
   }, [user.id])
 
   const role = user.roles?.find((item) => ['REVISOR', 'REVIEWER'].includes(item.code))?.name || 'Revisor'
@@ -75,8 +73,8 @@ function ReviewerDashboard({ user, onLogout, logoutPending, error: initialError 
 
   function navigate(view) {
     if (!can(reviewerViews[view])) return
-    setActiveView(view); setSidebarOpen(false); setNotice('') }
-  function openReview(reviewId) { if (!can('revisiones.consultar')) return; setSelectedReviewId(reviewId || pendingReviews[0]?.id || reviews[0]?.id); setActiveView('review-document'); setSidebarOpen(false) }
+    onNavigate?.(view); setSidebarOpen(false); setNotice('') }
+  function openReview(reviewId) { if (!can('revisiones.consultar')) return; onNavigate?.('review-document', { reviewId: reviewId || pendingReviews[0]?.id || reviews[0]?.id }); setSidebarOpen(false) }
   function action(message) { setNotice(message) }
 
   function dashboardView() {
