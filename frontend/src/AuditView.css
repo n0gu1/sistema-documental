@@ -117,3 +117,4 @@
   .audit-table-panel > footer { grid-template-columns: 1fr; }
   .audit-table-panel > footer select { margin-left: 0; }
 }
+.audit-filter--date{min-width:150px}.audit-filter input[type=date]{min-height:100%;font-variant-numeric:tabular-nums}.audit-filter input[type=date]::-webkit-calendar-picker-indicator{position:absolute;right:0;width:30px;height:100%;margin:0;padding:0;opacity:0;cursor:pointer}

@@ -134,7 +134,7 @@ function AuditView({ globalQuery }) {
         <div className="audit-primary">
           {error && <p className="editor-error" role="alert">{error}</p>}
           <section className="audit-panel audit-filters">
-             <label className="audit-filter"><span>Fecha</span><div><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /><AuditIcon name="calendar" size={15} /></div></label>
+              <label className="audit-filter audit-filter--date"><span>Fecha</span><div><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /><AuditIcon name="calendar" size={15} /></div></label>
              <FilterSelect label="Usuario" value={user} onChange={setUser} options={[...new Map(events.map((event) => [event.user_id, { value: event.user_id || '', label: event.user }])).values()].filter((option) => option.value)} />
              <FilterSelect label="Módulo" value={module} onChange={setModule} options={[...new Map(events.map((event) => [event.resource_code, { value: event.resource_code || '', label: event.module }])).values()].filter((option) => option.value)} />
              <FilterSelect label="Acción" value={action} onChange={setAction} options={[...new Map(events.map((event) => [event.action_code, { value: event.action_code || '', label: event.action }])).values()].filter((option) => option.value)} />
