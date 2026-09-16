@@ -87,9 +87,9 @@ function VersionsView({ documentId, onBack }) {
   function swapVersions() { setPreviousId(selectedVersionId); setSelectedVersionId(previousId); setComparison(null) }
   const currentVersion = versions.find((version) => version.id === currentVersionId) || null
 
-  if (!documentId) return <div className="versions-view"><p>Seleccione un documento para consultar su historial.</p><button type="button" onClick={onBack}>Volver a documentos</button></div>
-  if (error && !document) return <div className="versions-view"><p className="versions-error" role="alert">{error}</p><button type="button" onClick={onBack}>Volver a documentos</button></div>
-  if (!document) return <div className="versions-view"><p>Cargando versiones...</p></div>
+  if (!documentId) return <div className="versions-view"><section className="versions-empty" aria-label="Sin documento seleccionado"><span className="versions-empty__icon"><VersionIcon size={28} /></span><div><p>Control documental</p><h1>Gestión de versiones</h1><span>Seleccione un documento para consultar su historial.</span></div><button type="button" onClick={onBack}><VersionIcon name="back" size={17} /> Volver a documentos</button></section></div>
+  if (error && !document) return <div className="versions-view"><section className="versions-empty versions-empty--error" aria-label="Error al cargar versiones"><span className="versions-empty__icon"><VersionIcon size={28} /></span><div><p>Control documental</p><h1>No se pudo cargar el historial</h1><span>{error}</span></div><button type="button" onClick={onBack}><VersionIcon name="back" size={17} /> Volver a documentos</button></section></div>
+  if (!document) return <div className="versions-view"><section className="versions-empty" aria-label="Cargando versiones" aria-busy="true"><span className="versions-empty__icon is-loading"><VersionIcon size={28} /></span><div><p>Control documental</p><h1>Gestión de versiones</h1><span>Cargando versiones...</span></div></section></div>
   const approvedVersions = versions.filter((version) => version.status?.code === 'APROBADO')
   return <div className="versions-view"><header className="versions-heading"><div><p>Control documental</p><h1>Gestión de versiones</h1><span>Administre el historial y la trazabilidad de versiones documentales.</span></div><button type="button" onClick={onBack}><VersionIcon name="back" size={17} /> Volver a documentos</button></header><VersionStateSummary version={versions.find(version => version.id === selectedVersionId)} />
      {error && <p className="versions-error" role="alert">{error}</p>}
