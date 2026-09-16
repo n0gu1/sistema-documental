@@ -137,3 +137,4 @@
   .roles-heading__actions button.is-primary { grid-column: auto; }
   .roles-metric-icon { width: 48px; height: 48px; flex-basis: 48px; }
 }
+.roles-edit-selected{min-height:36px;margin-top:10px;padding:0 14px;display:inline-flex;align-items:center;gap:8px;color:#075fd7;background:#fff;border:1px solid #0870ed;border-radius:6px;font-size:10px;font-weight:650;cursor:pointer}.roles-edit-selected:hover{background:#f1f7ff}@media (max-width:760px){.roles-edit-selected{width:100%;justify-content:center}}
