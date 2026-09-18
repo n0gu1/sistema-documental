@@ -1,6 +1,7 @@
 import { PermissionButton } from './Permissions'
 import { useDeferredValue, useEffect, useRef, useState } from 'react'
 import { apiRequest, downloadFile, formatDate, normalizeDocument } from './documentApi'
+import NotificationBell from './NotificationBell'
 import './EditorDashboard.css'
 import './ReaderDashboard.css'
 
@@ -111,7 +112,7 @@ function ReaderDashboard({ user, onLogout, logoutPending, error, onNavigate }) {
           <button className="editor-menu" type="button" aria-label="Abrir menú" onClick={() => setSidebarOpen(true)}><ReaderIcon name="menu" size={25} /></button>
           <label className="editor-search"><ReaderIcon name="search" size={20} /><input ref={searchRef} type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <div className="editor-topbar__actions">
-            <button className="editor-notification" type="button" aria-label="Notificaciones"><ReaderIcon name="bell" size={23} /></button>
+            <NotificationBell className="editor-notification" iconSize={23} />
             <div className="editor-profile">
               <button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((current) => !current)}><span className="editor-avatar">{initials}</span><span><strong>{displayName}</strong><small>{user.roles?.find((item) => item.code === 'LECTOR')?.name || 'Lector'}</small></span><ReaderIcon name="chevron" size={17} /></button>
               {profileOpen && <div className="editor-profile__menu"><span>{user.email}</span><button type="button" onClick={onLogout} disabled={logoutPending}><ReaderIcon name="logout" size={16} /> {logoutPending ? 'Cerrando sesión...' : 'Cerrar sesión'}</button></div>}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ReaderLibraryView from './ReaderLibraryView'
+import NotificationBell from './NotificationBell'
 import './EditorDashboard.css'
 import './ReaderDashboard.css'
 import './ReaderLibraryView.css'
@@ -36,7 +37,7 @@ export function ReaderShellHeader({ user, onLogout, logoutPending }) {
   const [profileOpen, setProfileOpen] = useState(false)
   const displayName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'Usuario'
   const initials = displayName.split(' ').map((part) => part[0]).join('').slice(0, 2) || '—'
-  return <header className="editor-topbar"><label className="editor-search"><ShellIcon name="search" size={20} /><input type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." /></label><div className="editor-topbar__actions"><button className="editor-notification" type="button" aria-label="Notificaciones"><ShellIcon name="bell" size={23} /></button><div className="editor-profile"><button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((current) => !current)}><span className="editor-avatar">{initials}</span><span><strong>{displayName}</strong><small>Lector</small></span><ShellIcon name="chevron" size={17} /></button>{profileOpen && <div className="editor-profile__menu"><span>{user.email}</span>{onLogout && <button type="button" onClick={onLogout} disabled={logoutPending}><ShellIcon name="logout" size={16} /> {logoutPending ? 'Cerrando sesión...' : 'Cerrar sesión'}</button>}</div>}</div></div></header>
+  return <header className="editor-topbar"><label className="editor-search"><ShellIcon name="search" size={20} /><input type="search" aria-label="Buscar" placeholder="Buscar documentos, versiones, usuarios..." /></label><div className="editor-topbar__actions"><NotificationBell className="editor-notification" iconSize={23} /><div className="editor-profile"><button className="editor-profile__trigger" type="button" aria-expanded={profileOpen} onClick={() => setProfileOpen((current) => !current)}><span className="editor-avatar">{initials}</span><span><strong>{displayName}</strong><small>Lector</small></span><ShellIcon name="chevron" size={17} /></button>{profileOpen && <div className="editor-profile__menu"><span>{user.email}</span>{onLogout && <button type="button" onClick={onLogout} disabled={logoutPending}><ShellIcon name="logout" size={16} /> {logoutPending ? 'Cerrando sesión...' : 'Cerrar sesión'}</button>}</div>}</div></div></header>
 }
 
 function ReaderLibraryShell({ user, onClose, onLogout, logoutPending, onNavigate }) {

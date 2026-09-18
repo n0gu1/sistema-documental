@@ -21,6 +21,7 @@
 .editor-search input::placeholder { color: #8190a8; }
 .editor-topbar__actions { margin-left: auto; display: flex; align-items: center; gap: 24px; }
 .editor-notification { position: relative; width: 40px; height: 40px; display: grid; place-items: center; padding: 0; color: #203958; background: transparent; border: 0; cursor: pointer; }
+.editor-notification__embedded { width: 40px; height: 40px; display: grid; place-items: center; padding: 0; color: inherit; background: transparent; border: 0; cursor: pointer; }
 .editor-profile { position: relative; }
 .editor-profile__trigger { min-height: 48px; padding: 0; display: flex; align-items: center; gap: 12px; color: #142946; background: transparent; border: 0; cursor: pointer; text-align: left; }
 .editor-avatar { width: 48px; height: 48px; display: grid; place-items: center; color: #fff; background: linear-gradient(145deg, #d8e4ee, #8497aa); border: 3px solid #e9eff5; border-radius: 50%; font-size: 13px; font-weight: 700; }

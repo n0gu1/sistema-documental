@@ -8,9 +8,11 @@ import EditorDocumentEditView from './EditorDocumentEditView'
 import EditorDocumentsView from './EditorDocumentsView'
 import EditorVersionsView from './EditorVersionsView'
 import { apiRequest, formatDate, normalizeDocument } from './documentApi'
+import NotificationBell from './NotificationBell'
 import './EditorDashboard.css'
 
 function EditorIcon({ name, size = 20 }) {
+  if (name === 'bell') return <NotificationBell className="editor-notification__embedded" iconSize={size} />
   const content = name === 'dashboard'
     ? <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>
     : name === 'document'

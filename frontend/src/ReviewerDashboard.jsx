@@ -7,10 +7,12 @@ import ReviewerPersonalLogView from './ReviewerPersonalLogView'
 import ReviewerReviewInboxView from './ReviewerReviewInboxView'
 import ReviewerVersionComparisonView from './ReviewerVersionComparisonView'
 import { apiRequest, formatDate, reviewPriorityName, reviewStatusName } from './documentApi'
+import NotificationBell from './NotificationBell'
 import './EditorDashboard.css'
 import './ReviewerDashboard.css'
 
 export function ReviewerIcon({ name, size = 20 }) {
+  if (name === 'bell') return <NotificationBell className="editor-notification__embedded" iconSize={size} />
   const content = name === 'inbox' ? <><path d="M4 4h16l2 10v6H2v-6L4 4Z" /><path d="M2 14h5l2 3h6l2-3h5" /></> : name === 'check' ? <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.7 2.7L16.5 9" /></> : name === 'clock' ? <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.5 2" /></> : name === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 10h18" /></> : name === 'comment' ? <><path d="M4 5h16v11H8l-4 4V5Z" /><path d="M8 9h8m-8 3h5" /></> : name === 'layers' ? <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5" /></> : name === 'history' ? <><path d="M4 12a8 8 0 1 0 2-5.7" /><path d="M4 4v5h5M12 7v5l3 2" /></> : name === 'chart' ? <path d="M4 20V10M10 20V4m6 16v-7M22 20H2" /> : name === 'search' ? <><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></> : name === 'bell' ? <><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7M10 20h4" /></> : name === 'menu' ? <path d="M4 7h16M4 12h16M4 17h16" /> : name === 'document' ? <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4M9 12h7M9 16h5" /></> : <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{content}</svg>
 }
