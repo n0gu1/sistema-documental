@@ -1,0 +1,139 @@
+name: QA CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Prepare evidence directory
+        run: mkdir -p ci-artifacts
+
+      - name: Install frontend dependencies
+        run: |
+          set -o pipefail
+          npm ci --prefix frontend 2>&1 | tee ci-artifacts/frontend-install.log
+
+      - name: Run frontend tests
+        run: |
+          set -o pipefail
+          npm --prefix frontend test 2>&1 | tee ci-artifacts/frontend-test.log
+
+      - name: Lint frontend
+        run: |
+          set -o pipefail
+          npm --prefix frontend run lint 2>&1 | tee ci-artifacts/frontend-lint.log
+
+      - name: Build frontend
+        run: |
+          set -o pipefail
+          npm --prefix frontend run build 2>&1 | tee ci-artifacts/frontend-build.log
+
+      - name: Upload frontend execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-ci-frontend-${{ github.run_id }}
+          path: ci-artifacts/*.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  backend:
+    name: Backend tests on PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sistema_documental
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d sistema_documental"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/sistema_documental
+      DEBUG: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Prepare evidence directory
+        run: mkdir -p ci-artifacts
+
+      - name: Install backend dependencies
+        run: |
+          set -o pipefail
+          python -m pip install --upgrade pip 2>&1 | tee ci-artifacts/backend-install.log
+          python -m pip install -r requirements.txt 2>&1 | tee -a ci-artifacts/backend-install.log
+
+      - name: Django system check
+        run: |
+          set -o pipefail
+          python manage.py check 2>&1 | tee ci-artifacts/django-check.log
+
+      - name: Run focused backend regression suite
+        run: |
+          set -o pipefail
+          python manage.py test \
+            documentos.tests.SerializerTests \
+            documentos.tests.VersioningTests \
+            documentos.tests.WorkflowTests \
+            documentos.tests.ReportFormatTests \
+            documentos.test_backup_verification.BackupVerificationTests \
+            documentos.test_audit_reliability.AuditReliabilityTests \
+            documentos.tests.AuthenticationTests \
+            documentos.tests.AuthApiTests \
+            documentos.tests.PermissionTests \
+            documentos.tests.ReportHistoryTests \
+            documentos.tests.ReportScheduleAuthorizationTests \
+            documentos.tests.DeviceInventoryTests \
+            --verbosity 2 2>&1 | tee ci-artifacts/backend-focused.log
+
+      - name: Run complete backend regression suite
+        run: |
+          set -o pipefail
+          python manage.py test documentos --verbosity 2 2>&1 | tee ci-artifacts/backend-full.log
+
+      - name: Upload backend execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-ci-backend-${{ github.run_id }}
+          path: ci-artifacts/*.log
+          if-no-files-found: warn
+          retention-days: 30
